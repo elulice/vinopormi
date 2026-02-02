@@ -10,7 +10,9 @@ import {
   TrendingDown,
   Shield,
   Settings,
-  X
+  X,
+  LogIn,
+  History
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
@@ -40,6 +42,8 @@ const Layout = () => {
     { path: '/egresos', icon: TrendingDown, label: 'Egresos' },
     ...(user?.rol === 'admin' ? [
       { path: '/usuarios', icon: Shield, label: 'Usuarios' },
+      { path: '/login-registros', icon: LogIn, label: 'Registros de Login' },
+      { path: '/auditoria', icon: History, label: 'Auditoría' },
       { path: '/herramientas', icon: Settings, label: 'Herramientas' }
     ] : []),
   ];

@@ -10,6 +10,8 @@ import NuevaVenta from "@/pages/NuevaVenta";
 import CuentaCorriente from "@/pages/CuentaCorriente";
 import Egresos from "@/pages/Egresos";
 import Usuarios from "@/pages/Usuarios";
+import LoginRegistros from "@/pages/LoginRegistros";
+import Auditoria from "@/pages/Auditoria";
 import Herramientas from "@/pages/Herramientas";
 import Layout from "@/components/Layout";
 import AdminRoute from "@/components/AdminRoute";
@@ -42,6 +44,16 @@ function App() {
             <Route path="/usuarios" element={
               <AdminRoute>
                 <Usuarios />
+              </AdminRoute>
+            } />
+            <Route path="/login-registros" element={
+              <AdminRoute>
+                <LoginRegistros />
+              </AdminRoute>
+            } />
+            <Route path="/auditoria" element={
+              <AdminRoute>
+                <Auditoria />
               </AdminRoute>
             } />
             <Route path="/herramientas" element={

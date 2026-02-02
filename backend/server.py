@@ -163,6 +163,19 @@ class Notificacion(BaseModel):
     fecha: datetime
     leida: bool = False
 
+class RegistroAuditoria(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    entidad: str  # 'producto', 'cliente', 'egreso', 'usuario'
+    entidad_id: str
+    entidad_nombre: Optional[str] = None
+    accion: str  # 'creado', 'modificado', 'eliminado'
+    valores_anteriores: Optional[dict] = None
+    valores_nuevos: Optional[dict] = None
+    usuario_id: Optional[str] = None
+    usuario_nombre: Optional[str] = None
+    fecha: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    ip_address: Optional[str] = None
+
 class Egreso(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -180,6 +193,36 @@ class EgresoUpdate(BaseModel):
     descripcion: Optional[str] = None
     monto: Optional[float] = None
     categoria: Optional[str] = None
+
+# ===== AUDITORÍA HELPER =====
+
+async def registrar_auditoria(
+    entidad: str,
+    entidad_id: str,
+    entidad_nombre: Optional[str] = None,
+    accion: Optional[str] = None,
+    valores_anteriores: Optional[dict] = None,
+    valores_nuevos: Optional[dict] = None,
+    usuario_id: Optional[str] = None,
+    usuario_nombre: Optional[str] = None,
+    ip_address: Optional[str] = None
+):
+    """Registra una acción de auditoría"""
+    registro = RegistroAuditoria(
+        entidad=entidad,
+        entidad_id=entidad_id,
+        entidad_nombre=entidad_nombre,
+        accion=accion or 'desconocido',
+        valores_anteriores=valores_anteriores,
+        valores_nuevos=valores_nuevos,
+        usuario_id=usuario_id or '',
+        usuario_nombre=usuario_nombre or '',
+        ip_address=ip_address
+    )
+    
+    doc = registro.model_dump()
+    doc['fecha'] = doc['fecha'].isoformat()
+    await db.auditoria.insert_one(doc)
 
 # ===== AUTH HELPERS =====
 
@@ -255,21 +298,124 @@ async def login(request: Request, input: LoginRequest):
         timestamp=user['timestamp']
     )
     
+    # Registrar login
+    login_registro = LoginRegistro(
+        usuario_id=user['id'],
+        usuario_nombre=user['nombre'],
+        ip_address=request.client.host if request.client else None,
+        user_agent=request.headers.get('user-agent')
+    )
+    
+    login_doc = login_registro.model_dump()
+    login_doc['fecha'] = login_doc['fecha'].isoformat()
+    await db.login_registros.insert_one(login_doc)
+    
     return LoginResponse(token=token, user=usuario)
 
 @api_router.get("/auth/me", response_model=Usuario)
 async def get_me(current_user: Usuario = Depends(get_current_user)):
     return current_user
 
+@api_router.get("/auth/login-registros", response_model=List[dict])
+async def get_login_registros(current_user: Usuario = Depends(get_current_user)):
+    # Solo administradores pueden ver los registros de login
+    if current_user.rol != 'admin':
+        raise HTTPException(status_code=403, detail="No tienes permisos para ver los registros de login")
+    
+    registros = await db.login_registros.find({}, {'_id': 0}).sort('fecha', -1).to_list(1000)
+    
+    for r in registros:
+        if isinstance(r.get('fecha'), str):
+            r['fecha'] = datetime.fromisoformat(r['fecha'])
+    
+    return registros
+
+@api_router.get("/auditoria", response_model=List[RegistroAuditoria])
+async def get_auditoria(
+    request: Request,
+    current_user: Usuario = Depends(get_current_user)
+):
+    # Solo administradores pueden ver la auditoría
+    if current_user.rol != 'admin':
+        raise HTTPException(status_code=403, detail="No tienes permisos para ver la auditoría")
+    
+    # Obtener filtros de query params
+    entidad = request.query_params.get('entidad')
+    accion = request.query_params.get('accion')
+    fechaDesde = request.query_params.get('fechaDesde')
+    fechaHasta = request.query_params.get('fechaHasta')
+    search = request.query_params.get('search')
+    
+    # Construir filtro
+    filtro = {}
+    
+    if entidad and entidad != 'todos':
+        filtro['entidad'] = entidad
+    
+    if accion and accion != 'todos':
+        filtro['accion'] = accion
+    
+    if fechaDesde:
+        try:
+            fechaDesde_dt = datetime.fromisoformat(fechaDesde)
+            filtro['fecha'] = {'$gte': fechaDesde_dt}
+        except ValueError:
+            pass
+    
+    if fechaHasta:
+        try:
+            fechaHasta_dt = datetime.fromisoformat(fechaHasta)
+            if '$gte' in filtro.get('fecha', {}):
+                filtro['fecha']['$lte'] = fechaHasta_dt
+            else:
+                filtro['fecha'] = {'$lte': fechaHasta_dt}
+        except ValueError:
+            pass
+    
+    if search:
+        filtro['$or'] = [
+            {'entidad_nombre': {'$regex': search, '$options': 'i'}},
+            {'entidad_id': {'$regex': search, '$options': 'i'}},
+            {'valores_nuevos.nombre': {'$regex': search, '$options': 'i'}},
+            {'valores_nuevos.username': {'$regex': search, '$options': 'i'}}
+        ]
+    
+    # Obtener registros
+    registros = await db.auditoria.find(filtro, {'_id': 0}).sort('fecha', -1).to_list(1000)
+    
+    # Convertir fechas string a datetime
+    for r in registros:
+        if isinstance(r.get('fecha'), str):
+            r['fecha'] = datetime.fromisoformat(r['fecha'])
+    
+    return registros
+
 # ===== PRODUCTOS ROUTES =====
 
 @api_router.post("/productos", response_model=Producto)
-async def create_producto(input: ProductoCreate, current_user: Usuario = Depends(get_current_user)):
+async def create_producto(
+    request: Request,
+    input: ProductoCreate, 
+    current_user: Usuario = Depends(get_current_user)
+):
     producto_obj = Producto(**input.model_dump())
     doc = producto_obj.model_dump()
     doc['timestamp'] = doc['timestamp'].isoformat()
     
     await db.productos.insert_one(doc)
+    
+    # Registrar auditoría
+    await registrar_auditoria(
+        entidad='producto',
+        entidad_id=producto_obj.id,
+        entidad_nombre=producto_obj.nombre,
+        accion='creado',
+        valores_nuevos=input.model_dump(),
+        usuario_id=current_user.id,
+        usuario_nombre=current_user.nombre,
+        ip_address=request.client.host if request.client else None
+    )
+    
     return producto_obj
 
 @api_router.get("/productos", response_model=List[Producto])
@@ -294,15 +440,42 @@ async def get_producto(producto_id: str, current_user: Usuario = Depends(get_cur
     return Producto(**producto)
 
 @api_router.put("/productos/{producto_id}", response_model=Producto)
-async def update_producto(producto_id: str, input: ProductoUpdate, current_user: Usuario = Depends(get_current_user)):
+async def update_producto(
+    request: Request,
+    producto_id: str, 
+    input: ProductoUpdate, 
+    current_user: Usuario = Depends(get_current_user)
+):
     producto = await db.productos.find_one({'id': producto_id}, {'_id': 0})
     if not producto:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
+    
+    # Guardar valores anteriores
+    valores_anteriores = {
+        'nombre': producto.get('nombre'),
+        'precio_unitario': producto.get('precio_unitario'),
+        'stock': producto.get('stock'),
+        'descuento_cantidad_minima': producto.get('descuento_cantidad_minima'),
+        'descuento_precio_unitario': producto.get('descuento_precio_unitario')
+    }
     
     update_data = {k: v for k, v in input.model_dump().items() if v is not None}
     
     if update_data:
         await db.productos.update_one({'id': producto_id}, {'$set': update_data})
+        
+        # Registrar auditoría
+        await registrar_auditoria(
+            entidad='producto',
+            entidad_id=producto_id,
+            entidad_nombre=producto.get('nombre'),
+            accion='modificado',
+            valores_anteriores=valores_anteriores,
+            valores_nuevos=update_data,
+            usuario_id=current_user.id,
+            usuario_nombre=current_user.nombre,
+            ip_address=request.client.host if request.client else None
+        )
     
     updated_producto = await db.productos.find_one({'id': producto_id}, {'_id': 0})
     if not updated_producto:
@@ -314,21 +487,61 @@ async def update_producto(producto_id: str, input: ProductoUpdate, current_user:
     return Producto(**updated_producto)
 
 @api_router.delete("/productos/{producto_id}")
-async def delete_producto(producto_id: str, current_user: Usuario = Depends(get_current_user)):
+async def delete_producto(
+    request: Request,
+    producto_id: str, 
+    current_user: Usuario = Depends(get_current_user)
+):
+    # Obtener producto antes de eliminar para auditoría
+    producto = await db.productos.find_one({'id': producto_id}, {'_id': 0})
+    if not producto:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+    
+    # Registrar auditoría antes de eliminar
+    await registrar_auditoria(
+        entidad='producto',
+        entidad_id=producto_id,
+        entidad_nombre=producto.get('nombre'),
+        accion='eliminado',
+        valores_anteriores=producto,
+        valores_nuevos=None,
+        usuario_id=current_user.id,
+        usuario_nombre=current_user.nombre,
+        ip_address=request.client.host if request.client else None
+    )
+    
     result = await db.productos.delete_one({'id': producto_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
+    
     return {"message": "Producto eliminado"}
 
 # ===== CLIENTES ROUTES =====
 
 @api_router.post("/clientes", response_model=Cliente)
-async def create_cliente(input: ClienteCreate, current_user: Usuario = Depends(get_current_user)):
+async def create_cliente(
+    request: Request,
+    input: ClienteCreate, 
+    current_user: Usuario = Depends(get_current_user)
+):
     cliente_obj = Cliente(**input.model_dump())
     doc = cliente_obj.model_dump()
     doc['timestamp'] = doc['timestamp'].isoformat()
     
     await db.clientes.insert_one(doc)
+    
+    # Registrar auditoría
+    await registrar_auditoria(
+        entidad='cliente',
+        entidad_id=cliente_obj.id,
+        entidad_nombre=cliente_obj.nombre,
+        accion='creado',
+        valores_nuevos=input.model_dump(),
+        usuario_id=current_user.id,
+        usuario_nombre=current_user.nombre,
+        ip_address=request.client.host if request.client else None
+    )
+    
     return cliente_obj
 
 @api_router.get("/clientes", response_model=List[Cliente])
@@ -353,15 +566,40 @@ async def get_cliente(cliente_id: str, current_user: Usuario = Depends(get_curre
     return Cliente(**cliente)
 
 @api_router.put("/clientes/{cliente_id}", response_model=Cliente)
-async def update_cliente(cliente_id: str, input: ClienteUpdate, current_user: Usuario = Depends(get_current_user)):
+async def update_cliente(
+    request: Request,
+    cliente_id: str, 
+    input: ClienteUpdate, 
+    current_user: Usuario = Depends(get_current_user)
+):
     cliente = await db.clientes.find_one({'id': cliente_id}, {'_id': 0})
     if not cliente:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
+    
+    # Guardar valores anteriores
+    valores_anteriores = {
+        'nombre': cliente.get('nombre'),
+        'telefono': cliente.get('telefono'),
+        'email': cliente.get('email')
+    }
     
     update_data = {k: v for k, v in input.model_dump().items() if v is not None}
     
     if update_data:
         await db.clientes.update_one({'id': cliente_id}, {'$set': update_data})
+        
+        # Registrar auditoría
+        await registrar_auditoria(
+            entidad='cliente',
+            entidad_id=cliente_id,
+            entidad_nombre=cliente.get('nombre'),
+            accion='modificado',
+            valores_anteriores=valores_anteriores,
+            valores_nuevos=update_data,
+            usuario_id=current_user.id,
+            usuario_nombre=current_user.nombre,
+            ip_address=request.client.host if request.client else None
+        )
     
     updated_cliente = await db.clientes.find_one({'id': cliente_id}, {'_id': 0})
     if not updated_cliente:
@@ -373,10 +611,33 @@ async def update_cliente(cliente_id: str, input: ClienteUpdate, current_user: Us
     return Cliente(**updated_cliente)
 
 @api_router.delete("/clientes/{cliente_id}")
-async def delete_cliente(cliente_id: str, current_user: Usuario = Depends(get_current_user)):
+async def delete_cliente(
+    request: Request,
+    cliente_id: str, 
+    current_user: Usuario = Depends(get_current_user)
+):
+    # Obtener cliente antes de eliminar para auditoría
+    cliente = await db.clientes.find_one({'id': cliente_id}, {'_id': 0})
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+    
+    # Registrar auditoría antes de eliminar
+    await registrar_auditoria(
+        entidad='cliente',
+        entidad_id=cliente_id,
+        entidad_nombre=cliente.get('nombre'),
+        accion='eliminado',
+        valores_anteriores=cliente,
+        valores_nuevos=None,
+        usuario_id=current_user.id,
+        usuario_nombre=current_user.nombre,
+        ip_address=request.client.host if request.client else None
+    )
+    
     result = await db.clientes.delete_one({'id': cliente_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
+    
     return {"message": "Cliente eliminado"}
 
 # ===== VENTAS ROUTES =====
@@ -564,12 +825,29 @@ async def create_movimiento(cliente_id: str, concepto: str, monto: float, curren
 # ===== EGRESOS ROUTES =====
 
 @api_router.post("/egresos", response_model=Egreso)
-async def create_egreso(input: EgresoCreate, current_user: Usuario = Depends(get_current_user)):
+async def create_egreso(
+    request: Request,
+    input: EgresoCreate, 
+    current_user: Usuario = Depends(get_current_user)
+):
     egreso_obj = Egreso(**input.model_dump())
     doc = egreso_obj.model_dump()
     doc['fecha'] = doc['fecha'].isoformat()
     
     await db.egresos.insert_one(doc)
+    
+    # Registrar auditoría
+    await registrar_auditoria(
+        entidad='egreso',
+        entidad_id=egreso_obj.id,
+        entidad_nombre=egreso_obj.descripcion,
+        accion='creado',
+        valores_nuevos=input.model_dump(),
+        usuario_id=current_user.id,
+        usuario_nombre=current_user.nombre,
+        ip_address=request.client.host if request.client else None
+    )
+    
     return egreso_obj
 
 @api_router.get("/egresos", response_model=List[Egreso])
@@ -594,15 +872,40 @@ async def get_egreso(egreso_id: str, current_user: Usuario = Depends(get_current
     return Egreso(**egreso)
 
 @api_router.put("/egresos/{egreso_id}", response_model=Egreso)
-async def update_egreso(egreso_id: str, input: EgresoUpdate, current_user: Usuario = Depends(get_current_user)):
+async def update_egreso(
+    request: Request,
+    egreso_id: str, 
+    input: EgresoUpdate, 
+    current_user: Usuario = Depends(get_current_user)
+):
     egreso = await db.egresos.find_one({'id': egreso_id}, {'_id': 0})
     if not egreso:
         raise HTTPException(status_code=404, detail="Egreso no encontrado")
+    
+    # Guardar valores anteriores
+    valores_anteriores = {
+        'descripcion': egreso.get('descripcion'),
+        'monto': egreso.get('monto'),
+        'categoria': egreso.get('categoria')
+    }
     
     update_data = {k: v for k, v in input.model_dump().items() if v is not None}
     
     if update_data:
         await db.egresos.update_one({'id': egreso_id}, {'$set': update_data})
+        
+        # Registrar auditoría
+        await registrar_auditoria(
+            entidad='egreso',
+            entidad_id=egreso_id,
+            entidad_nombre=egreso.get('descripcion'),
+            accion='modificado',
+            valores_anteriores=valores_anteriores,
+            valores_nuevos=update_data,
+            usuario_id=current_user.id,
+            usuario_nombre=current_user.nombre,
+            ip_address=request.client.host if request.client else None
+        )
     
     updated_egreso = await db.egresos.find_one({'id': egreso_id}, {'_id': 0})
     if not updated_egreso:
@@ -614,10 +917,33 @@ async def update_egreso(egreso_id: str, input: EgresoUpdate, current_user: Usuar
     return Egreso(**updated_egreso)
 
 @api_router.delete("/egresos/{egreso_id}")
-async def delete_egreso(egreso_id: str, current_user: Usuario = Depends(get_current_user)):
+async def delete_egreso(
+    request: Request,
+    egreso_id: str, 
+    current_user: Usuario = Depends(get_current_user)
+):
+    # Obtener egreso antes de eliminar para auditoría
+    egreso = await db.egresos.find_one({'id': egreso_id}, {'_id': 0})
+    if not egreso:
+        raise HTTPException(status_code=404, detail="Egreso no encontrado")
+    
+    # Registrar auditoría antes de eliminar
+    await registrar_auditoria(
+        entidad='egreso',
+        entidad_id=egreso_id,
+        entidad_nombre=egreso.get('descripcion'),
+        accion='eliminado',
+        valores_anteriores=egreso,
+        valores_nuevos=None,
+        usuario_id=current_user.id,
+        usuario_nombre=current_user.nombre,
+        ip_address=request.client.host if request.client else None
+    )
+    
     result = await db.egresos.delete_one({'id': egreso_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Egreso no encontrado")
+    
     return {"message": "Egreso eliminado"}
 
 # ===== ENDPOINT TEMPORAL PARA MIGRACIÓN =====
@@ -662,7 +988,11 @@ async def get_all_usuarios(current_user: Usuario = Depends(get_admin_user)):
     return usuarios
 
 @api_router.post("/admin/usuarios", response_model=Usuario)
-async def admin_create_usuario(input: UsuarioCreate, current_user: Usuario = Depends(get_admin_user)):
+async def admin_create_usuario(
+    request: Request,
+    input: UsuarioCreate, 
+    current_user: Usuario = Depends(get_admin_user)
+):
     existing = await db.usuarios.find_one({'username': input.username})
     if existing:
         raise HTTPException(status_code=400, detail="El usuario ya existe")
@@ -675,6 +1005,25 @@ async def admin_create_usuario(input: UsuarioCreate, current_user: Usuario = Dep
     doc['password'] = hashed_password.decode('utf-8')
     
     await db.usuarios.insert_one(doc)
+    
+    # Registrar auditoría (sin contraseña por seguridad)
+    valores_nuevos = {
+        'username': input.username,
+        'nombre': input.nombre,
+        'rol': input.rol
+    }
+    
+    await registrar_auditoria(
+        entidad='usuario',
+        entidad_id=usuario_obj.id,
+        entidad_nombre=usuario_obj.nombre,
+        accion='creado',
+        valores_nuevos=valores_nuevos,
+        usuario_id=current_user.id,
+        usuario_nombre=current_user.nombre,
+        ip_address=request.client.host if request.client else None
+    )
+    
     return usuario_obj
 
 @api_router.get("/admin/usuarios/{usuario_id}", response_model=Usuario)
@@ -689,7 +1038,12 @@ async def get_usuario(usuario_id: str, current_user: Usuario = Depends(get_admin
     return Usuario(**usuario)
 
 @api_router.put("/admin/usuarios/{usuario_id}", response_model=Usuario)
-async def admin_update_usuario(usuario_id: str, input: UsuarioUpdate, current_user: Usuario = Depends(get_admin_user)):
+async def admin_update_usuario(
+    request: Request,
+    usuario_id: str, 
+    input: UsuarioUpdate, 
+    current_user: Usuario = Depends(get_admin_user)
+):
     usuario = await db.usuarios.find_one({'id': usuario_id}, {'_id': 0, 'password': 0})
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
@@ -698,13 +1052,30 @@ async def admin_update_usuario(usuario_id: str, input: UsuarioUpdate, current_us
     if current_user.id == usuario_id and 'rol' in input.model_dump() and input.rol != 'admin':
         raise HTTPException(status_code=400, detail="No puedes cambiar tu propio rol de administrador")
     
+    # Guardar valores anteriores
+    valores_anteriores = {
+        'username': usuario.get('username'),
+        'nombre': usuario.get('nombre'),
+        'rol': usuario.get('rol')
+    }
+    
     update_data = {k: v for k, v in input.model_dump().items() if v is not None}
     
     if update_data:
-        if 'password' in update_data:
-            update_data['password'] = bcrypt.hashpw(update_data['password'].encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-        
         await db.usuarios.update_one({'id': usuario_id}, {'$set': update_data})
+        
+        # Registrar auditoría (sin contraseña por seguridad)
+        await registrar_auditoria(
+            entidad='usuario',
+            entidad_id=usuario_id,
+            entidad_nombre=usuario.get('nombre'),
+            accion='modificado',
+            valores_anteriores=valores_anteriores,
+            valores_nuevos=update_data,
+            usuario_id=current_user.id,
+            usuario_nombre=current_user.nombre,
+            ip_address=request.client.host if request.client else None
+        )
     
     updated_usuario = await db.usuarios.find_one({'id': usuario_id}, {'_id': 0, 'password': 0})
     if not updated_usuario:
@@ -716,7 +1087,11 @@ async def admin_update_usuario(usuario_id: str, input: UsuarioUpdate, current_us
     return Usuario(**updated_usuario)
 
 @api_router.delete("/admin/usuarios/{usuario_id}")
-async def admin_delete_usuario(usuario_id: str, current_user: Usuario = Depends(get_admin_user)):
+async def admin_delete_usuario(
+    request: Request,
+    usuario_id: str, 
+    current_user: Usuario = Depends(get_admin_user)
+):
     # Evitar que un usuario se elimine a sí mismo
     if current_user.id == usuario_id:
         raise HTTPException(status_code=400, detail="No puedes eliminar tu propio usuario")
@@ -728,9 +1103,23 @@ async def admin_delete_usuario(usuario_id: str, current_user: Usuario = Depends(
         if total_admins <= 1:
             raise HTTPException(status_code=400, detail="No puedes eliminar al último administrador del sistema")
     
+    # Registrar auditoría antes de eliminar
+    await registrar_auditoria(
+        entidad='usuario',
+        entidad_id=usuario_id,
+        entidad_nombre=usuario_a_eliminar.get('nombre'),
+        accion='eliminado',
+        valores_anteriores=usuario_a_eliminar,
+        valores_nuevos=None,
+        usuario_id=current_user.id,
+        usuario_nombre=current_user.nombre,
+        ip_address=request.client.host if request.client else None
+    )
+    
     result = await db.usuarios.delete_one({'id': usuario_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    
     return {"message": "Usuario eliminado"}
 
 # ===== LIMPIEZA DE BASE DE DATOS =====
