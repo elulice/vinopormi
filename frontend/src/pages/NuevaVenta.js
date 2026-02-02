@@ -51,12 +51,13 @@ const NuevaVenta = () => {
   }, [productos]);
 
   useEffect(() => {
-    const filtered = productos.filter(producto =>
+    const productosDisponibles = getProductosDisponibles();
+    const filtered = productosDisponibles.filter(producto =>
       producto.nombre.toLowerCase().includes(productoSearchTerm.toLowerCase())
     );
     setFilteredProductos(filtered);
     setSelectedResultIndex(0); // Reset selected index when search changes
-  }, [productos, productoSearchTerm]);
+  }, [productos, productoSearchTerm, detalles]);
 
   const fetchProductos = async () => {
     try {
@@ -168,6 +169,13 @@ const NuevaVenta = () => {
     const nuevosDetalles = [...detalles];
     
     if (field === 'producto_id') {
+      // Validar que no se agregue un producto duplicado
+      if (value && isProductoYaAgregado(value) && nuevosDetalles[index].producto_id !== value) {
+        const producto = productos.find(p => p.id === value);
+        toast.error(`El producto "${producto?.nombre}" ya está agregado. Elimina el registro actual si quieres cambiarlo.`);
+        return;
+      }
+      
       const producto = productos.find(p => p.id === value);
       if (producto) {
         nuevosDetalles[index].producto_id = producto.id;
@@ -206,6 +214,18 @@ const NuevaVenta = () => {
 
   const calcularTotal = () => {
     return detalles.reduce((sum, d) => sum + d.subtotal, 0);
+  };
+
+  const isProductoYaAgregado = (productoId) => {
+    return detalles.some(detalle => detalle.producto_id === productoId);
+  };
+
+  const getProductosDisponibles = () => {
+    const productosAgregadosIds = detalles
+      .filter(detalle => detalle.producto_id)
+      .map(detalle => detalle.producto_id);
+    
+    return productos.filter(producto => !productosAgregadosIds.includes(producto.id));
   };
 
   const handleSubmit = async (e) => {
@@ -337,86 +357,83 @@ const NuevaVenta = () => {
                     <div className="flex-1 space-y-2">
                       <Label>Producto</Label>
                       <div className="relative">
-                        <Input
-                          ref={el => searchRefs.current[index] = el}
-                          placeholder="Buscar producto..."
-                          value={activeDetalleIndex === index ? productoSearchTerm : (detalle.producto_id ? productos.find(p => p.id === detalle.producto_id)?.nombre : '')}
-                          onChange={(e) => {
-                            setProductoSearchTerm(e.target.value);
-                            setActiveDetalleIndex(index);
-                          }}
-                          onFocus={() => {
-                            setActiveDetalleIndex(index);
-                            setProductoSearchTerm('');
-                          }}
-                          onKeyDown={(e) => handleKeyDown(e, index)}
-                          className="pr-4"
-                        />
-                        {activeDetalleIndex === index && (
-                          <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 pointer-events-none" />
+                        {detalle.producto_id ? (
+                          // Si el producto ya está seleccionado, mostrarlo como campo de solo lectura
+                          <div className="h-10 px-3 py-2 bg-muted border rounded-md flex items-center font-medium">
+                            {detalle.producto_nombre}
+                            <span className="ml-auto text-sm text-muted-foreground">
+                              ${detalle.precio_unitario} c/u
+                            </span>
+                          </div>
+                        ) : (
+                          // Si no hay producto seleccionado, mostrar el campo de búsqueda
+                          <>
+                            <Input
+                              ref={el => searchRefs.current[index] = el}
+                              placeholder="Buscar producto..."
+                              value={activeDetalleIndex === index ? productoSearchTerm : ''}
+                              onChange={(e) => {
+                                setProductoSearchTerm(e.target.value);
+                                setActiveDetalleIndex(index);
+                              }}
+                              onFocus={() => {
+                                setActiveDetalleIndex(index);
+                                setProductoSearchTerm('');
+                              }}
+                              onKeyDown={(e) => handleKeyDown(e, index)}
+                              className="pr-4"
+                            />
+                            {activeDetalleIndex === index && (
+                              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 pointer-events-none" />
+                            )}
+                          </>
                         )}
                       </div>
                       {activeDetalleIndex === index && productoSearchTerm && (
                         <div className="relative z-10 w-full mt-1 bg-background border rounded-md shadow-lg max-h-48 overflow-auto">
-                          {filteredProductos.slice(0, 8).map((producto, resultIndex) => (
-                            <div
-                              key={producto.id}
-                              className={`px-3 py-2 hover:bg-muted cursor-pointer flex justify-between items-center ${
-                                resultIndex === selectedResultIndex ? 'bg-muted' : ''
-                              }`}
-                              onClick={() => {
-                                actualizarDetalle(index, 'producto_id', producto.id);
-                                setProductoSearchTerm('');
-                                setActiveDetalleIndex(null);
-                                setSelectedResultIndex(0);
-                                // Focus on quantity field after product selection
-                                setTimeout(() => {
-                                  if (cantidadRefs.current[index]) {
-                                    cantidadRefs.current[index].focus();
-                                    cantidadRefs.current[index].select();
-                                  }
-                                }, 100);
-                              }}
-                            >
-                              <div>
-                                <span>{producto.nombre} - ${producto.precio_unitario}</span>
-                                <div className="text-sm text-muted-foreground">
-                                  {producto.descuento_cantidad_minima && producto.descuento_precio_unitario && (
-                                    <div className="text-xs text-green-600 font-medium">
-                                      ≥{producto.descuento_cantidad_minima}: ${producto.descuento_precio_unitario} c/u
-                                    </div>
-                                  )}
+                          {filteredProductos.length > 0 ? (
+                            filteredProductos.slice(0, 8).map((producto, resultIndex) => (
+                              <div
+                                key={producto.id}
+                                className={`px-3 py-2 hover:bg-muted cursor-pointer flex justify-between items-center ${
+                                  resultIndex === selectedResultIndex ? 'bg-muted' : ''
+                                }`}
+                                onClick={() => {
+                                  actualizarDetalle(index, 'producto_id', producto.id);
+                                  setProductoSearchTerm('');
+                                  setActiveDetalleIndex(null);
+                                  setSelectedResultIndex(0);
+                                  // Focus on quantity field after product selection
+                                  setTimeout(() => {
+                                    if (cantidadRefs.current[index]) {
+                                      cantidadRefs.current[index].focus();
+                                      cantidadRefs.current[index].select();
+                                    }
+                                  }, 100);
+                                }}
+                              >
+                                <div>
+                                  <span>{producto.nombre} - ${producto.precio_unitario}</span>
+                                  <div className="text-sm text-muted-foreground">
+                                    {producto.descuento_cantidad_minima && producto.descuento_precio_unitario && (
+                                      <div className="text-xs text-green-600 font-medium">
+                                        ≥{producto.descuento_cantidad_minima}: ${producto.descuento_precio_unitario} c/u
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          ))}
-                          {filteredProductos.length === 0 && (
+                            ))
+                          ) : (
                             <div className="px-3 py-2 text-sm text-muted-foreground">
-                              No se encontraron productos
+                              {productos.length === 0 
+                                ? 'No hay productos disponibles' 
+                                : 'Todos los productos ya están agregados o no coinciden con la búsqueda'}
                             </div>
                           )}
                         </div>
                       )}
-                      {!activeDetalleIndex === index && detalle.producto_id && (
-                        <Select
-                          value={detalle.producto_id}
-                          onValueChange={(value) => actualizarDetalle(index, 'producto_id', value)}
-                        >
-                          <SelectTrigger className="w-full" data-testid={`producto-select-${index}`}>
-                            <SelectValue placeholder="Selecciona un producto" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {productos.map(producto => (
-                              <SelectItem key={producto.id} value={producto.id}>
-                                {producto.nombre} - ${producto.precio_unitario}
-                                {producto.descuento_cantidad_minima && producto.descuento_precio_unitario 
-                                  ? ` (≥${producto.descuento_cantidad_minima}: $${producto.descuento_precio_unitario})`
-                                  : ''}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
+
                       {(!detalle.producto_id && !activeDetalleIndex === index) && (
                         <Select
                           value={detalle.producto_id}
@@ -426,7 +443,7 @@ const NuevaVenta = () => {
                             <SelectValue placeholder="Selecciona un producto" />
                           </SelectTrigger>
                           <SelectContent>
-                            {productos.map(producto => (
+                            {getProductosDisponibles().map(producto => (
                               <SelectItem key={producto.id} value={producto.id}>
                                 {producto.nombre} - ${producto.precio_unitario}
                               </SelectItem>
