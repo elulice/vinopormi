@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Trash2, ShoppingCart, Search } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatCurrency, formatNumber } from '@/lib/currency';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -490,7 +491,7 @@ const NuevaVenta = () => {
                       <div className="w-32 space-y-2">
                         <Label>Subtotal</Label>
                         <div className="h-10 px-3 py-2 bg-background border rounded-md flex items-center font-semibold">
-                          ${detalle.subtotal.toFixed(2)}
+                          {formatCurrency(detalle.subtotal)}
                         </div>
                       </div>
                     <Button
@@ -514,7 +515,7 @@ const NuevaVenta = () => {
             <div className="flex justify-between items-center mb-6">
               <span className="text-2xl font-bold">Total:</span>
               <span className="text-3xl font-bold text-primary" data-testid="total-venta">
-                ${calcularTotal().toFixed(2)}
+                {formatCurrency(calcularTotal())}
               </span>
             </div>
             <div className="flex gap-4">

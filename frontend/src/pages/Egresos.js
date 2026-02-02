@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
+import { formatCurrency, formatNumber } from '@/lib/currency';
 import {
   Dialog,
   DialogContent,
@@ -145,7 +146,7 @@ const Egresos = () => {
         </div>
         <div className="text-right">
           <div className="text-2xl font-bold text-destructive">
-            ${totalEgresosHoy.toFixed(2)}
+            {formatCurrency(totalEgresosHoy)}
           </div>
           <p className="text-sm text-muted-foreground">Egresos de hoy</p>
         </div>
@@ -257,7 +258,7 @@ const Egresos = () => {
               {format(new Date(egreso.fecha), 'dd/MM/yyyy', { locale: es })}
             </td>
             <td className="p-4 font-semibold text-destructive">
-              ${egreso.monto.toFixed(2)}
+                  {formatCurrency(egreso.monto)}
             </td>
             <td className="p-4 text-right">
               <div className="flex justify-end gap-2">
@@ -291,7 +292,7 @@ const Egresos = () => {
               <div className="flex-1">
                 <h3 className="font-semibold text-foreground">{egreso.descripcion}</h3>
                 <div className="text-lg font-bold text-destructive">
-                  ${egreso.monto.toFixed(2)}
+              {formatCurrency(egreso.monto)}
                 </div>
               </div>
             </div>

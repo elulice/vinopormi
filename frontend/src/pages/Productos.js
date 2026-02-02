@@ -16,6 +16,7 @@ import {
 import { Plus, Pencil, Trash2, Package, Search, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import ResponsiveTable from '@/components/ResponsiveTable';
+import { formatCurrency, formatNumber } from '@/lib/currency';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -299,7 +300,7 @@ const Productos = () => {
               {Number(p.stock) || 0} unidades
             </td>
             <td className="p-4 font-semibold text-primary">
-              ${Number(p.precio_unitario).toFixed(2)}
+              {formatCurrency(p.precio_unitario)}
             </td>
             <td className="p-4">
               {p.descuento_cantidad_minima && p.descuento_precio_unitario ? (
@@ -307,7 +308,7 @@ const Productos = () => {
                   <div className="text-green-600 font-medium">
                     ≥{p.descuento_cantidad_minima} u.
                   </div>
-                  <div>${Number(p.descuento_precio_unitario).toFixed(2)} c/u</div>
+                  <div>{formatCurrency(p.descuento_precio_unitario)} c/u</div>
                 </div>
               ) : (
                 <span className="text-gray-400 text-xs">Sin descuento</span>
@@ -339,7 +340,7 @@ const Productos = () => {
               <div className="flex-1">
                 <h3 className="font-semibold text-foreground">{p.nombre}</h3>
                 <div className="text-lg font-bold text-primary">
-                  ${Number(p.precio_unitario).toFixed(2)}
+                  {formatCurrency(p.precio_unitario)}
                 </div>
               </div>
             </div>
@@ -355,7 +356,7 @@ const Productos = () => {
                     Descuento ≥{p.descuento_cantidad_minima}u
                   </div>
                   <div className="text-green-600">
-                    ${Number(p.descuento_precio_unitario).toFixed(2)} c/u
+                    {formatCurrency(p.descuento_precio_unitario)} c/u
                   </div>
                 </div>
               ) : (

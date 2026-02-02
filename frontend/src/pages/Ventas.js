@@ -8,6 +8,7 @@ import { ShoppingCart, Calendar, CreditCard, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { formatCurrency, formatNumber } from '@/lib/currency';
 import ResponsiveTable from '@/components/ResponsiveTable';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -93,7 +94,7 @@ const Ventas = () => {
               <span className="text-sm capitalize">{venta.medio_pago.replace('_', ' ')}</span>
             </td>
             <td className="p-4 font-semibold text-primary">
-              ${venta.total.toFixed(2)}
+                  {formatCurrency(venta.total)}
             </td>
             <td className="p-4">
               <Button
@@ -130,7 +131,7 @@ const Ventas = () => {
               </div>
               <div className="text-right">
                 <div className="text-xl font-bold text-primary">
-                  ${venta.total.toFixed(2)}
+              {formatCurrency(venta.total)}
                 </div>
                 <div className="text-xs text-muted-foreground">
                   {venta.detalles.length} producto{venta.detalles.length !== 1 ? 's' : ''}
@@ -228,12 +229,12 @@ const Ventas = () => {
                       <div>
                         <p className="font-medium">{detalle.producto_nombre}</p>
                         <p className="text-sm text-muted-foreground">
-                          {detalle.cantidad} x ${detalle.precio_unitario.toFixed(2)}
+                          {detalle.cantidad} x {formatCurrency(detalle.precio_unitario)}
                         </p>
                       </div>
                       <div className="text-right">
                         <div className="font-semibold">
-                          ${detalle.subtotal.toFixed(2)}
+                          {formatCurrency(detalle.subtotal)}
                         </div>
                       </div>
                     </div>
@@ -244,7 +245,7 @@ const Ventas = () => {
               <div className="flex justify-between items-center p-4 bg-primary/10 rounded-lg">
                 <span className="text-xl font-bold">Total</span>
                 <span className="text-2xl font-bold text-primary">
-                  ${selectedVenta.total.toFixed(2)}
+                  {formatCurrency(selectedVenta.total)}
                 </span>
               </div>
             </div>

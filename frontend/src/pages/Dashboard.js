@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DollarSign, ShoppingCart, CreditCard, Users, TrendingDown } from 'lucide-react';
 import { toast } from 'sonner';
 import '@/components/Dashboard.css';
+import { formatCurrency, formatNumber } from '@/lib/currency';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -60,7 +61,7 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl sm:text-3xl font-bold text-foreground break-words overflow-wrap-anywhere">
-              ${stats.total_vendido_hoy.toFixed(2)}
+              {formatCurrency(stats.total_vendido_hoy)}
             </div>
           </CardContent>
         </Card>
@@ -74,7 +75,7 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl sm:text-3xl font-bold text-destructive break-words overflow-wrap-anywhere">
-              ${stats.total_egresos_hoy.toFixed(2)}
+              {formatCurrency(stats.total_egresos_hoy)}
             </div>
           </CardContent>
         </Card>
@@ -88,7 +89,7 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className={`text-2xl sm:text-3xl font-bold ${(stats.total_vendido_hoy - stats.total_egresos_hoy) >= 0 ? 'text-green-600' : 'text-destructive'} break-words overflow-wrap-anywhere`}>
-              ${(stats.total_vendido_hoy - stats.total_egresos_hoy).toFixed(2)}
+              {formatCurrency(stats.total_vendido_hoy - stats.total_egresos_hoy)}
             </div>
           </CardContent>
         </Card>
@@ -116,7 +117,7 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl sm:text-3xl font-bold text-orange-600 break-words overflow-wrap-anywhere">
-              ${stats.total_saldo_cuenta_corriente.toFixed(2)}
+              {formatCurrency(stats.total_saldo_cuenta_corriente)}
             </div>
           </CardContent>
         </Card>
@@ -138,7 +139,7 @@ const Dashboard = () => {
                     {medio.replace('_', ' ')}
                   </span>
                    <span className="text-base sm:text-lg font-semibold text-primary break-words overflow-wrap-anywhere">
-                     ${total.toFixed(2)}
+                      {formatCurrency(total)}
                    </span>
                 </div>
               ))}

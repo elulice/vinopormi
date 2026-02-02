@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { ArrowLeft, Plus, TrendingUp, TrendingDown } from 'lucide-react';
+import { formatCurrency, formatNumber } from '@/lib/currency';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -153,7 +154,7 @@ const CuentaCorriente = () => {
           <div className={`text-4xl font-bold ${
             cuentaInfo.saldo < 0 ? 'text-destructive' : 'text-primary'
           }`} data-testid="saldo-actual">
-            ${Math.abs(cuentaInfo.saldo).toFixed(2)}
+            {formatCurrency(Math.abs(cuentaInfo.saldo))}
             {cuentaInfo.saldo < 0 && ' (debe)'}
           </div>
         </CardContent>
@@ -193,7 +194,7 @@ const CuentaCorriente = () => {
                     mov.monto > 0 ? 'text-green-600' : 'text-red-600'
                   }`}>
                     {mov.monto > 0 ? '+' : ''}
-                    ${mov.monto.toFixed(2)}
+                    {formatCurrency(mov.monto)}
                   </div>
                 </div>
               ))}

@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { Plus, Pencil, Trash2, Users, CreditCard, TrendingUp, TrendingDown, ArrowLeft, Search } from 'lucide-react';
+import { formatCurrency, formatNumber } from '@/lib/currency';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -484,7 +485,7 @@ const Clientes = () => {
                   <div className={`text-3xl font-bold ${
                     cuentaInfo.saldo < 0 ? 'text-destructive' : 'text-primary'
                   }`}>
-                    ${Math.abs(cuentaInfo.saldo).toFixed(2)}
+                    {formatCurrency(Math.abs(cuentaInfo.saldo))}
                     {cuentaInfo.saldo < 0 && ' (debe)'}
                   </div>
                 </CardContent>
@@ -524,7 +525,7 @@ const Clientes = () => {
                             mov.monto > 0 ? 'text-green-600' : 'text-red-600'
                           }`}>
                             {mov.monto > 0 ? '+' : ''}
-                            ${mov.monto.toFixed(2)}
+                            {formatCurrency(mov.monto)}
                           </div>
                         </div>
                       ))}
