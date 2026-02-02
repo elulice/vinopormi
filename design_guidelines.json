@@ -1,0 +1,156 @@
+{
+  "design_system": {
+    "identity": {
+      "name": "VinoPorMi",
+      "tone": "Professional, Minimalist, Modern, Efficient",
+      "theme_mode": "light",
+      "principles": [
+        "Clarity over decoration",
+        "Speed of operation",
+        "Visual hierarchy through typography and spacing",
+        "Wine-inspired elegance without clutter"
+      ]
+    },
+    "typography": {
+      "font_family": {
+        "headings": "Playfair Display, serif",
+        "body": "Manrope, sans-serif",
+        "mono": "JetBrains Mono, monospace"
+      },
+      "imports": [
+        "https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap"
+      ],
+      "scale": {
+        "h1": "text-4xl font-bold tracking-tight lg:text-5xl",
+        "h2": "text-3xl font-semibold tracking-tight",
+        "h3": "text-2xl font-semibold tracking-tight",
+        "p": "leading-7 [&:not(:first-child)]:mt-6",
+        "small": "text-sm font-medium leading-none"
+      }
+    },
+    "colors": {
+      "palette": {
+        "primary": {
+          "DEFAULT": "#90204E",
+          "foreground": "#FFFFFF",
+          "hover": "#7A1B42"
+        },
+        "secondary": {
+          "DEFAULT": "#D4648A",
+          "foreground": "#FFFFFF",
+          "hover": "#C05578"
+        },
+        "background": "#FFFFFF",
+        "foreground": "#1A1A1A",
+        "muted": {
+          "DEFAULT": "#F3F4F6",
+          "foreground": "#6B7280"
+        },
+        "card": {
+          "DEFAULT": "#FFFFFF",
+          "foreground": "#1A1A1A"
+        },
+        "border": "#E5E7EB",
+        "input": "#E5E7EB",
+        "ring": "#90204E"
+      },
+      "semantic": {
+        "success": "#10B981",
+        "warning": "#F59E0B",
+        "error": "#EF4444",
+        "info": "#3B82F6"
+      }
+    },
+    "spacing": {
+      "container_padding": "p-6 md:p-8 lg:p-12",
+      "section_gap": "gap-8",
+      "element_gap": "gap-4"
+    },
+    "visual_enhancers": {
+      "radius": "0.5rem",
+      "shadows": {
+        "card": "0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)",
+        "hover": "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)"
+      },
+      "glassmorphism": "bg-white/80 backdrop-blur-md border border-white/20 shadow-sm"
+    },
+    "layout": {
+      "grid_system": "grid grid-cols-1 md:grid-cols-12 gap-6",
+      "dashboard_grid": "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4",
+      "sidebar_width": "w-64"
+    },
+    "motion": {
+      "transition_base": "transition-all duration-200 ease-in-out",
+      "hover_lift": "hover:-translate-y-1 hover:shadow-md"
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-[#90204E] text-white hover:bg-[#7A1B42] shadow-sm rounded-md px-4 py-2 font-medium transition-colors",
+      "secondary": "bg-[#D4648A] text-white hover:bg-[#C05578] shadow-sm rounded-md px-4 py-2 font-medium transition-colors",
+      "outline": "border border-[#90204E] text-[#90204E] hover:bg-[#90204E]/10 rounded-md px-4 py-2 font-medium transition-colors",
+      "ghost": "hover:bg-gray-100 text-gray-700 rounded-md px-4 py-2 font-medium transition-colors"
+    },
+    "cards": {
+      "base": "bg-white rounded-lg border border-gray-100 shadow-sm p-6",
+      "interactive": "bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-shadow cursor-pointer"
+    },
+    "inputs": {
+      "base": "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#90204E] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+    }
+  },
+  "assets": {
+    "images": {
+      "login_background": {
+        "url": "https://images.pexels.com/photos/33553572/pexels-photo-33553572.jpeg",
+        "alt": "Modern bright wine shop interior",
+        "usage": "Full screen background for login page with overlay"
+      },
+      "dashboard_hero": {
+        "url": "https://images.pexels.com/photos/10888787/pexels-photo-10888787.jpeg",
+        "alt": "Wine shelves minimalist",
+        "usage": "Header background or welcome banner"
+      },
+      "placeholder_product": {
+        "url": "https://images.pexels.com/photos/13310076/pexels-photo-13310076.jpeg",
+        "alt": "Wine bottle placeholder",
+        "usage": "Default image for products without photos"
+      }
+    },
+    "icons": {
+      "library": "lucide-react",
+      "preferred_icons": [
+        "Wine",
+        "LayoutDashboard",
+        "ShoppingCart",
+        "Users",
+        "CreditCard",
+        "Settings",
+        "LogOut",
+        "Plus",
+        "Search",
+        "ChevronRight"
+      ]
+    }
+  },
+  "instructions_to_main_agent": [
+    "1. UPDATE TAILWIND CONFIG: Update `tailwind.config.js` to extend the theme with the specific colors defined in `design_system.colors.palette`. Map them to CSS variables for flexibility.",
+    "2. UPDATE CSS VARIABLES: In `src/index.css`, update the `:root` variables to match the hex codes provided. Ensure the 'wine' colors (#90204E, #D4648A) are used for primary and secondary.",
+    "3. FONT SETUP: Add the Google Fonts import to `src/index.css` or `public/index.html`. Configure `font-family` in tailwind config to use 'Playfair Display' for headings and 'Manrope' for body.",
+    "4. LAYOUT IMPLEMENTATION: Create a `Layout` component that includes the Sidebar and Topbar. Use the 'wine' primary color for the active state in the sidebar.",
+    "5. DASHBOARD: Implement the dashboard using a Bento grid layout. Use the 'cards.base' style for metric widgets.",
+    "6. FORMS: Use Shadcn UI form components but style them with the 'inputs.base' styles defined here. Ensure focus rings use the primary wine color.",
+    "7. TABLES: For 'Ventas', 'Productos', and 'Clientes', use clean tables with generous padding (`p-4`) and subtle borders. Avoid zebra striping; use hover effects on rows instead.",
+    "8. LOGIN PAGE: Use the `login_background` image with a white/90 overlay or a split-screen layout. The login form should be clean and centered.",
+    "9. TESTING: Add `data-testid` to all interactive elements (buttons, inputs, links) as per the universal guidelines."
+  ],
+  "universal_guidelines": [
+    "Do not use gradients for backgrounds; stick to solid white or very light gray (#F9FAFB).",
+    "Use the primary color (#90204E) sparingly for high-priority actions (CTAs).",
+    "Ensure all text has sufficient contrast (WCAG AA).",
+    "Avoid 'Inter' font for headings; use 'Playfair Display'.",
+    "Keep animations subtle (fade-in, slide-up) and fast (200ms).",
+    "Use 'sonner' for toast notifications.",
+    "All components must be responsive (mobile-first)."
+  ]
+}
