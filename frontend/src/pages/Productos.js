@@ -46,7 +46,11 @@ const Productos = () => {
       const res = await axios.get(`${API}/productos`, {
         headers: getAuthHeader(),
       });
-      setProductos(res.data);
+      // Ordenar productos alfabéticamente por nombre
+      const productosOrdenados = res.data.sort((a, b) => 
+        a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' })
+      );
+      setProductos(productosOrdenados);
     } catch {
       toast.error('Error al cargar productos');
     } finally {
