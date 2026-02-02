@@ -163,6 +163,14 @@ class Notificacion(BaseModel):
     fecha: datetime
     leida: bool = False
 
+class LoginRegistro(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    usuario_id: str
+    usuario_nombre: str
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+    fecha: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 class RegistroAuditoria(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     entidad: str  # 'producto', 'cliente', 'egreso', 'usuario'
@@ -1269,6 +1277,72 @@ async def limpiar_test_sin_auth():
         }
     except Exception as e:
         return {"error": str(e)}
+
+@app.post("/limpiar-auditoria-direct")
+async def limpiar_auditoria_direct(request: Request):
+    """Endpoint directo para limpiar auditoría (requiere auth en headers)"""
+    try:
+        # Extraer token del header
+        auth_header = request.headers.get('authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return {"error": "Se requiere autenticación"}
+        
+        token = auth_header.split(' ')[1]
+        
+        # Verificar token y obtener usuario
+        try:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+            username = payload.get('sub')
+            if not username:
+                return {"error": "Token inválido"}
+            
+            user = await db.usuarios.find_one({'username': username}, {'_id': 0, 'password': 0})
+            if not user or user.get('rol') != 'admin':
+                return {"error": "Se requiere rol de administrador"}
+        except:
+            return {"error": "Token inválido o expirado"}
+        
+        # Limpiar auditoría
+        resultado = await db.auditoria.delete_many({})
+        return {
+            "message": "Registros de auditoría eliminados exitosamente",
+            "eliminados": resultado.deleted_count
+        }
+    except Exception as e:
+        return {"error": f"Error al limpiar auditoría: {str(e)}"}
+
+@app.post("/limpiar-login-registros-direct")
+async def limpiar_login_registros_direct(request: Request):
+    """Endpoint directo para limpiar registros de login (requiere auth en headers)"""
+    try:
+        # Extraer token del header
+        auth_header = request.headers.get('authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return {"error": "Se requiere autenticación"}
+        
+        token = auth_header.split(' ')[1]
+        
+        # Verificar token y obtener usuario
+        try:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+            username = payload.get('sub')
+            if not username:
+                return {"error": "Token inválido"}
+            
+            user = await db.usuarios.find_one({'username': username}, {'_id': 0, 'password': 0})
+            if not user or user.get('rol') != 'admin':
+                return {"error": "Se requiere rol de administrador"}
+        except:
+            return {"error": "Token inválido o expirado"}
+        
+        # Limpiar registros de login
+        resultado = await db.login_registros.delete_many({})
+        return {
+            "message": "Registros de login eliminados exitosamente",
+            "eliminados": resultado.deleted_count
+        }
+    except Exception as e:
+        return {"error": f"Error al limpiar registros de login: {str(e)}"}
 
 # Debug endpoint para verificar registro
 @app.get("/debug")

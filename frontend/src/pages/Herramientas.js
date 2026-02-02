@@ -20,6 +20,8 @@ const API = `${BACKEND_URL}/api`;
 const Herramientas = () => {
   const { user, getAuthHeader } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [auditoriaDialogOpen, setAuditoriaDialogOpen] = useState(false);
+  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleLimpiarBaseDatos = async () => {
@@ -67,6 +69,70 @@ const Herramientas = () => {
       setLoading(false);
     }
   };
+
+  const handleLimpiarAuditoria = async () => {
+    setLoading(true);
+    
+    try {
+      const response = await axios.post(`${BACKEND_URL}/limpiar-auditoria-direct`, {}, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader()
+        },
+      });
+      
+      toast.success(`${response.data.message} (${response.data.eliminados} registros)`);
+      setAuditoriaDialogOpen(false);
+    } catch (error) {
+      console.error("Error al limpiar auditoría:", error);
+      
+      let errorMessage = "Error al limpiar auditoría";
+      if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLimpiarLoginRegistros = async () => {
+    setLoading(true);
+    
+    try {
+      const response = await axios.post(`${BACKEND_URL}/limpiar-login-registros-direct`, {}, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader()
+        },
+      });
+      
+      toast.success(`${response.data.message} (${response.data.eliminados} registros)`);
+      setLoginDialogOpen(false);
+    } catch (error) {
+      console.error("Error al limpiar registros de login:", error);
+      
+      let errorMessage = "Error al limpiar registros de login";
+      if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
 
   // Solo permitir acceso a administradores
   if (user?.rol !== 'admin') {
@@ -178,6 +244,139 @@ const Herramientas = () => {
                 </div>
               </DialogContent>
             </Dialog>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* SECCIÓN DE LIMPIEZA DE REGISTROS */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Trash2 className="w-5 h-5" />
+            Limpieza de Registros
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Limpiar Auditoría */}
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-semibold text-lg mb-2">Limpiar Auditoría</h3>
+                <p className="text-gray-600 mb-4">
+                  Esta acción eliminará permanentemente todos los registros de auditoría del sistema:
+                </p>
+                <ul className="list-disc list-inside text-sm text-gray-600 space-y-1 ml-4">
+                  <li>🗑️ Historial de cambios en productos</li>
+                  <li>🗑️ Historial de cambios en clientes</li>
+                  <li>🗑️ Historial de cambios en egresos</li>
+                  <li>🗑️ Historial de cambios en usuarios</li>
+                </ul>
+              </div>
+
+              <Dialog 
+                open={auditoriaDialogOpen} 
+                onOpenChange={(open) => {
+                  if (!open || !loading) {
+                    setAuditoriaDialogOpen(open);
+                  }
+                }}
+              >
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="w-full" disabled={loading}>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    {loading ? "Eliminando..." : "Limpiar Auditoría"}
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>⚠️ Confirmación Requerida</DialogTitle>
+                    <DialogDescription>
+                      Esta acción eliminará permanentemente todos los registros de auditoría del sistema.
+                      <br /><br />
+                      <strong>¿Estás seguro de continuar?</strong>
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="flex gap-2 pt-4">
+                    <Button
+                      variant="destructive"
+                      onClick={handleLimpiarAuditoria}
+                      disabled={loading}
+                      className="flex-1"
+                    >
+                      Sí, eliminar auditoría
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setAuditoriaDialogOpen(false)}
+                      disabled={loading}
+                      className="flex-1"
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            {/* Limpiar Login Registros */}
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-semibold text-lg mb-2">Limpiar Registros de Login</h3>
+                <p className="text-gray-600 mb-4">
+                  Esta acción eliminará permanentemente todos los registros de acceso de usuarios:
+                </p>
+                <ul className="list-disc list-inside text-sm text-gray-600 space-y-1 ml-4">
+                  <li>🗑️ Historial de accesos al sistema</li>
+                  <li>🗑️ Direcciones IP registradas</li>
+                  <li>🗑️ Información de dispositivos</li>
+                  <li>🗑️ Fechas y horas de acceso</li>
+                </ul>
+              </div>
+
+              <Dialog 
+                open={loginDialogOpen} 
+                onOpenChange={(open) => {
+                  if (!open || !loading) {
+                    setLoginDialogOpen(open);
+                  }
+                }}
+              >
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="w-full" disabled={loading}>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    {loading ? "Eliminando..." : "Limpiar Registros de Login"}
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>⚠️ Confirmación Requerida</DialogTitle>
+                    <DialogDescription>
+                      Esta acción eliminará permanentemente todos los registros de login del sistema.
+                      <br /><br />
+                      <strong>¿Estás seguro de continuar?</strong>
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="flex gap-2 pt-4">
+                    <Button
+                      variant="destructive"
+                      onClick={handleLimpiarLoginRegistros}
+                      disabled={loading}
+                      className="flex-1"
+                    >
+                      Sí, eliminar login registros
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setLoginDialogOpen(false)}
+                      disabled={loading}
+                      className="flex-1"
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
         </CardContent>
       </Card>
