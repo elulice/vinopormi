@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,7 @@ import { Plus, Pencil, Trash2, Package, Search, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import ResponsiveTable from '@/components/ResponsiveTable';
 import { formatCurrency, formatNumber } from '@/lib/currency';
+import { useDebounce } from '@/hooks/useDebounce';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -29,6 +30,9 @@ const Productos = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProducto, setEditingProducto] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Aplicar debouncing al término de búsqueda (300ms)
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
   const [formData, setFormData] = useState({
     nombre: '',
@@ -66,7 +70,7 @@ const Productos = () => {
   /* =============================
      FORM
   ============================== */
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setFormData({ 
       nombre: '', 
       precio_unitario: '', 
@@ -75,9 +79,9 @@ const Productos = () => {
       descuento_precio_unitario: '',
     });
     setEditingProducto(null);
-  };
+  }, []);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
 
     const payload = {
@@ -110,9 +114,9 @@ const Productos = () => {
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Error al guardar producto');
     }
-  };
+  }, [formData, editingProducto, getAuthHeader]);
 
-  const handleEdit = (producto) => {
+  const handleEdit = useCallback((producto) => {
     setEditingProducto(producto);
     setFormData({
       nombre: producto.nombre,
@@ -122,9 +126,9 @@ const Productos = () => {
       descuento_precio_unitario: producto.descuento_precio_unitario ? String(producto.descuento_precio_unitario) : '',
     });
     setDialogOpen(true);
-  };
+  }, []);
 
-  const handleDelete = async (id) => {
+  const handleDelete = useCallback(async (id) => {
     if (!window.confirm('¿Eliminar producto?')) return;
 
     try {
@@ -136,14 +140,19 @@ const Productos = () => {
     } catch {
       toast.error('Error al eliminar producto');
     }
-  };
+  }, [getAuthHeader]);
 
   /* =============================
-     FILTRO
+     FILTRO CON MEMOIZACIÓN
   ============================== */
-  const filteredProductos = productos.filter((p) =>
-    p.nombre.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProductos = useMemo(() => {
+    if (!debouncedSearchTerm) return productos;
+    
+    const searchTermLower = debouncedSearchTerm.toLowerCase();
+    return productos.filter((p) =>
+      p.nombre.toLowerCase().includes(searchTermLower)
+    );
+  }, [productos, debouncedSearchTerm]);
 
   if (loading) {
     return <div className="text-center py-8">Cargando...</div>;

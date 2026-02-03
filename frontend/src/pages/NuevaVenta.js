@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Plus, Trash2, ShoppingCart, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency, formatNumber } from '@/lib/currency';
+import { useDebounce } from '@/hooks/useDebounce';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -18,7 +19,7 @@ const NuevaVenta = () => {
   const { getAuthHeader } = useAuth();
   const navigate = useNavigate();
   const [productos, setProductos] = useState([]);
-  const [filteredProductos, setFilteredProductos] = useState([]);
+
   const [clientes, setClientes] = useState([]);
   const [medioPago, setMedioPago] = useState('efectivo');
   const [clienteId, setClienteId] = useState('');
@@ -32,9 +33,13 @@ const NuevaVenta = () => {
   const [loading, setLoading] = useState(false);
   const [productoSearchTerm, setProductoSearchTerm] = useState('');
   const [activeDetalleIndex, setActiveDetalleIndex] = useState(null);
+  
+  // Aplicar debouncing al término de búsqueda de productos (300ms)
+  const debouncedProductoSearchTerm = useDebounce(productoSearchTerm, 300);
   const searchRefs = useRef([]);
   const [selectedResultIndex, setSelectedResultIndex] = useState(0);
   const cantidadRefs = useRef([]);
+  const resultRefs = useRef([]); // Para hacer scroll a los elementos de resultados
 
   useEffect(() => {
     fetchProductos();
@@ -51,14 +56,7 @@ const NuevaVenta = () => {
     return () => clearTimeout(timer);
   }, [productos]);
 
-  useEffect(() => {
-    const productosDisponibles = getProductosDisponibles();
-    const filtered = productosDisponibles.filter(producto =>
-      producto.nombre.toLowerCase().includes(productoSearchTerm.toLowerCase())
-    );
-    setFilteredProductos(filtered);
-    setSelectedResultIndex(0); // Reset selected index when search changes
-  }, [productos, productoSearchTerm, detalles]);
+
 
   const fetchProductos = async () => {
     try {
@@ -88,13 +86,35 @@ const NuevaVenta = () => {
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
-        setSelectedResultIndex(prev => 
-          prev < filteredProductos.length - 1 ? prev + 1 : prev
-        );
+        const nextIndex = selectedResultIndex < filteredProductos.length - 1 ? selectedResultIndex + 1 : selectedResultIndex;
+        setSelectedResultIndex(nextIndex);
+        
+        // Hacer scroll al elemento seleccionado
+        setTimeout(() => {
+          const element = resultRefs.current[nextIndex];
+          if (element) {
+            element.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'nearest' 
+            });
+          }
+        }, 0);
         break;
       case 'ArrowUp':
         e.preventDefault();
-        setSelectedResultIndex(prev => prev > 0 ? prev - 1 : 0);
+        const prevIndex = selectedResultIndex > 0 ? selectedResultIndex - 1 : 0;
+        setSelectedResultIndex(prevIndex);
+        
+        // Hacer scroll al elemento seleccionado
+        setTimeout(() => {
+          const element = resultRefs.current[prevIndex];
+          if (element) {
+            element.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'nearest' 
+            });
+          }
+        }, 0);
         break;
       case 'Enter':
         e.preventDefault();
@@ -117,6 +137,7 @@ const NuevaVenta = () => {
         setProductoSearchTerm('');
         setActiveDetalleIndex(null);
         setSelectedResultIndex(0);
+        resultRefs.current = []; // Limpiar referencias
         break;
     }
   };
@@ -213,21 +234,37 @@ const NuevaVenta = () => {
     setDetalles(nuevosDetalles);
   };
 
-  const calcularTotal = () => {
+  const calcularTotal = useCallback(() => {
     return detalles.reduce((sum, d) => sum + d.subtotal, 0);
-  };
+  }, [detalles]);
 
-  const isProductoYaAgregado = (productoId) => {
+  const isProductoYaAgregado = useCallback((productoId) => {
     return detalles.some(detalle => detalle.producto_id === productoId);
-  };
+  }, [detalles]);
 
-  const getProductosDisponibles = () => {
+  const getProductosDisponibles = useCallback(() => {
     const productosAgregadosIds = detalles
       .filter(detalle => detalle.producto_id)
       .map(detalle => detalle.producto_id);
     
     return productos.filter(producto => !productosAgregadosIds.includes(producto.id));
-  };
+  }, [detalles, productos]);
+
+  // Memoizar productos filtrados para mejor rendimiento
+  const filteredProductos = useMemo(() => {
+    const productosDisponibles = getProductosDisponibles();
+    if (!debouncedProductoSearchTerm) return productosDisponibles;
+    
+    const searchTermLower = debouncedProductoSearchTerm.toLowerCase();
+    return productosDisponibles.filter(producto =>
+      producto.nombre.toLowerCase().includes(searchTermLower)
+    );
+  }, [getProductosDisponibles, debouncedProductoSearchTerm]);
+
+  useEffect(() => {
+    setSelectedResultIndex(0); // Reset selected index when search changes
+    resultRefs.current = []; // Limpiar referencias cuando cambian los resultados
+  }, [filteredProductos]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -393,9 +430,10 @@ const NuevaVenta = () => {
                       {activeDetalleIndex === index && productoSearchTerm && (
                         <div className="relative z-10 w-full mt-1 bg-background border rounded-md shadow-lg max-h-48 overflow-auto">
                           {filteredProductos.length > 0 ? (
-                            filteredProductos.slice(0, 8).map((producto, resultIndex) => (
+                             filteredProductos.slice(0, 8).map((producto, resultIndex) => (
                               <div
                                 key={producto.id}
+                                ref={el => resultRefs.current[resultIndex] = el}
                                 className={`px-3 py-2 hover:bg-muted cursor-pointer flex justify-between items-center ${
                                   resultIndex === selectedResultIndex ? 'bg-muted' : ''
                                 }`}
@@ -404,6 +442,7 @@ const NuevaVenta = () => {
                                   setProductoSearchTerm('');
                                   setActiveDetalleIndex(null);
                                   setSelectedResultIndex(0);
+                                  resultRefs.current = []; // Limpiar referencias
                                   // Focus on quantity field after product selection
                                   setTimeout(() => {
                                     if (cantidadRefs.current[index]) {
