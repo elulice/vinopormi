@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -42,6 +42,7 @@ const Productos = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [loadingPage, setLoadingPage] = useState(false);
   const [isSearchActive, setIsSearchActive] = useState(false);
+  const searchInputRef = useRef(null); // Para mantener el foco
   
   // Aplicar debouncing al término de búsqueda (300ms)
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
@@ -101,7 +102,13 @@ const Productos = () => {
     }
   }, [debouncedSearchTerm, isSearchActive, fetchProductos]);
 
-  /* =============================
+  // Manejador de búsqueda con ENTER
+  const handleSearchSubmit = useCallback((e) => {
+    e.preventDefault();
+    fetchProductos(1, searchTerm, false);
+  }, [searchTerm, fetchProductos]);
+
+  /* ==============================
      FORM
   ============================== */
   const resetForm = useCallback(() => {
@@ -198,15 +205,18 @@ const Productos = () => {
 
       {/* BUSCADOR + MODAL */}
       <div className="flex gap-3 items-center">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar productos..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 w-64"
-          />
-        </div>
+        <form onSubmit={handleSearchSubmit}>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              ref={searchInputRef}
+              placeholder="Buscar productos..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 w-64"
+            />
+          </div>
+        </form>
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
