@@ -34,7 +34,7 @@ const Layout = () => {
   };
 
   const menuItems = [
-    { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { path: '/dashboard', icon: LayoutDashboard, label: 'Escritorio' },
     { path: '/nueva-venta', icon: ShoppingCart, label: 'Nueva Venta' },
     { path: '/ventas', icon: ShoppingCart, label: 'Ventas' },
     { path: '/productos', icon: Package, label: 'Productos' },

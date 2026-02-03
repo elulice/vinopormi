@@ -428,13 +428,56 @@ async def create_producto(
 
 @api_router.get("/productos", response_model=List[Producto])
 async def get_productos(current_user: Usuario = Depends(get_current_user)):
-    productos = await db.productos.find({}, {'_id': 0}).to_list(1000)
-    
-    for p in productos:
-        if isinstance(p.get('timestamp'), str):
-            p['timestamp'] = datetime.fromisoformat(p['timestamp'])
-    
-    return productos
+    # Endpoint legacy para compatibilidad - usa paginación por defecto
+    return await get_productos_paginated(current_user, page=1, limit=100)
+
+@api_router.get("/productos-paginados")
+async def get_productos_paginated(
+    current_user: Usuario = Depends(get_current_user),
+    page: int = 1,
+    limit: int = 50,
+    search: str = None
+):
+    """Endpoint optimizado con paginación y búsqueda"""
+    try:
+        skip = (page - 1) * limit
+        filter_query = {}
+        
+        # Búsqueda optimizada - usar regex para búsqueda parcial
+        if search:
+            filter_query = {
+                "nombre": {"$regex": search, "$options": "i"}
+            }
+        
+        # Query con paginación
+        cursor = db.productos.find(
+            filter_query, 
+            {'_id': 0}
+        ).sort('nombre', 1).skip(skip).limit(limit)
+        
+        productos = await cursor.to_list(limit)
+        
+        # Convertir timestamps
+        for p in productos:
+            if isinstance(p.get('timestamp'), str):
+                p['timestamp'] = datetime.fromisoformat(p['timestamp'])
+        
+        # Obtener total para metadatos de paginación
+        total = await db.productos.count_documents(filter_query)
+        
+        return {
+            "productos": productos,
+            "pagination": {
+                "page": page,
+                "limit": limit,
+                "total": total,
+                "pages": (total + limit - 1) // limit,
+                "has_next": page * limit < total,
+                "has_prev": page > 1
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener productos: {str(e)}")
 
 @api_router.get("/productos/{producto_id}", response_model=Producto)
 async def get_producto(producto_id: str, current_user: Usuario = Depends(get_current_user)):
@@ -1388,6 +1431,30 @@ class SecurityMiddleware(BaseHTTPMiddleware):
             
         response = await call_next(request)
         return response
+
+# ===== CREAR ÍNDICES AL INICIAR =====
+async def create_indexes():
+    """Crear índices para optimizar rendimiento"""
+    try:
+        # Índice único en nombre de producto
+        await db.productos.create_index("nombre", unique=True)
+        
+        # Índice de texto para búsquedas difusas
+        await db.productos.create_index([("nombre", "text")])
+        
+        # Índice compuesto para ordenamiento alfabético
+        await db.productos.create_index([("nombre", 1)])
+        
+        # Índice para paginación por nombre
+        await db.productos.create_index([("nombre", 1), ("_id", 1)])
+        
+        print("✅ Índices creados exitosamente para productos")
+    except Exception as e:
+        print(f"❌ Error creando índices: {e}")
+
+@app.on_event("startup")
+async def startup_event():
+    await create_indexes()
 
 app.add_middleware(SecurityMiddleware)
 

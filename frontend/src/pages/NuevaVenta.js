@@ -60,12 +60,14 @@ const NuevaVenta = () => {
 
   const fetchProductos = async () => {
     try {
-      const response = await axios.get(`${API}/productos`, {
-        headers: getAuthHeader()
+      const res = await axios.get(`${API}/productos-paginados?limit=1000`, {
+        headers: getAuthHeader(),
       });
-      setProductos(response.data);
+      setProductos(res.data.productos);
     } catch (error) {
       toast.error('Error al cargar productos');
+    } finally {
+      setLoading(false);
     }
   };
 

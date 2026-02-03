@@ -18,6 +18,8 @@ import { toast } from 'sonner';
 import ResponsiveTable from '@/components/ResponsiveTable';
 import { formatCurrency, formatNumber } from '@/lib/currency';
 import { useDebounce } from '@/hooks/useDebounce';
+import Pagination from '@/components/Pagination';
+import { Loader2 } from 'lucide-react';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -26,10 +28,20 @@ const Productos = () => {
   const { getAuthHeader } = useAuth();
 
   const [productos, setProductos] = useState([]);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 50,
+    total: 0,
+    pages: 0,
+    has_next: false,
+    has_prev: false
+  });
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProducto, setEditingProducto] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [loadingPage, setLoadingPage] = useState(false);
+  const [isSearchActive, setIsSearchActive] = useState(false);
   
   // Aplicar debouncing al término de búsqueda (300ms)
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
@@ -46,26 +58,48 @@ const Productos = () => {
   /* =============================
      FETCH
   ============================== */
-  const fetchProductos = useCallback(async () => {
+  const fetchProductos = useCallback(async (page = 1, search = null) => {
     try {
-      const res = await axios.get(`${API}/productos`, {
+      if (page === 1) {
+        setLoading(true);
+      } else {
+        setLoadingPage(true);
+      }
+
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: pagination.limit.toString()
+      });
+      
+      if (search) {
+        params.append('search', search);
+      }
+
+      const res = await axios.get(`${API}/productos-paginados?${params}`, {
         headers: getAuthHeader(),
       });
-      // Ordenar productos alfabéticamente por nombre
-      const productosOrdenados = res.data.sort((a, b) => 
-        a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' })
-      );
-      setProductos(productosOrdenados);
-    } catch {
+      
+      setProductos(res.data.productos);
+      setPagination(res.data.pagination);
+    } catch (error) {
       toast.error('Error al cargar productos');
+      console.error('Error fetching productos:', error);
     } finally {
       setLoading(false);
+      setLoadingPage(false);
     }
-  }, [getAuthHeader]);
+  }, [getAuthHeader, pagination.limit]);
 
   useEffect(() => {
-    fetchProductos();
+    fetchProductos(1);
   }, [fetchProductos]);
+
+  // Fetch cuando cambia la búsqueda (solo si no está activo el search)
+  useEffect(() => {
+    if (!isSearchActive) {
+      fetchProductos(1, debouncedSearchTerm);
+    }
+  }, [debouncedSearchTerm, isSearchActive, fetchProductos]);
 
   /* =============================
      FORM
@@ -110,7 +144,7 @@ const Productos = () => {
 
       setDialogOpen(false);
       resetForm();
-      fetchProductos();
+      fetchProductos(1);
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Error al guardar producto');
     }
@@ -136,23 +170,17 @@ const Productos = () => {
         headers: getAuthHeader(),
       });
       toast.success('Producto eliminado');
-      fetchProductos();
+      fetchProductos(pagination.page);
     } catch {
       toast.error('Error al eliminar producto');
     }
   }, [getAuthHeader]);
 
-  /* =============================
-     FILTRO CON MEMOIZACIÓN
-  ============================== */
-  const filteredProductos = useMemo(() => {
-    if (!debouncedSearchTerm) return productos;
-    
-    const searchTermLower = debouncedSearchTerm.toLowerCase();
-    return productos.filter((p) =>
-      p.nombre.toLowerCase().includes(searchTermLower)
-    );
-  }, [productos, debouncedSearchTerm]);
+  // Manejador de cambio de página
+  const handlePageChange = useCallback((newPage) => {
+    fetchProductos(newPage, debouncedSearchTerm);
+    setPagination(prev => ({ ...prev, page: newPage }));
+  }, [fetchProductos, debouncedSearchTerm]);
 
   if (loading) {
     return <div className="text-center py-8">Cargando...</div>;
@@ -298,7 +326,7 @@ const Productos = () => {
           { title: 'Descuento', width: '20%' },
           { title: 'Acciones', width: '20%' }
         ]}
-        rows={filteredProductos}
+        rows={productos}
         renderDesktopRow={(p, index) => (
           <tr key={p.id} className="border-b">
             <td className="p-4 flex gap-2 items-center">
@@ -391,6 +419,32 @@ const Productos = () => {
           </div>
         )}
       />
+      
+      {/* Componente de Paginación */}
+      {!loading && (
+        <Card>
+          <CardContent className="p-0">
+            <Pagination
+              currentPage={pagination.page}
+              totalPages={pagination.pages}
+              onPageChange={handlePageChange}
+              hasNext={pagination.has_next}
+              hasPrev={pagination.has_prev}
+              loading={loadingPage}
+            />
+          </CardContent>
+        </Card>
+      )}
+      
+      {/* Loading Overlay para cambios de página */}
+      {loadingPage && (
+        <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
+          <div className="bg-white p-4 rounded-lg flex items-center gap-2">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span>Cargando...</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

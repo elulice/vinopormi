@@ -47,7 +47,7 @@ const Dashboard = () => {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-4xl font-bold text-foreground mb-2">Dashboard</h1>
+        <h1 className="text-4xl font-bold text-foreground mb-2">Escritorio</h1>
         <p className="text-muted-foreground">Resumen de ventas del día</p>
       </div>
 
