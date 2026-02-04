@@ -95,12 +95,48 @@ const Productos = () => {
     fetchProductos(1);
   }, [fetchProductos]);
 
-  // Fetch cuando cambia la búsqueda (solo si no está activo el search)
+  // Fetch cuando cambia la búsqueda (sin recargar página completa)
   useEffect(() => {
     if (!isSearchActive) {
-      fetchProductos(1, debouncedSearchTerm);
+      // Solo recargar productos, no la página completa
+          const loadSearchResults = async () => {
+        try {
+          // Guardar el elemento activo antes de la búsqueda
+          const activeElement = document.activeElement;
+          
+          // Solo mostrar loading en la tabla, no en toda la página
+          const params = new URLSearchParams({
+            page: '1',
+            limit: pagination.limit.toString()
+          });
+          
+          if (debouncedSearchTerm) {
+            params.append('search', debouncedSearchTerm);
+          }
+
+          const res = await axios.get(`${API}/productos-paginados?${params}`, {
+            headers: getAuthHeader(),
+          });
+          
+          const nuevosProductos = res.data.productos;
+          setProductos(nuevosProductos);
+          setPagination(res.data.pagination);
+          
+          // Restaurar el foco del campo de búsqueda después de cargar resultados
+          setTimeout(() => {
+            if (activeElement && activeElement === searchInputRef.current) {
+              searchInputRef.current.focus();
+            }
+          }, 50);
+        } catch (error) {
+          toast.error('Error al buscar productos');
+          console.error('Error searching productos:', error);
+        }
+      };
+
+      loadSearchResults();
     }
-  }, [debouncedSearchTerm, isSearchActive, fetchProductos]);
+  }, [debouncedSearchTerm, isSearchActive, pagination.limit]);
 
   // Manejador de búsqueda con ENTER
   const handleSearchSubmit = useCallback((e) => {
