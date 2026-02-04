@@ -105,10 +105,7 @@ const Ventas = () => {
       const response = await axios.get(`${API}/ventas`, {
         headers: getAuthHeader()
       });
-      setVentasData({
-        grouped: isGroupedView,
-        data: Array.isArray(response.data?.data) ? response.data.data : []
-      });
+      setVentas(response.data);
     } catch (error) {
       toast.error('Error al cargar ventas');
     } finally {
@@ -203,52 +200,6 @@ const Ventas = () => {
       : <ArrowDown className="w-4 h-4" />;
   };
 
-  // Renderizado de ventas individuales (dentro de grupo)
-  const renderVentaInGroup = (venta, index) => (
-    <div
-      key={venta.id}
-      className={`grid grid-cols-6 gap-4 p-4 cursor-pointer hover:bg-muted/50 transition-colors border-b ml-8 ${
-        index % 2 === 0 ? 'bg-background' : 'bg-muted/20'
-      }`}
-      onClick={() => handleViewDetails(venta)}
-      data-testid={`venta-row-${venta.id}`}
-    >
-      <div className="col-span-2">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
-            <ShoppingCart className="w-4 h-4 text-primary" />
-          </div>
-          <div>
-            <div className="font-medium">#{String(venta.id ?? '').slice(0, 8)}</div>
-            <div className="text-xs text-muted-foreground">
-              {format(safeParseDate(venta.fecha), 'HH:mm:ss', { locale: es })}
-            </div>
-            {venta.cliente_nombre && (
-              <div className="text-xs text-muted-foreground">{venta.cliente_nombre}</div>
-            )}
-          </div>
-        </div>
-      </div>
-      <div className="col-span-1">
-        <div className="font-semibold text-primary">
-          {formatCurrency(venta.total)}
-        </div>
-      </div>
-      <div className="col-span-1 text-sm text-muted-foreground">
-        {venta.usuario_nombre || 'Usuario desconocido'}
-      </div>
-      <div className="col-span-1">
-        <span className="text-sm capitalize">{venta.medio_pago?.replace('_', ' ') ?? '—'}</span>
-      </div>
-      <div className="col-span-1">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleViewDetails(venta);
-          }}
-          data-testid={`view-details-${venta.id}`}
   // Configuración de headers con ordenamiento
   const headers = [
     { 
@@ -295,7 +246,7 @@ const Ventas = () => {
             <ShoppingCart className="w-4 h-4 text-primary" />
           </div>
           <div>
-            <div className="font-medium">#{String(venta.id ?? '').slice(0, 8)}</div>
+            <div className="font-medium">#{venta.id.slice(0, 8)}</div>
             <div className="text-xs text-muted-foreground">
               {format(safeParseDate(venta.fecha), 'PPP HH:mm', { locale: es })}
             </div>
@@ -314,7 +265,7 @@ const Ventas = () => {
         {venta.usuario_nombre || 'Usuario desconocido'}
       </div>
       <div className="col-span-1">
-        <span className="text-sm capitalize">{venta.medio_pago?.replace('_', ' ') ?? '—'}</span>
+        <span className="text-sm capitalize">{venta.medio_pago.replace('_', ' ')}</span>
       </div>
       <div className="col-span-1">
         <Button
@@ -465,45 +416,6 @@ const Ventas = () => {
           
           {/* Versión desktop - Tabla virtualizada */}
           <div className="hidden lg:block">
-            {isGroupedView ? (
-              <div className="border rounded-lg">
-                {/* Header fijo */}
-                <div className="bg-muted sticky top-0 z-10">
-                  <div className="grid grid-cols-6 gap-4 p-4 text-sm font-semibold">
-                    {groupedHeaders.map((header, index) => (
-                      <div key={index} className={`${header.width}`}>
-                        {header.title}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                
-                {/* Grupos expandibles */}
-                <div className="max-h-[600px] overflow-auto">
-                  {filteredData.map((grupo) => (
-                    <div key={grupo.fecha}>
-                      {renderGroupHeader(grupo)}
-                      {expandedGroups.has(grupo.fecha) && (
-                        <div>
-                          {Array.isArray(grupo.ventas) &&
-                          grupo.ventas.map((venta, index) => 
-                            renderVentaInGroup(venta, index)
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <VirtualTable
-                items={filteredData}
-                itemHeight={100}
-                containerHeight={600}
-                renderItem={renderIndividualRow}
-                headers={individualHeaders}
-              />
-            )}
             <VirtualTable
               items={sortedVentas}
               itemHeight={100}
@@ -515,90 +427,6 @@ const Ventas = () => {
           
           {/* Versión móvil - Cards (sin virtualización por simplicidad) */}
           <div className="lg:hidden space-y-4">
-            {isGroupedView ? (
-              // Vista agrupada móvil
-              filteredData.map((grupo) => (
-                <div key={grupo.fecha} className="border rounded-lg">
-                  <div 
-                    className="p-4 bg-muted/50 cursor-pointer hover:bg-muted transition-colors"
-                    onClick={() => toggleGroupExpansion(grupo.fecha)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        {expandedGroups.has(grupo.fecha) ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                        <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                          <Calendar className="w-5 h-5 text-primary" />
-                        </div>
-                        <div>
-                          <div className="font-semibold">{grupo.fecha}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {grupo.cantidad_ventas} venta{grupo.cantidad_ventas !== 1 ? 's' : ''}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-xl font-bold text-primary">
-                          {formatCurrency(grupo.total_ventas)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {expandedGroups.has(grupo.fecha) && (
-                    <div className="border-t">
-                      {(grupo.ventas ?? []).slice(0, 10).map((venta) => (
-                        <div key={venta.id} className="p-3 border-b last:border-b-0">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="font-medium">#{String(venta.id ?? '').slice(0, 8)}</div>
-                            <div className="font-semibold text-primary">
-                              {formatCurrency(venta.total)}
-                            </div>
-                          </div>
-                          <div className="text-xs text-muted-foreground mb-2">
-                            {format(safeParseDate(venta.fecha), 'HH:mm:ss', { locale: es })}
-                          </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full"
-                            onClick={() => handleViewDetails(venta)}
-                          >
-                            Ver Detalles
-                          </Button>
-                        </div>
-                      ))}
-                      {(grupo.ventas?.length ?? 0) > 10 && (
-                        <div className="p-3 text-center text-muted-foreground text-sm">
-                          +{grupo.ventas.length - 10} ventas más
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))
-            ) : (
-              // Vista individual móvil
-              filteredData.slice(0, 50).map((venta, index) => (
-                <div
-                  key={venta.id}
-                  className="cursor-pointer hover:bg-muted/50 transition-colors rounded-lg p-4 border"
-                  onClick={() => handleViewDetails(venta)}
-                  data-testid={`venta-card-${venta.id}`}
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                        <ShoppingCart className="w-5 h-5 text-primary" />
-                      </div>
-                      <div>
-                        <div className="font-semibold">#{String(venta.id ?? '').slice(0, 8)}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {format(safeParseDate(venta.fecha), 'PPP HH:mm', { locale: es })}
-                        </div>
-                        {venta.cliente_nombre && (
-                          <div className="text-xs text-muted-foreground">{venta.cliente_nombre}</div>
-                        )}
-                      </div>
             {sortedVentas.slice(0, 50).map((venta, index) => (
               <div
                 key={venta.id}
@@ -614,8 +442,6 @@ const Ventas = () => {
                     <div>
                       <div className="font-semibold">#{venta.id.slice(0, 8)}</div>
                       <div className="text-xs text-muted-foreground">
-                      {(venta.detalles?.length ?? 0)} producto
-                      {(venta.detalles?.length ?? 0) !== 1 ? 's' : ''}
                         {format(safeParseDate(venta.fecha), 'PPP HH:mm', { locale: es })}
                       </div>
                       {venta.cliente_nombre && (
@@ -627,9 +453,6 @@ const Ventas = () => {
                     <div className="text-xl font-bold text-primary">
                       {formatCurrency(venta.total)}
                     </div>
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <CreditCard className="w-4 h-4" />
-                      <span className="capitalize">{venta.medio_pago?.replace('_', ' ') ?? '—'}</span>
                     <div className="text-xs text-muted-foreground">
                       {venta.detalles.length} producto{venta.detalles.length !== 1 ? 's' : ''}
                     </div>
@@ -713,7 +536,7 @@ const Ventas = () => {
                 <div>
                   <p className="text-sm text-muted-foreground">Medio de Pago</p>
                   <p className="font-medium capitalize">
-                    {selectedventa.medio_pago?.replace('_', ' ') ?? '—'}
+                    {selectedVenta.medio_pago.replace('_', ' ')}
                   </p>
                 </div>
                 {selectedVenta.cliente_nombre && (
