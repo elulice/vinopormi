@@ -104,7 +104,10 @@ const Ventas = () => {
         headers: getAuthHeader(),
         params: { grouped: isGroupedView }
       });
-      setVentasData(response.data);
+      setVentasData({
+        grouped: isGroupedView,
+        data: Array.isArray(response.data?.data) ? response.data.data : []
+      });
     } catch (error) {
       toast.error('Error al cargar ventas');
     } finally {
@@ -261,7 +264,7 @@ const Ventas = () => {
             <ShoppingCart className="w-4 h-4 text-primary" />
           </div>
           <div>
-            <div className="font-medium">#{venta.id.slice(0, 8)}</div>
+            <div className="font-medium">#{String(venta.id ?? '').slice(0, 8)}</div>
             <div className="text-xs text-muted-foreground">
               {format(safeParseDate(venta.fecha), 'HH:mm:ss', { locale: es })}
             </div>
@@ -280,7 +283,7 @@ const Ventas = () => {
         {venta.usuario_nombre || 'Usuario desconocido'}
       </div>
       <div className="col-span-1">
-        <span className="text-sm capitalize">{venta.medio_pago.replace('_', ' ')}</span>
+        <span className="text-sm capitalize">{venta.medio_pago?.replace('_', ' ') ?? '—'}</span>
       </div>
       <div className="col-span-1">
         <Button
@@ -331,7 +334,7 @@ const Ventas = () => {
             <ShoppingCart className="w-4 h-4 text-primary" />
           </div>
           <div>
-            <div className="font-medium">#{venta.id.slice(0, 8)}</div>
+            <div className="font-medium">#{String(venta.id ?? '').slice(0, 8)}</div>
             <div className="text-xs text-muted-foreground">
               {format(safeParseDate(venta.fecha), 'PPP HH:mm', { locale: es })}
             </div>
@@ -350,7 +353,7 @@ const Ventas = () => {
         {venta.usuario_nombre || 'Usuario desconocido'}
       </div>
       <div className="col-span-1">
-        <span className="text-sm capitalize">{venta.medio_pago.replace('_', ' ')}</span>
+        <span className="text-sm capitalize">{venta.medio_pago?.replace('_', ' ') ?? '—'}</span>
       </div>
       <div className="col-span-1">
         <Button
@@ -553,7 +556,8 @@ const Ventas = () => {
                       {renderGroupHeader(grupo)}
                       {expandedGroups.has(grupo.fecha) && (
                         <div>
-                          {grupo.ventas.map((venta, index) => 
+                          {Array.isArray(grupo.ventas) &&
+                          grupo.ventas.map((venta, index) => 
                             renderVentaInGroup(venta, index)
                           )}
                         </div>
@@ -606,10 +610,10 @@ const Ventas = () => {
                   
                   {expandedGroups.has(grupo.fecha) && (
                     <div className="border-t">
-                      {grupo.ventas.slice(0, 10).map((venta) => (
+                      {(grupo.ventas ?? []).slice(0, 10).map((venta) => (
                         <div key={venta.id} className="p-3 border-b last:border-b-0">
                           <div className="flex items-center justify-between mb-2">
-                            <div className="font-medium">#{venta.id.slice(0, 8)}</div>
+                            <div className="font-medium">#{String(venta.id ?? '').slice(0, 8)}</div>
                             <div className="font-semibold text-primary">
                               {formatCurrency(venta.total)}
                             </div>
@@ -627,7 +631,7 @@ const Ventas = () => {
                           </Button>
                         </div>
                       ))}
-                      {grupo.ventas.length > 10 && (
+                      {(grupo.ventas?.length ?? 0) > 10 && (
                         <div className="p-3 text-center text-muted-foreground text-sm">
                           +{grupo.ventas.length - 10} ventas más
                         </div>
@@ -651,7 +655,7 @@ const Ventas = () => {
                         <ShoppingCart className="w-5 h-5 text-primary" />
                       </div>
                       <div>
-                        <div className="font-semibold">#{venta.id.slice(0, 8)}</div>
+                        <div className="font-semibold">#{String(venta.id ?? '').slice(0, 8)}</div>
                         <div className="text-xs text-muted-foreground">
                           {format(safeParseDate(venta.fecha), 'PPP HH:mm', { locale: es })}
                         </div>
@@ -665,7 +669,8 @@ const Ventas = () => {
                         {formatCurrency(venta.total)}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {venta.detalles.length} producto{venta.detalles.length !== 1 ? 's' : ''}
+                      {(venta.detalles?.length ?? 0)} producto
+                      {(venta.detalles?.length ?? 0) !== 1 ? 's' : ''}
                       </div>
                     </div>
                   </div>
@@ -677,7 +682,7 @@ const Ventas = () => {
                     </div>
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <CreditCard className="w-4 h-4" />
-                      <span className="capitalize">{venta.medio_pago.replace('_', ' ')}</span>
+                      <span className="capitalize">{venta.medio_pago?.replace('_', ' ') ?? '—'}</span>
                     </div>
                   </div>
                   
@@ -748,7 +753,7 @@ const Ventas = () => {
                 <div>
                   <p className="text-sm text-muted-foreground">Medio de Pago</p>
                   <p className="font-medium capitalize">
-                    {selectedVenta.medio_pago.replace('_', ' ')}
+                    {selectedventa.medio_pago?.replace('_', ' ') ?? '—'}
                   </p>
                 </div>
                 {selectedVenta.cliente_nombre && (
