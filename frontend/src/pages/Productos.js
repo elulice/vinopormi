@@ -122,7 +122,7 @@ const Productos = () => {
     setEditingProducto(null);
   }, []);
 
-  const handleSubmit = useCallback(async (e) => {
+const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
 
     const payload = {
@@ -155,7 +155,7 @@ const Productos = () => {
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Error al guardar producto');
     }
-  }, [formData, editingProducto, getAuthHeader]);
+  }, [formData, editingProducto, getAuthHeader, resetForm, fetchProductos]);
 
   const handleEdit = useCallback((producto) => {
     setEditingProducto(producto);
@@ -169,19 +169,19 @@ const Productos = () => {
     setDialogOpen(true);
   }, []);
 
-  const handleDelete = useCallback(async (id) => {
-    if (!window.confirm('¿Eliminar producto?')) return;
-
-    try {
-      await axios.delete(`${API}/productos/${id}`, {
-        headers: getAuthHeader(),
-      });
-      toast.success('Producto eliminado');
-      fetchProductos(pagination.page);
-    } catch {
-      toast.error('Error al eliminar producto');
+const handleDelete = useCallback(async (id) => {
+    if (window.confirm('¿Estás seguro de que deseas eliminar este producto?')) {
+      try {
+        await axios.delete(`${API}/productos/${id}`, {
+          headers: getAuthHeader(),
+        });
+        toast.success('Producto eliminado');
+        fetchProductos(pagination.page);
+      } catch {
+        toast.error('Error al eliminar producto');
+      }
     }
-  }, [getAuthHeader]);
+  }, [getAuthHeader, fetchProductos, pagination.page]);
 
   // Manejador de cambio de página
   const handlePageChange = useCallback((newPage) => {

@@ -58,7 +58,7 @@ const Egresos = () => {
 
   useEffect(() => {
     fetchEgresos();
-  }, []);
+  }, [fetchEgresos]);
 
   const resetForm = () => {
     setFormData({ descripcion: '', monto: '' });
