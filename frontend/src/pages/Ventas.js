@@ -510,17 +510,18 @@ const Ventas = () => {
       )}
 
       {/* Diálogo de detalles */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
+            {/* Diálogo de detalles */}
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>Detalle de Venta</DialogTitle>
             <DialogDescription>
               Información completa de la venta seleccionada
             </DialogDescription>
           </DialogHeader>
           {selectedVenta && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
+            <div className="flex flex-col flex-1 min-h-0 space-y-4">
+              <div className="grid grid-cols-2 gap-4 p-4 bg-muted rounded-lg flex-shrink-0">
                 <div>
                   <p className="text-sm text-muted-foreground">Fecha y Hora</p>
                   <p className="font-medium">
@@ -536,7 +537,7 @@ const Ventas = () => {
                 <div>
                   <p className="text-sm text-muted-foreground">Medio de Pago</p>
                   <p className="font-medium capitalize">
-                    {selectedVenta.medio_pago.replace('_', ' ')}
+                    {selectedVenta.medio_pago?.replace('_', ' ') ?? '—'}
                   </p>
                 </div>
                 {selectedVenta.cliente_nombre && (
@@ -547,9 +548,9 @@ const Ventas = () => {
                 )}
               </div>
 
-              <div>
-                <h3 className="font-semibold mb-3">Productos</h3>
-                <div className="space-y-2">
+              <div className="flex flex-col flex-1 min-h-0">
+                <h3 className="font-semibold mb-3 flex-shrink-0">Productos</h3>
+                <div className="flex-1 overflow-y-auto space-y-2 max-h-[50vh]">
                   {selectedVenta.detalles.map((detalle, index) => (
                     <div
                       key={index}
@@ -571,7 +572,7 @@ const Ventas = () => {
                 </div>
               </div>
 
-              <div className="flex justify-between items-center p-4 bg-primary/10 rounded-lg">
+              <div className="flex justify-between items-center p-4 bg-primary/10 rounded-lg flex-shrink-0">
                 <span className="text-xl font-bold">Total</span>
                 <span className="text-2xl font-bold text-primary">
                   {formatCurrency(selectedVenta.total)}
