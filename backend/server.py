@@ -780,10 +780,22 @@ async def get_venta(venta_id: str, current_user: Usuario = Depends(get_current_u
 
 @api_router.get("/dashboard/stats", response_model=DashboardStats)
 async def get_dashboard_stats(current_user: Usuario = Depends(get_current_user)):
-    hoy_inicio = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-    hoy_inicio_str = hoy_inicio.isoformat()
+    # Obtener fecha actual en UTC para coincidir con cómo se guardan los datos
+    ahora_utc = datetime.now(timezone.utc)
+    # Convertir a fecha local para obtener el día correcto en la zona horaria local
+    ahora_local = ahora_utc.astimezone()
     
-    ventas_hoy = await db.ventas.find({'fecha': {'$gte': hoy_inicio_str}}, {'_id': 0}).to_list(1000)
+    # Crear rangos del día en UTC para comparación con base de datos
+    hoy_inicio_utc = ahora_local.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
+    hoy_fin_utc = ahora_local.replace(hour=23, minute=59, second=59, microsecond=999999).astimezone(timezone.utc)
+    
+    hoy_inicio_str = hoy_inicio_utc.isoformat()
+    hoy_fin_str = hoy_fin_utc.isoformat()
+    
+    # Filtrar ventas del día actual (00:00:00 - 23:59:59)
+    ventas_hoy = await db.ventas.find({
+        'fecha': {'$gte': hoy_inicio_str, '$lte': hoy_fin_str}
+    }, {'_id': 0}).to_list(1000)
     
     total_vendido = sum(v['total'] for v in ventas_hoy)
     cantidad_ventas = len(ventas_hoy)
@@ -802,8 +814,10 @@ async def get_dashboard_stats(current_user: Usuario = Depends(get_current_user))
         saldo_cliente = sum(m['monto'] for m in movimientos)
         total_saldo_cuenta_corriente += saldo_cliente
     
-    # Obtener egresos del día
-    egresos_hoy = await db.egresos.find({'fecha': {'$gte': hoy_inicio_str}}, {'_id': 0}).to_list(1000)
+# Obtener egresos del día (mismo criterio que ventas)
+    egresos_hoy = await db.egresos.find({
+        'fecha': {'$gte': hoy_inicio_str, '$lte': hoy_fin_str}
+    }, {'_id': 0}).to_list(1000)
     total_egresos_hoy = sum(e['monto'] for e in egresos_hoy)
     
     # Verificar productos con bajo stock para notificaciones

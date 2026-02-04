@@ -122,9 +122,13 @@ const Egresos = () => {
 
   const totalEgresosHoy = filteredEgresos
     .filter(e => {
-      const hoy = new Date();
+      const ahora = new Date();
+      const hoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+      const mañana = new Date(hoy);
+      mañana.setDate(mañana.getDate() + 1);
+      
       const fechaEgreso = new Date(e.fecha);
-      return fechaEgreso.toDateString() === hoy.toDateString();
+      return fechaEgreso >= hoy && fechaEgreso < mañana;
     })
     .reduce((sum, e) => sum + e.monto, 0);
 
