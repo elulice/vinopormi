@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { format, isWithinInterval, parseISO, startOfDay, endOfDay, isToday, isYesterday } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { formatCurrency, formatNumber } from '@/lib/currency';
+import { capitalizeWords } from '@/lib/utils';
 import ResponsiveTable from '@/components/ResponsiveTable';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -898,7 +899,7 @@ const Ventas = () => {
                       className="flex justify-between items-center p-3 bg-muted rounded-md"
                     >
                       <div>
-                        <p className="font-medium">{detalle.producto_nombre}</p>
+                        <p className="font-medium">{capitalizeWords(detalle.producto_nombre)}</p>
                         <p className="text-sm text-muted-foreground">
                           {detalle.cantidad} x {formatCurrency(detalle.precio_unitario)}
                         </p>
