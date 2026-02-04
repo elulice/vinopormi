@@ -7,9 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ShoppingCart, Calendar, CreditCard, User, ArrowUpDown, ArrowUp, ArrowDown, Filter, X } from 'lucide-react';
+import { ShoppingCart, Calendar, CreditCard, User, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, ChevronDown, ChevronRight, List, Layers } from 'lucide-react';
 import { toast } from 'sonner';
-import { format, isWithinInterval, parseISO, startOfDay, endOfDay } from 'date-fns';
+import { format, isWithinInterval, parseISO, startOfDay, endOfDay, isToday, isYesterday } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { formatCurrency, formatNumber } from '@/lib/currency';
 import ResponsiveTable from '@/components/ResponsiveTable';
@@ -96,6 +96,9 @@ const Ventas = () => {
     direction: 'desc' // 'asc' or 'desc'
   });
 
+  const [viewMode, setViewMode] = useState('individual'); // 'individual' or 'grouped'
+  const [expandedGroups, setExpandedGroups] = useState(new Set());
+
   useEffect(() => {
     fetchVentas();
   }, []);
@@ -170,11 +173,73 @@ const Ventas = () => {
     return sorted;
   }, [filteredVentas, sortConfig]);
 
-  const handleSort = (key) => {
-    setSortConfig(prev => ({
-      key,
-      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
-    }));
+  // Función para obtener etiqueta de fecha inteligente
+  const getDateLabel = (date) => {
+    const parsedDate = safeParseDate(date);
+    if (isToday(parsedDate)) {
+      return 'Hoy';
+    } else if (isYesterday(parsedDate)) {
+      return 'Ayer';
+    } else {
+      return format(parsedDate, 'dd/MM/yyyy');
+    }
+  };
+
+  // Función para agrupar ventas por día
+  const groupVentasByDay = (ventasList) => {
+    const groups = {};
+    
+    ventasList.forEach(venta => {
+      const date = safeParseDate(venta.fecha);
+      const dateKey = format(date, 'yyyy-MM-dd');
+      
+      if (!groups[dateKey]) {
+        groups[dateKey] = {
+          date: dateKey,
+          dateLabel: getDateLabel(date),
+          fullDate: date,
+          ventas: [],
+          total: 0,
+          count: 0
+        };
+      }
+      
+      groups[dateKey].ventas.push(venta);
+      groups[dateKey].total += venta.total;
+      groups[dateKey].count += 1;
+    });
+    
+    // Ordenar grupos por fecha descendente
+    const sortedGroups = Object.values(groups).sort((a, b) => {
+      return b.fullDate - a.fullDate;
+    });
+    
+    // Ordenar ventas dentro de cada grupo por hora descendente
+    sortedGroups.forEach(group => {
+      group.ventas.sort((a, b) => {
+        return safeParseDate(b.fecha) - safeParseDate(a.fecha);
+      });
+    });
+    
+    return sortedGroups;
+  };
+
+  // Datos agrupados para vista agrupada
+  const groupedVentas = useMemo(() => {
+    return groupVentasByDay(sortedVentas);
+  }, [sortedVentas]);
+
+  // Toggle expand/collapse de grupo
+  const toggleGroup = (dateKey) => {
+    setExpandedGroups(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(dateKey)) {
+        newSet.delete(dateKey);
+      } else {
+        newSet.add(dateKey);
+      }
+      return newSet;
+    });
   };
 
   const handleViewDetails = (venta) => {
@@ -231,7 +296,7 @@ const Ventas = () => {
     { title: 'Acciones', width: 'col-span-1' }
   ];
 
-  // Renderizado de filas
+  // Renderizado de filas individuales
   const renderRow = (venta, index) => (
     <div
       className={`grid grid-cols-6 gap-4 p-4 cursor-pointer hover:bg-muted/50 transition-colors border-b ${
@@ -283,6 +348,124 @@ const Ventas = () => {
     </div>
   );
 
+  // Renderizado de grupos para vista agrupada
+  const renderGroupRow = (group, index) => {
+    const isExpanded = expandedGroups.has(group.date);
+    
+    return (
+      <div key={group.date} className="border-b">
+        {/* Fila del grupo */}
+        <div
+          className={`grid grid-cols-6 gap-4 p-4 cursor-pointer hover:bg-muted/50 transition-colors ${
+            index % 2 === 0 ? 'bg-background' : 'bg-muted/20'
+          }`}
+          onClick={() => toggleGroup(group.date)}
+        >
+          <div className="col-span-2">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                {isExpanded ? <ChevronDown className="w-4 h-4 text-primary" /> : <ChevronRight className="w-4 h-4 text-primary" />}
+              </div>
+              <div>
+                <div className="font-medium text-lg">{group.dateLabel}</div>
+                <div className="text-xs text-muted-foreground">
+                  {format(group.fullDate, 'PPP', { locale: es })}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="col-span-1">
+            <div className="font-semibold text-primary text-lg">
+              {formatCurrency(group.total)}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Total del día
+            </div>
+          </div>
+          <div className="col-span-1">
+            <div className="font-medium text-lg">
+              {group.count}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Venta{group.count !== 1 ? 's' : ''}
+            </div>
+          </div>
+          <div className="col-span-1">
+            <div className="text-sm text-muted-foreground">
+              Promedio: {formatCurrency(group.count > 0 ? group.total / group.count : 0)}
+            </div>
+          </div>
+          <div className="col-span-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleGroup(group.date);
+              }}
+            >
+              {isExpanded ? 'Ocultar' : 'Ver'} Detalles
+            </Button>
+          </div>
+        </div>
+        
+        {/* Ventas expandidas del grupo */}
+        {isExpanded && (
+          <div className="bg-muted/30 border-t">
+            {group.ventas.map((venta, ventaIndex) => (
+              <div
+                key={venta.id}
+                className="grid grid-cols-6 gap-4 p-4 cursor-pointer hover:bg-muted/50 transition-colors border-b border-border/50"
+                onClick={() => handleViewDetails(venta)}
+                style={{ paddingLeft: '2rem' }}
+              >
+                <div className="col-span-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-6 h-6 bg-primary/5 rounded flex items-center justify-center">
+                      <ShoppingCart className="w-3 h-3 text-primary" />
+                    </div>
+                    <div>
+                      <div className="font-medium text-sm">#{venta.id.slice(0, 8)}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {format(safeParseDate(venta.fecha), 'HH:mm')}
+                      </div>
+                      {venta.cliente_nombre && (
+                        <div className="text-xs text-muted-foreground">{venta.cliente_nombre}</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="col-span-1">
+                  <div className="font-semibold text-primary">
+                    {formatCurrency(venta.total)}
+                  </div>
+                </div>
+                <div className="col-span-1 text-sm text-muted-foreground">
+                  {venta.usuario_nombre || 'Usuario desconocido'}
+                </div>
+                <div className="col-span-1">
+                  <span className="text-sm capitalize">{venta.medio_pago.replace('_', ' ')}</span>
+                </div>
+                <div className="col-span-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleViewDetails(venta);
+                    }}
+                  >
+                    Ver
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   if (loading) {
     return <div className="text-center py-8">Cargando...</div>;
   }
@@ -294,13 +477,38 @@ const Ventas = () => {
         <p className="text-muted-foreground">Historial de ventas realizadas</p>
       </div>
 
-      {/* Filtros */}
+      {/* Filtros y Vista */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="w-5 h-5" />
-            Filtros
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Filter className="w-5 h-5" />
+              Filtros
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Vista:</span>
+              <div className="flex bg-muted rounded-lg p-1">
+                <Button
+                  variant={viewMode === 'individual' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('individual')}
+                  className="flex items-center gap-2"
+                >
+                  <List className="w-4 h-4" />
+                  Individual
+                </Button>
+                <Button
+                  variant={viewMode === 'grouped' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('grouped')}
+                  className="flex items-center gap-2"
+                >
+                  <Layers className="w-4 h-4" />
+                  Agrupada
+                </Button>
+              </div>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -373,10 +581,13 @@ const Ventas = () => {
         <Card>
           <CardContent className="p-4">
             <div className="text-2xl font-bold text-primary">
-              {sortedVentas.length}
+              {viewMode === 'individual' ? sortedVentas.length : groupedVentas.length}
             </div>
             <p className="text-sm text-muted-foreground">
-              Ventas {filters.dateType === 'all' ? 'totales' : 'filtradas'}
+              {viewMode === 'individual' 
+                ? `Ventas ${filters.dateType === 'all' ? 'totales' : 'filtradas'}`
+                : `Días ${filters.dateType === 'all' ? 'totales' : 'filtrados'}`
+              }
             </p>
           </CardContent>
         </Card>
@@ -393,116 +604,246 @@ const Ventas = () => {
         <Card>
           <CardContent className="p-4">
             <div className="text-2xl font-bold text-blue-600">
-              {formatCurrency(sortedVentas.length > 0 ? sortedVentas.reduce((sum, v) => sum + v.total, 0) / sortedVentas.length : 0)}
+              {viewMode === 'individual' 
+                ? formatCurrency(sortedVentas.length > 0 ? sortedVentas.reduce((sum, v) => sum + v.total, 0) / sortedVentas.length : 0)
+                : formatCurrency(groupedVentas.length > 0 ? groupedVentas.reduce((sum, g) => sum + g.total, 0) / groupedVentas.length : 0)
+              }
             </div>
             <p className="text-sm text-muted-foreground">
-              Promedio por venta
+              {viewMode === 'individual' ? 'Promedio por venta' : 'Promedio por día'}
             </p>
           </CardContent>
         </Card>
       </div>
 
       {/* Tabla con virtual scrolling */}
-{sortedVentas.length > 0 ? (
+{(viewMode === 'individual' ? sortedVentas : groupedVentas).length > 0 ? (
         <div className="space-y-4">
           <div className="text-sm text-muted-foreground">
-            {filters.dateType === 'all' 
-              ? 'Mostrando todas las ventas'
-              : filters.dateType === 'specific'
-                ? `Ventas del ${filters.specificDate ? format(parseISO(filters.specificDate), 'PPP', { locale: es }) : 'fecha seleccionada'}`
-                : `Ventas desde ${filters.startDate ? format(parseISO(filters.startDate), 'PPP', { locale: es }) : 'fecha inicio'} hasta ${filters.endDate ? format(parseISO(filters.endDate), 'PPP', { locale: es }) : 'fecha fin'}`
+            {viewMode === 'individual' 
+              ? (filters.dateType === 'all' 
+                ? 'Mostrando todas las ventas'
+                : filters.dateType === 'specific'
+                  ? `Ventas del ${filters.specificDate ? format(parseISO(filters.specificDate), 'PPP', { locale: es }) : 'fecha seleccionada'}`
+                  : `Ventas desde ${filters.startDate ? format(parseISO(filters.startDate), 'PPP', { locale: es }) : 'fecha inicio'} hasta ${filters.endDate ? format(parseISO(filters.endDate), 'PPP', { locale: es }) : 'fecha fin'}`)
+              : `Ventas agrupadas por día (${groupedVentas.length} día${groupedVentas.length !== 1 ? 's' : ''})`
             }
           </div>
           
-          {/* Versión desktop - Tabla virtualizada */}
-          <div className="hidden lg:block">
-            <VirtualTable
-              items={sortedVentas}
-              itemHeight={100}
-              containerHeight={600}
-              renderItem={renderRow}
-              headers={headers}
-            />
-          </div>
-          
-          {/* Versión móvil - Cards (sin virtualización por simplicidad) */}
-          <div className="lg:hidden space-y-4">
-            {sortedVentas.slice(0, 50).map((venta, index) => (
-              <div
-                key={venta.id}
-                className="cursor-pointer hover:bg-muted/50 transition-colors rounded-lg p-4 border"
-                onClick={() => handleViewDetails(venta)}
-                data-testid={`venta-card-${venta.id}`}
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                      <ShoppingCart className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <div className="font-semibold">#{venta.id.slice(0, 8)}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {format(safeParseDate(venta.fecha), 'PPP HH:mm', { locale: es })}
+          {/* Vista individual */}
+          {viewMode === 'individual' && (
+            <>
+              {/* Versión desktop - Tabla virtualizada */}
+              <div className="hidden lg:block">
+                <VirtualTable
+                  items={sortedVentas}
+                  itemHeight={100}
+                  containerHeight={600}
+                  renderItem={renderRow}
+                  headers={headers}
+                />
+              </div>
+              
+              {/* Versión móvil - Cards */}
+              <div className="lg:hidden space-y-4">
+                {sortedVentas.slice(0, 50).map((venta, index) => (
+                  <div
+                    key={venta.id}
+                    className="cursor-pointer hover:bg-muted/50 transition-colors rounded-lg p-4 border"
+                    onClick={() => handleViewDetails(venta)}
+                    data-testid={`venta-card-${venta.id}`}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                          <ShoppingCart className="w-5 h-5 text-primary" />
+                        </div>
+                        <div>
+                          <div className="font-semibold">#{venta.id.slice(0, 8)}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {format(safeParseDate(venta.fecha), 'PPP HH:mm', { locale: es })}
+                          </div>
+                          {venta.cliente_nombre && (
+                            <div className="text-xs text-muted-foreground">{venta.cliente_nombre}</div>
+                          )}
+                        </div>
                       </div>
-                      {venta.cliente_nombre && (
-                        <div className="text-xs text-muted-foreground">{venta.cliente_nombre}</div>
+                      <div className="text-right">
+                        <div className="text-xl font-bold text-primary">
+                          {formatCurrency(venta.total)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {venta.detalles.length} producto{venta.detalles.length !== 1 ? 's' : ''}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <User className="w-4 h-4" />
+                        {venta.usuario_nombre || 'Usuario desconocido'}
+                      </div>
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <CreditCard className="w-4 h-4" />
+                        <span className="capitalize">{venta.medio_pago.replace('_', ' ')}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-3 pt-3 border-t">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewDetails(venta);
+                        }}
+                        data-testid={`view-details-mobile-${venta.id}`}
+                      >
+                        Ver Detalles
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                
+                {sortedVentas.length > 50 && (
+                  <div className="text-center text-muted-foreground text-sm">
+                    Mostrando las primeras 50 ventas de {sortedVentas.length} totales.
+                    En desktop se muestran todas con virtual scrolling.
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+          
+          {/* Vista agrupada */}
+          {viewMode === 'grouped' && (
+            <>
+              {/* Versión desktop - Grupos con expansión */}
+              <div className="hidden lg:block border rounded-lg">
+                {/* Header fijo para vista agrupada */}
+                <div className="bg-muted sticky top-0 z-10">
+                  <div className="grid grid-cols-6 gap-4 p-4 text-sm font-semibold">
+                    <div className="col-span-2">Fecha</div>
+                    <div className="col-span-1">Total del Día</div>
+                    <div className="col-span-1">Cantidad</div>
+                    <div className="col-span-1">Promedio</div>
+                    <div className="col-span-1">Acciones</div>
+                  </div>
+                </div>
+                
+                {/* Grupos */}
+                {groupedVentas.map((group, index) => renderGroupRow(group, index))}
+              </div>
+              
+              {/* Versión móvil - Cards agrupadas */}
+              <div className="lg:hidden space-y-4">
+                {groupedVentas.map((group) => {
+                  const isExpanded = expandedGroups.has(group.date);
+                  
+                  return (
+                    <div key={group.date} className="border rounded-lg">
+                      {/* Card del grupo */}
+                      <div
+                        className="p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => toggleGroup(group.date)}
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                              {isExpanded ? <ChevronDown className="w-5 h-5 text-primary" /> : <ChevronRight className="w-5 h-5 text-primary" />}
+                            </div>
+                            <div>
+                              <div className="font-semibold text-lg">{group.dateLabel}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {format(group.fullDate, 'PPP', { locale: es })}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-xl font-bold text-primary">
+                              {formatCurrency(group.total)}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {group.count} venta{group.count !== 1 ? 's' : ''}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">
+                            Promedio: {formatCurrency(group.count > 0 ? group.total / group.count : 0)}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleGroup(group.date);
+                            }}
+                          >
+                            {isExpanded ? 'Ocultar' : 'Ver'} Detalles
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      {/* Ventas expandidas */}
+                      {isExpanded && (
+                        <div className="border-t bg-muted/20">
+                          {group.ventas.map((venta) => (
+                            <div
+                              key={venta.id}
+                              className="p-4 border-b border-border/50 last:border-b-0 cursor-pointer hover:bg-muted/50 transition-colors"
+                              onClick={() => handleViewDetails(venta)}
+                            >
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-6 h-6 bg-primary/5 rounded flex items-center justify-center">
+                                    <ShoppingCart className="w-3 h-3 text-primary" />
+                                  </div>
+                                  <span className="font-medium text-sm">#{venta.id.slice(0, 8)}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {format(safeParseDate(venta.fecha), 'HH:mm')}
+                                  </span>
+                                </div>
+                                <span className="font-semibold text-primary">
+                                  {formatCurrency(venta.total)}
+                                </span>
+                              </div>
+                              
+                              {venta.cliente_nombre && (
+                                <div className="text-xs text-muted-foreground mb-1">
+                                  Cliente: {venta.cliente_nombre}
+                                </div>
+                              )}
+                              
+                              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                <span>{venta.usuario_nombre || 'Usuario desconocido'}</span>
+                                <span className="capitalize">{venta.medio_pago.replace('_', ' ')}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       )}
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xl font-bold text-primary">
-                      {formatCurrency(venta.total)}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {venta.detalles.length} producto{venta.detalles.length !== 1 ? 's' : ''}
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <User className="w-4 h-4" />
-                    {venta.usuario_nombre || 'Usuario desconocido'}
-                  </div>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <CreditCard className="w-4 h-4" />
-                    <span className="capitalize">{venta.medio_pago.replace('_', ' ')}</span>
-                  </div>
-                </div>
-                
-                <div className="mt-3 pt-3 border-t">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleViewDetails(venta);
-                    }}
-                    data-testid={`view-details-mobile-${venta.id}`}
-                  >
-                    Ver Detalles
-                  </Button>
-                </div>
+                  );
+                })}
               </div>
-            ))}
-            
-            {sortedVentas.length > 50 && (
-              <div className="text-center text-muted-foreground text-sm">
-                Mostrando las primeras 50 ventas de {sortedVentas.length} totales.
-                En desktop se muestran todas con virtual scrolling.
-              </div>
-            )}
-          </div>
+            </>
+          )}
         </div>
       ) : (
         <Card>
           <CardContent className="py-12 text-center">
             <ShoppingCart className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
             <p className="text-muted-foreground">
-              {filters.dateType === 'all' 
-                ? 'No hay ventas aún.'
-                : 'No hay ventas que coincidan con los filtros aplicados.'
+              {viewMode === 'individual'
+                ? (filters.dateType === 'all' 
+                  ? 'No hay ventas aún.'
+                  : 'No hay ventas que coincidan con los filtros aplicados.')
+                : (filters.dateType === 'all' 
+                  ? 'No hay días con ventas.'
+                  : 'No hay días con ventas que coincidan con los filtros aplicados.')
               }
             </p>
           </CardContent>
