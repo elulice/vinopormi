@@ -7,5 +7,7 @@ export function cn(...inputs) {
 
 export function capitalizeWords(str) {
   if (!str || typeof str !== 'string') return str;
-  return str.replace(/\b\w/g, char => char.toUpperCase());
+  return str.replace(/(^|[\s\-_.,;:!?()[\]{}'"\/\\])([a-zA-ZÁÉÍÓÚÜáéíóúüñÑ])/g, 
+    (match, delimiter, char) => delimiter + char.toUpperCase()
+  );
 }
