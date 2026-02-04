@@ -13,7 +13,7 @@ import {
   DialogDescription,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash2, Package, Search, Info } from 'lucide-react';
+import { Plus, Pencil, Trash2, Package, Search, Info, X } from 'lucide-react';
 import { toast } from 'sonner';
 import ResponsiveTable from '@/components/ResponsiveTable';
 import { formatCurrency, formatNumber } from '@/lib/currency';
@@ -239,8 +239,19 @@ const Productos = () => {
               placeholder="Buscar productos..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 w-64"
+              className="pl-10 pr-10 w-64"
             />
+            {searchTerm && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleClearSearch}
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            )}
           </div>
         </form>
 
