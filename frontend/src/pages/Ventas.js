@@ -368,30 +368,30 @@ const Ventas = () => {
     </div>
   );
 
+    // Calcular estadísticas para mostrar
+    const stats = useMemo(() => {
+      if (isGroupedView) {
+        return {
+          totalItems: filteredData.length,
+          totalAmount: filteredData.reduce((sum, grupo) => sum + grupo.total_ventas, 0),
+          averageAmount: filteredData.length > 0 
+            ? filteredData.reduce((sum, grupo) => sum + grupo.total_ventas, 0) / filteredData.length 
+            : 0
+        };
+      } else {
+        return {
+          totalItems: filteredData.length,
+          totalAmount: filteredData.reduce((sum, venta) => sum + venta.total, 0),
+          averageAmount: filteredData.length > 0 
+            ? filteredData.reduce((sum, venta) => sum + venta.total, 0) / filteredData.length 
+            : 0
+        };
+      }
+    }, [filteredData, isGroupedView]);
+
   if (loading) {
     return <div className="text-center py-8">Cargando...</div>;
   }
-
-  // Calcular estadísticas para mostrar
-  const stats = useMemo(() => {
-    if (isGroupedView) {
-      return {
-        totalItems: filteredData.length,
-        totalAmount: filteredData.reduce((sum, grupo) => sum + grupo.total_ventas, 0),
-        averageAmount: filteredData.length > 0 
-          ? filteredData.reduce((sum, grupo) => sum + grupo.total_ventas, 0) / filteredData.length 
-          : 0
-      };
-    } else {
-      return {
-        totalItems: filteredData.length,
-        totalAmount: filteredData.reduce((sum, venta) => sum + venta.total, 0),
-        averageAmount: filteredData.length > 0 
-          ? filteredData.reduce((sum, venta) => sum + venta.total, 0) / filteredData.length 
-          : 0
-      };
-    }
-  }, [filteredData, isGroupedView]);
 
   return (
     <div className="space-y-6">
