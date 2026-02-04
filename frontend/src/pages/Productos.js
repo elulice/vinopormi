@@ -17,6 +17,7 @@ import { Plus, Pencil, Trash2, Package, Search, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import ResponsiveTable from '@/components/ResponsiveTable';
 import { formatCurrency, formatNumber } from '@/lib/currency';
+import { capitalizeWords } from '@/lib/utils';
 import Pagination from '@/components/Pagination';
 import { Loader2 } from 'lucide-react';
 
@@ -341,7 +342,7 @@ const Productos = () => {
           <tr key={p.id} className="border-b">
             <td className="p-4 flex gap-2 items-center">
               <Package className="w-4 h-4 text-primary" />
-              {p.nombre}
+              {capitalizeWords(p.nombre)}
             </td>
             <td className="p-4">
               {Number(p.stock) || 0} unidades
@@ -385,7 +386,7 @@ const Productos = () => {
                 <Package className="w-5 h-5 text-primary" />
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold text-foreground">{p.nombre}</h3>
+                <h3 className="font-semibold text-foreground">{capitalizeWords(p.nombre)}</h3>
                 <div className="text-lg font-bold text-primary">
                   {formatCurrency(p.precio_unitario)}
                 </div>
