@@ -755,65 +755,15 @@ async def create_venta(input: VentaCreate, current_user: Usuario = Depends(get_c
     
     return venta_obj
 
-@api_router.get("/ventas")
-async def get_ventas(
-    current_user: Usuario = Depends(get_current_user),
-    grouped: bool = False
-):
+@api_router.get("/ventas", response_model=List[Venta])
+async def get_ventas(current_user: Usuario = Depends(get_current_user)):
     ventas = await db.ventas.find({}, {'_id': 0}).sort('fecha', -1).to_list(1000)
     
-    # Convertir fechas string a datetime
     for v in ventas:
         if isinstance(v.get('fecha'), str):
             v['fecha'] = datetime.fromisoformat(v['fecha'])
     
-    if grouped:
-        # Agrupar ventas por día
-        from collections import defaultdict
-        ventas_por_dia = defaultdict(list)
-        
-        for venta in ventas:
-            # Obtener fecha sin hora para agrupar (usando timezone local)
-            fecha_local = venta['fecha'].astimezone()
-            dia_key = fecha_local.date()
-            ventas_por_dia[dia_key].append(venta)
-        
-        # Construir respuesta agrupada
-        grupos = []
-        hoy = datetime.now().date()
-        ayer = hoy - timedelta(days=1)
-        
-        for dia in sorted(ventas_por_dia.keys(), reverse=True):
-            ventas_dia = ventas_por_dia[dia]
-            
-            # Determinar etiqueta de fecha
-            if dia == hoy:
-                etiqueta_fecha = "Hoy"
-            elif dia == ayer:
-                etiqueta_fecha = "Ayer"
-            else:
-                etiqueta_fecha = dia.strftime("%d/%m/%Y")
-            
-            # Calcular totales del día
-            total_ventas_dia = sum(v['total'] for v in ventas_dia)
-            cantidad_ventas = len(ventas_dia)
-            
-            # Ordenar ventas del día por hora descendente
-            ventas_dia.sort(key=lambda x: x['fecha'], reverse=True)
-            
-            grupo = {
-                "fecha": etiqueta_fecha,
-                "fecha_iso": dia.isoformat(),
-                "total_ventas": total_ventas_dia,
-                "cantidad_ventas": cantidad_ventas,
-                "ventas": ventas_dia
-            }
-            grupos.append(grupo)
-        
-        return {"grouped": True, "data": grupos}
-    else:
-        # Retornar ventas individuales
-        return {"grouped": False, "data": ventas}
+    return ventas
 
 @api_router.get("/ventas/{venta_id}", response_model=Venta)
 async def get_venta(venta_id: str, current_user: Usuario = Depends(get_current_user)):
