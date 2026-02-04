@@ -188,6 +188,31 @@ const Productos = () => {
   const handlePageChange = useCallback((newPage) => {
     fetchProductos(newPage, searchTerm);
     setPagination(prev => ({ ...prev, page: newPage }));
+    
+    // Múltiples métodos para asegurar el scroll hacia arriba
+    setTimeout(() => {
+      // Método 1: Scroll instantáneo sin smooth behavior (más confiable)
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      
+      // Método 2: Scroll al elemento principal
+      const mainElement = document.querySelector('main') || document.querySelector('#root');
+      if (mainElement) {
+        mainElement.scrollTop = 0;
+        mainElement.scrollTo(0, 0);
+      }
+      
+      // Método 3: Forzar scroll con scrollIntoView
+      const productosElement = document.querySelector('[class*="container"]') || document.querySelector('main');
+      if (productosElement) {
+        productosElement.scrollIntoView({ behavior: 'instant', block: 'start' });
+      }
+      
+      // Método 4: Fallback agresivo
+      window.scroll({ top: 0, left: 0, behavior: 'instant' });
+      document.documentElement.scroll({ top: 0, left: 0 });
+    }, 200); // Mayor delay para asegurar que el contenido se renderizó
   }, [fetchProductos, searchTerm]);
 
   if (loading) {
