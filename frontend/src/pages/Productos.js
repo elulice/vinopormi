@@ -151,7 +151,7 @@ const Productos = () => {
 
       setDialogOpen(false);
       resetForm();
-      fetchProductos(1);
+      fetchProductos(pagination.page, searchTerm);
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Error al guardar producto');
     }
