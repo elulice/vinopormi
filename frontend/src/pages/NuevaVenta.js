@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, ShoppingCart, Search } from 'lucide-react';
+import { Plus, Trash2, ShoppingCart, Search, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency, formatNumber } from '@/lib/currency';
 import { capitalizeWords } from '@/lib/utils';
@@ -33,6 +33,7 @@ const NuevaVenta = () => {
   }]);
   const [loading, setLoading] = useState(false);
   const [productoSearchTerm, setProductoSearchTerm] = useState('');
+  const [refreshingProductos, setRefreshingProductos] = useState(false);
   const [activeDetalleIndex, setActiveDetalleIndex] = useState(null);
   
   // Aplicar debouncing al término de búsqueda de productos (300ms)
@@ -69,6 +70,21 @@ const NuevaVenta = () => {
       toast.error('Error al cargar productos');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const refreshProductos = async () => {
+    setRefreshingProductos(true);
+    try {
+      const res = await axios.get(`${API}/productos-paginados?limit=1000`, {
+        headers: getAuthHeader(),
+      });
+      setProductos(res.data.productos);
+      toast.success('Lista de productos actualizada');
+    } catch (error) {
+      toast.error('Error al actualizar productos');
+    } finally {
+      setRefreshingProductos(false);
     }
   };
 
@@ -390,10 +406,22 @@ const NuevaVenta = () => {
           <CardHeader>
             <div className="flex justify-between items-center">
               <CardTitle>Productos</CardTitle>
-              <Button type="button" onClick={agregarDetalle} size="sm" data-testid="add-detalle-button">
-                <Plus className="w-4 h-4 mr-2" />
-                Agregar Producto
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  type="button" 
+                  onClick={refreshProductos} 
+                  size="sm" 
+                  variant="outline"
+                  disabled={refreshingProductos}
+                >
+                  <RefreshCw className={`w-4 h-4 mr-2 ${refreshingProductos ? 'animate-spin' : ''}`} />
+                  {refreshingProductos ? 'Actualizando...' : 'Actualizar'}
+                </Button>
+                <Button type="button" onClick={agregarDetalle} size="sm" data-testid="add-detalle-button">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Agregar Producto
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
