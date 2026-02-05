@@ -178,11 +178,11 @@ const Productos = () => {
         headers: getAuthHeader(),
       });
       toast.success('Producto eliminado');
-      fetchProductos(pagination.page);
+      fetchProductos(pagination.page, searchTerm);
     } catch {
       toast.error('Error al eliminar producto');
     }
-  }, [getAuthHeader]);
+  }, [getAuthHeader, pagination.page, searchTerm]);
 
   // Manejador de cambio de página
   const handlePageChange = useCallback((newPage) => {
