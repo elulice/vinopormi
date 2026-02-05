@@ -1456,15 +1456,14 @@ async def create_indexes():
         # Índice de texto para búsquedas difusas
         await db.productos.create_index([("nombre", "text")])
         
-        # Índice compuesto para ordenamiento alfabético
-        await db.productos.create_index([("nombre", 1)])
+
         
         # Índice para paginación por nombre
         await db.productos.create_index([("nombre", 1), ("_id", 1)])
         
-        print("✅ Índices creados exitosamente para productos")
+        print("Indices creados exitosamente para productos")
     except Exception as e:
-        print(f"❌ Error creando índices: {e}")
+        print(f"Error creando indices: {e}")
 
 @app.on_event("startup")
 async def startup_event():
