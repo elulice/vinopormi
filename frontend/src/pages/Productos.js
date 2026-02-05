@@ -230,7 +230,7 @@ const Productos = () => {
       </div>
 
       {/* BUSCADOR + MODAL */}
-      <div className="flex gap-3 items-center">
+      <div className="flex flex-col gap-3">
         <form onSubmit={handleSearchSubmit}>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -257,7 +257,7 @@ const Productos = () => {
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button className="w-64">
               <Plus className="w-4 h-4 mr-2" />
               Nuevo Producto
             </Button>
