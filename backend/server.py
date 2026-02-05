@@ -443,11 +443,19 @@ async def get_productos_paginated(
         skip = (page - 1) * limit
         filter_query = {}
         
-        # Búsqueda optimizada - usar regex para búsqueda parcial
+        # Búsqueda optimizada - buscar palabras individuales
         if search:
-            filter_query = {
-                "nombre": {"$regex": search, "$options": "i"}
-            }
+            # Dividir la búsqueda en términos individuales
+            search_terms = search.split()
+            if len(search_terms) > 1:
+                # Búsqueda múltiple: todos los términos deben estar presentes
+                regex_patterns = [{"nombre": {"$regex": term, "$options": "i"}} for term in search_terms]
+                filter_query = {"$and": regex_patterns}
+            else:
+                # Búsqueda simple para un solo término
+                filter_query = {
+                    "nombre": {"$regex": search, "$options": "i"}
+                }
         
         # Query con paginación
         cursor = db.productos.find(
