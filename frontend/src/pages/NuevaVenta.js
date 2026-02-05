@@ -43,11 +43,6 @@ const NuevaVenta = () => {
   const cantidadRefs = useRef([]);
   const resultRefs = useRef([]); // Para hacer scroll a los elementos de resultados
 
-  useEffect(() => {
-    fetchProductos();
-    fetchClientes();
-  }, []);
-
   // Set initial focus on first product search field after component loads
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -58,9 +53,7 @@ const NuevaVenta = () => {
     return () => clearTimeout(timer);
   }, [productos]);
 
-
-
-  const fetchProductos = async () => {
+  const fetchProductos = useCallback(async () => {
     try {
       const res = await axios.get(`${API}/productos-paginados?limit=1000`, {
         headers: getAuthHeader(),
@@ -71,7 +64,7 @@ const NuevaVenta = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getAuthHeader]);
 
   const refreshProductos = async () => {
     setRefreshingProductos(true);
@@ -88,7 +81,7 @@ const NuevaVenta = () => {
     }
   };
 
-  const fetchClientes = async () => {
+  const fetchClientes = useCallback(async () => {
     try {
       const response = await axios.get(`${API}/clientes`, {
         headers: getAuthHeader()
@@ -97,7 +90,12 @@ const NuevaVenta = () => {
     } catch (error) {
       toast.error('Error al cargar clientes');
     }
-  };
+  }, [getAuthHeader]);
+
+  useEffect(() => {
+    fetchProductos();
+    fetchClientes();
+  }, [fetchClientes, fetchProductos]);
 
   const handleKeyDown = (e, index) => {
     if (!activeDetalleIndex === index || !productoSearchTerm) return;

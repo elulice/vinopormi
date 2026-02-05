@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,11 +16,7 @@ const LoginRegistros = () => {
   const [registros, setRegistros] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchRegistros();
-  }, []);
-
-  const fetchRegistros = async () => {
+  const fetchRegistros = useCallback(async () => {
     try {
       const response = await axios.get(`${API}/auth/login-registros`, {
         headers: getAuthHeader(),
@@ -35,7 +31,11 @@ const LoginRegistros = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getAuthHeader]);
+
+  useEffect(() => {
+    fetchRegistros();
+  }, [fetchRegistros]);
 
   if (loading) {
     return <div className="text-center py-8">Cargando registros de login...</div>;
