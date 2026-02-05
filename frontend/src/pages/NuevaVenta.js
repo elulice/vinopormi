@@ -259,9 +259,19 @@ const NuevaVenta = () => {
     if (!debouncedProductoSearchTerm) return productosDisponibles;
     
     const searchTermLower = debouncedProductoSearchTerm.toLowerCase();
-    return productosDisponibles.filter(producto =>
-      producto.nombre.toLowerCase().includes(searchTermLower)
-    );
+    const searchTerms = searchTermLower.split(/\s+/).filter(term => term.length > 0);
+    
+    return productosDisponibles.filter(producto => {
+      const productoNombreLower = producto.nombre.toLowerCase();
+      
+      // Si hay múltiples términos, todos deben estar presentes
+      if (searchTerms.length > 1) {
+        return searchTerms.every(term => productoNombreLower.includes(term));
+      }
+      
+      // Búsqueda simple para un solo término
+      return productoNombreLower.includes(searchTermLower);
+    });
   }, [getProductosDisponibles, debouncedProductoSearchTerm]);
 
   useEffect(() => {
@@ -433,7 +443,7 @@ const NuevaVenta = () => {
                       {activeDetalleIndex === index && productoSearchTerm && (
                         <div className="relative z-10 w-full mt-1 bg-background border rounded-md shadow-lg max-h-48 overflow-auto">
                           {filteredProductos.length > 0 ? (
-                             filteredProductos.slice(0, 8).map((producto, resultIndex) => (
+                             filteredProductos.map((producto, resultIndex) => (
                               <div
                                 key={producto.id}
                                 ref={el => resultRefs.current[resultIndex] = el}
