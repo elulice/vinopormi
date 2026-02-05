@@ -156,7 +156,7 @@ const Productos = () => {
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Error al guardar producto');
     }
-  }, [formData, editingProducto, getAuthHeader]);
+  }, [editingProducto, fetchProductos, formData, getAuthHeader, pagination.page, resetForm, searchTerm]);
 
   const handleEdit = useCallback((producto) => {
     setEditingProducto(producto);
@@ -182,7 +182,7 @@ const Productos = () => {
     } catch {
       toast.error('Error al eliminar producto');
     }
-  }, [getAuthHeader, pagination.page, searchTerm]);
+  }, [fetchProductos, getAuthHeader, pagination.page, searchTerm]);
 
   // Manejador de cambio de página
   const handlePageChange = useCallback((newPage) => {

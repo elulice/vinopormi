@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -28,11 +28,7 @@ const CuentaCorriente = () => {
     monto: ''
   });
 
-  useEffect(() => {
-    fetchCuentaCorriente();
-  }, [clienteId]);
-
-  const fetchCuentaCorriente = async () => {
+  const fetchCuentaCorriente = useCallback(async () => {
     try {
       const response = await axios.get(
         `${API}/clientes/${clienteId}/cuenta-corriente`,
@@ -44,7 +40,11 @@ const CuentaCorriente = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [clienteId, getAuthHeader]);
+
+  useEffect(() => {
+    fetchCuentaCorriente();
+  }, [fetchCuentaCorriente]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

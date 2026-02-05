@@ -100,11 +100,7 @@ const Ventas = () => {
   const [viewMode, setViewMode] = useState('individual'); // 'individual' or 'grouped'
   const [expandedGroups, setExpandedGroups] = useState(new Set());
 
-  useEffect(() => {
-    fetchVentas();
-  }, []);
-
-  const fetchVentas = async () => {
+  const fetchVentas = useCallback(async () => {
     try {
       const response = await axios.get(`${API}/ventas`, {
         headers: getAuthHeader()
@@ -115,17 +111,21 @@ const Ventas = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getAuthHeader]);
+
+  useEffect(() => {
+    fetchVentas();
+  }, [fetchVentas]);
 
   // Función segura para parsear fechas
-  const safeParseDate = (dateString) => {
+  const safeParseDate = useCallback((dateString) => {
     try {
       const date = new Date(dateString);
       return isNaN(date.getTime()) ? new Date() : date;
     } catch (error) {
       return new Date();
     }
-  };
+  }, []);
 
   // Aplicar filtros
   const filteredVentas = useMemo(() => {
@@ -147,7 +147,7 @@ const Ventas = () => {
     }
     
     return filtered;
-  }, [ventas, filters]);
+  }, [filters, safeParseDate, ventas]);
 
   // Aplicar ordenamiento
   const sortedVentas = useMemo(() => {
@@ -172,10 +172,10 @@ const Ventas = () => {
     });
     
     return sorted;
-  }, [filteredVentas, sortConfig]);
+  }, [filteredVentas, safeParseDate, sortConfig]);
 
   // Función para obtener etiqueta de fecha inteligente
-  const getDateLabel = (date) => {
+  const getDateLabel = useCallback((date) => {
     const parsedDate = safeParseDate(date);
     if (isToday(parsedDate)) {
       return 'Hoy';
@@ -184,10 +184,10 @@ const Ventas = () => {
     } else {
       return format(parsedDate, 'dd/MM/yyyy');
     }
-  };
+  }, [safeParseDate]);
 
   // Función para agrupar ventas por día
-  const groupVentasByDay = (ventasList) => {
+  const groupVentasByDay = useCallback((ventasList) => {
     const groups = {};
     
     ventasList.forEach(venta => {
@@ -223,12 +223,12 @@ const Ventas = () => {
     });
     
     return sortedGroups;
-  };
+  }, [getDateLabel, safeParseDate]);
 
   // Datos agrupados para vista agrupada
   const groupedVentas = useMemo(() => {
     return groupVentasByDay(sortedVentas);
-  }, [sortedVentas]);
+  }, [groupVentasByDay, sortedVentas]);
 
   // Toggle expand/collapse de grupo
   const toggleGroup = (dateKey) => {

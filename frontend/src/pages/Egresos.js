@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -43,7 +43,7 @@ const Egresos = () => {
     monto: ''
   });
 
-  const fetchEgresos = async () => {
+  const fetchEgresos = useCallback(async () => {
     try {
       const response = await axios.get(`${API}/egresos`, {
         headers: getAuthHeader(),
@@ -54,11 +54,11 @@ const Egresos = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getAuthHeader]);
 
   useEffect(() => {
     fetchEgresos();
-  }, []);
+  }, [fetchEgresos]);
 
   const resetForm = () => {
     setFormData({ descripcion: '', monto: '' });

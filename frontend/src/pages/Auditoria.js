@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,11 +42,7 @@ const Auditoria = () => {
     search: ''
   });
 
-  useEffect(() => {
-    fetchRegistros();
-  }, [filters]);
-
-  const fetchRegistros = async () => {
+  const fetchRegistros = useCallback(async () => {
     try {
       const params = new URLSearchParams();
       
@@ -69,7 +65,11 @@ const Auditoria = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters, getAuthHeader]);
+
+  useEffect(() => {
+    fetchRegistros();
+  }, [fetchRegistros]);
 
   const getEntidadIcon = (entidad) => {
     switch (entidad) {
