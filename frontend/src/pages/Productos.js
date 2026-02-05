@@ -231,26 +231,21 @@ const Productos = () => {
 
       {/* BUSCADOR + MODAL */}
       <div className="flex flex-col gap-3">
-        <form onSubmit={handleSearchSubmit}>
+        <form onSubmit={handleSearchSubmit} className="w-64">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground z-10" />
             <Input
               ref={searchInputRef}
               placeholder="Buscar productos..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-10 w-64"
+              className="pl-10 pr-10 w-full"
             />
             {searchTerm && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
+              <X 
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground hover:text-foreground cursor-pointer z-10"
                 onClick={handleClearSearch}
-                className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-              >
-                <X className="w-4 h-4" />
-              </Button>
+              />
             )}
           </div>
         </form>
