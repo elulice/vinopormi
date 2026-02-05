@@ -570,7 +570,7 @@ const NuevaVenta = () => {
                     </div>
                       <div className="w-32 space-y-2">
                         <Label>Subtotal</Label>
-                        <div className="h-10 px-3 py-2 bg-background border rounded-md flex items-center font-semibold">
+                        <div className="h-9 px-3 py-2 bg-background border rounded-md flex items-center font-semibold">
                           {formatCurrency(detalle.subtotal)}
                         </div>
                       </div>
