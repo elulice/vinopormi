@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -44,7 +44,7 @@ const Usuarios = () => {
     rol: 'comun'
   });
 
-  const fetchUsuarios = async () => {
+  const fetchUsuarios = useCallback(async () => {
     try {
       const response = await axios.get(`${API}/admin/usuarios`, {
         headers: getAuthHeader(),
@@ -55,11 +55,11 @@ const Usuarios = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getAuthHeader]);
 
   useEffect(() => {
     fetchUsuarios();
-  }, []);
+  }, [fetchUsuarios]);
 
   const resetForm = () => {
     setFormData({ username: '', nombre: '', password: '', rol: 'comun' });

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -40,11 +40,7 @@ const Clientes = () => {
     monto: ''
   });
 
-  useEffect(() => {
-    fetchClientes();
-  }, []);
-
-  const fetchClientes = async () => {
+  const fetchClientes = useCallback(async () => {
     try {
       const response = await axios.get(`${API}/clientes`, {
         headers: getAuthHeader()
@@ -55,7 +51,11 @@ const Clientes = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getAuthHeader]);
+
+  useEffect(() => {
+    fetchClientes();
+  }, [fetchClientes]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
