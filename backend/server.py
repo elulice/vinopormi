@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -406,6 +406,14 @@ async def create_producto(
     input: ProductoCreate, 
     current_user: Usuario = Depends(get_current_user)
 ):
+    # Verificar si ya existe un producto con el mismo nombre
+    existing = await db.productos.find_one({"nombre": input.nombre})
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail=f"Ya existe un producto con el nombre '{input.nombre}'"
+        )
+    
     producto_obj = Producto(**input.model_dump())
     doc = producto_obj.model_dump()
     doc['timestamp'] = doc['timestamp'].isoformat()
