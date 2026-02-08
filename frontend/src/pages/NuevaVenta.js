@@ -179,7 +179,21 @@ const NuevaVenta = () => {
   };
 
   const eliminarDetalle = (index) => {
-    setDetalles(detalles.filter((_, i) => i !== index));
+    const newDetalles = detalles.filter((_, i) => i !== index);
+    
+    // Si no quedan detalles, agregar uno vacío
+    if (newDetalles.length === 0) {
+      const newDetalle = {
+        producto_id: '',
+        producto_nombre: '',
+        cantidad: 1,
+        precio_unitario: 0,
+        subtotal: 0
+      };
+      setDetalles([newDetalle]);
+    } else {
+      setDetalles(newDetalles);
+    }
   };
 
   const resetForm = () => {
