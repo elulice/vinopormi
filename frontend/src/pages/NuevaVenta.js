@@ -484,174 +484,173 @@ const NuevaVenta = () => {
               </p>
             ) : (
               <div>
-                {/* Encabezado fijo con títulos */}
+                 {/* Encabezado fijo con títulos */}
                 <div className="flex gap-4 items-end pb-3 mb-4 border-b">
                   <div className="flex-1">
                     <Label className="font-semibold">Producto</Label>
                   </div>
-                  <div className="flex items-end gap-2">
-                    <div className="w-24">
-                      <Label className="font-semibold">Cantidad</Label>
-                    </div>
-                    <div className="w-32">
-                      <Label className="font-semibold">Subtotal</Label>
-                    </div>
+                  <div className="w-24 text-left">
+                    <Label className="font-semibold">Cantidad</Label>
+                  </div>
+                  <div className="w-32 text-left">
+                    <Label className="font-semibold">Subtotal</Label>
+                  </div>
+                  <div className="w-12">
+                    {/* Espacio para alinear con el botón de eliminar */}
                   </div>
                 </div>
                 {/* Lista de productos */}
                 <div className="space-y-1">
                   {detalles.map((detalle, index) => (
-                     <div key={index} className="flex gap-4 items-end p-4 bg-muted rounded-lg" data-testid={`detalle-${index}`}>
-                       <div className="flex-1">
-                         <div className="relative">
-                         {detalle.producto_id ? (
-                           // Si el producto ya está seleccionado, mostrarlo como campo de solo lectura
-                           <div className="h-9 px-3 py-2 bg-muted border rounded-md flex items-center font-medium">
-                             {capitalizeWords(detalle.producto_nombre)}
-                             <span className="ml-auto text-sm text-muted-foreground">
-                               ${detalle.precio_unitario} c/u
-                             </span>
-                           </div>
-                         ) : (
-                           // Si no hay producto seleccionado, mostrar el campo de búsqueda
-                           <>
-                             <div className="relative">
-                               <Input
-                                 ref={el => searchRefs.current[index] = el}
-                                 placeholder="Buscar producto..."
-                                 value={activeDetalleIndex === index ? productoSearchTerm : ''}
-                                 onChange={(e) => {
-                                   setProductoSearchTerm(e.target.value);
-                                   setActiveDetalleIndex(index);
-                                 }}
-                                 onFocus={() => {
-                                   setActiveDetalleIndex(index);
-                                   setProductoSearchTerm('');
-                                 }}
-                                 onKeyDown={(e) => handleKeyDown(e, index)}
-                                 className="pr-4"
-                               />
-                               {activeDetalleIndex === index && (
-                                 <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 pointer-events-none" />
-                               )}
-                               {activeDetalleIndex === index && productoSearchTerm && (
-                                 <div className="absolute z-10 left-0 right-0 mt-1 bg-background border rounded-md shadow-lg max-h-48 overflow-auto">
-                          {filteredProductos.length > 0 ? (
-                             filteredProductos.map((producto, resultIndex) => (
-                              <div
-                                key={producto.id}
-                                ref={el => resultRefs.current[resultIndex] = el}
-                                 className={`px-3 py-2 hover:bg-blue-50 cursor-pointer flex justify-between items-center transition-colors ${
-                                   resultIndex === selectedResultIndex ? 'bg-blue-100 border-l-4 border-blue-500' : ''
-                                 }`}
-                                onClick={() => {
-                                  actualizarDetalle(index, 'producto_id', producto.id);
-                                  setProductoSearchTerm('');
-                                  setActiveDetalleIndex(null);
-                                  setSelectedResultIndex(0);
-                                  resultRefs.current = []; // Limpiar referencias
-                                  // Focus on quantity field after product selection
-                                  setTimeout(() => {
-                                    if (cantidadRefs.current[index]) {
-                                      cantidadRefs.current[index].focus();
-                                      cantidadRefs.current[index].select();
-                                    }
-                                  }, 100);
-                                }}
-                              >
-                                <div>
-                                  <span>{capitalizeWords(producto.nombre)} - ${producto.precio_unitario}</span>
-                                  <div className="text-sm text-muted-foreground">
-                                    {producto.descuento_cantidad_minima && producto.descuento_precio_unitario && (
-                                      <div className="text-xs text-green-600 font-medium">
-                                        ≥{producto.descuento_cantidad_minima}: ${producto.descuento_precio_unitario} c/u
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            ))
+                      <div key={index} className="flex gap-4 items-center p-4 bg-muted rounded-lg" data-testid={`detalle-${index}`}>
+                        <div className="flex-1">
+                          <div className="relative">
+                          {detalle.producto_id ? (
+                            // Si el producto ya está seleccionado, mostrarlo como campo de solo lectura
+                            <div className="h-9 px-3 py-2 bg-muted border rounded-md flex items-center font-medium">
+                              {capitalizeWords(detalle.producto_nombre)}
+                              <span className="ml-auto text-muted-foreground">
+                                ${detalle.precio_unitario} c/u
+                              </span>
+                            </div>
                           ) : (
-                            <div className="px-3 py-2 text-sm text-muted-foreground">
-                              {productos.length === 0 
-                                ? 'No hay productos disponibles' 
-                                : 'Todos los productos ya están agregados o no coinciden con la búsqueda'}
-                            </div>
-                           )}
+                            // Si no hay producto seleccionado, mostrar el campo de búsqueda
+                            <>
+                              <div className="relative">
+                                <Input
+                                  ref={el => searchRefs.current[index] = el}
+                                  placeholder="Buscar producto..."
+                                  value={activeDetalleIndex === index ? productoSearchTerm : ''}
+                                  onChange={(e) => {
+                                    setProductoSearchTerm(e.target.value);
+                                    setActiveDetalleIndex(index);
+                                  }}
+                                  onFocus={() => {
+                                    setActiveDetalleIndex(index);
+                                    setProductoSearchTerm('');
+                                  }}
+                                  onKeyDown={(e) => handleKeyDown(e, index)}
+                                  className="pr-4"
+                                />
+                                {activeDetalleIndex === index && (
+                                  <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 pointer-events-none" />
+                                )}
+                                {activeDetalleIndex === index && productoSearchTerm && (
+                                  <div className="absolute z-10 left-0 right-0 mt-1 bg-background border rounded-md shadow-lg max-h-48 overflow-auto">
+                           {filteredProductos.length > 0 ? (
+                              filteredProductos.map((producto, resultIndex) => (
+                               <div
+                                 key={producto.id}
+                                 ref={el => resultRefs.current[resultIndex] = el}
+                                  className={`px-3 py-2 hover:bg-blue-50 cursor-pointer flex justify-between items-center transition-colors ${
+                                    resultIndex === selectedResultIndex ? 'bg-blue-100 border-l-4 border-blue-500' : ''
+                                  }`}
+                                 onClick={() => {
+                                   actualizarDetalle(index, 'producto_id', producto.id);
+                                   setProductoSearchTerm('');
+                                   setActiveDetalleIndex(null);
+                                   setSelectedResultIndex(0);
+                                   resultRefs.current = []; // Limpiar referencias
+                                   // Focus on quantity field after product selection
+                                   setTimeout(() => {
+                                     if (cantidadRefs.current[index]) {
+                                       cantidadRefs.current[index].focus();
+                                       cantidadRefs.current[index].select();
+                                     }
+                                   }, 100);
+                                 }}
+                               >
+                                 <div>
+                                   <span>{capitalizeWords(producto.nombre)} - ${producto.precio_unitario}</span>
+                                   <div className="text-sm text-muted-foreground">
+                                     {producto.descuento_cantidad_minima && producto.descuento_precio_unitario && (
+                                       <div className="text-xs text-green-600 font-medium">
+                                         ≥{producto.descuento_cantidad_minima}: ${producto.descuento_precio_unitario} c/u
+                                       </div>
+                                     )}
+                                   </div>
                                  </div>
-                               )}
+                               </div>
+                             ))
+                           ) : (
+                             <div className="px-3 py-2 text-sm text-muted-foreground">
+                               {productos.length === 0 
+                                 ? 'No hay productos disponibles' 
+                                 : 'Todos los productos ya están agregados o no coinciden con la búsqueda'}
                              </div>
-                             </>
-                           )}
-                         </div>
+                            )}
+                                  </div>
+                                )}
+                              </div>
+                              </>
+                            )}
+                          </div>
 
-                       {(!detalle.producto_id && !activeDetalleIndex === index) && (
-                        <Select
-                          value={detalle.producto_id}
-                          onValueChange={(value) => actualizarDetalle(index, 'producto_id', value)}
-                        >
-                          <SelectTrigger className="w-full" data-testid={`producto-select-${index}`}>
-                            <SelectValue placeholder="Selecciona un producto" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {getProductosDisponibles().map(producto => (
-                              <SelectItem key={producto.id} value={producto.id}>
-                                {capitalizeWords(producto.nombre)} - ${producto.precio_unitario}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-</div>
-                      <div className="flex items-end gap-2">
-                      <div className="w-24">
-                        <Input
-                          ref={el => cantidadRefs.current[index] = el}
-                          type="number"
-                          min="1"
-                          value={detalle.cantidad}
-                          onChange={(e) => actualizarDetalle(index, 'cantidad', e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              // Add new product row and focus on search field
-                              setTimeout(() => {
-                                agregarDetalle();
-                              }, 100);
-                            }
-                          }}
-                          data-testid={`cantidad-input-${index}`}
-                        />
-                      </div>
-                      {(() => {
-                        const producto = productos.find(p => p.id === detalle.producto_id);
-                        if (producto && producto.descuento_cantidad_minima && producto.descuento_precio_unitario && detalle.cantidad >= producto.descuento_cantidad_minima) {
-                          return (
-                            <div className="text-xs text-green-600 font-medium text-right">
-                              ¡Descuento!
-                              <br />
-                              ${producto.descuento_precio_unitario} c/u
-                            </div>
-                          );
-                        }
-                        return null;
-                      })()}
-                      <div className="w-32">
-                        <div className="h-9 px-3 py-2 bg-background border rounded-md flex items-center font-semibold">
-                          {formatCurrency(detalle.subtotal)}
+                        {(!detalle.producto_id && !activeDetalleIndex === index) && (
+                         <Select
+                           value={detalle.producto_id}
+                           onValueChange={(value) => actualizarDetalle(index, 'producto_id', value)}
+                         >
+                           <SelectTrigger className="w-full" data-testid={`producto-select-${index}`}>
+                             <SelectValue placeholder="Selecciona un producto" />
+                           </SelectTrigger>
+                           <SelectContent>
+                             {getProductosDisponibles().map(producto => (
+                               <SelectItem key={producto.id} value={producto.id}>
+                                 {capitalizeWords(producto.nombre)} - ${producto.precio_unitario}
+                               </SelectItem>
+                             ))}
+                           </SelectContent>
+                         </Select>
+                       )}
                         </div>
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="icon"
-                      onClick={() => eliminarDetalle(index)}
-                      data-testid={`remove-detalle-${index}`}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
+                        <div className="w-24">
+                          <Input
+                            ref={el => cantidadRefs.current[index] = el}
+                            type="number"
+                            min="1"
+                            value={detalle.cantidad}
+                            onChange={(e) => actualizarDetalle(index, 'cantidad', e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                // Add new product row and focus on search field
+                                setTimeout(() => {
+                                  agregarDetalle();
+                                }, 100);
+                              }
+                            }}
+                            data-testid={`cantidad-input-${index}`}
+                          />
+                          {(() => {
+                            const producto = productos.find(p => p.id === detalle.producto_id);
+                            if (producto && producto.descuento_cantidad_minima && producto.descuento_precio_unitario && detalle.cantidad >= producto.descuento_cantidad_minima) {
+                              return (
+                                <div className="text-xs text-green-600 font-medium text-center mt-1">
+                                  ¡Descuento! ${producto.descuento_precio_unitario} c/u
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </div>
+                        <div className="w-32 text-right">
+                          <div className="h-9 px-3 py-2 bg-background border rounded-md flex items-center justify-end font-semibold">
+                            {formatCurrency(detalle.subtotal)}
+                          </div>
+                        </div>
+                        <div className="w-10 flex justify-center">
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
+                            onClick={() => eliminarDetalle(index)}
+                            data-testid={`remove-detalle-${index}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                           </Button>
+                         </div>
+                       </div>
                   ))}
                 </div>
               </div>
