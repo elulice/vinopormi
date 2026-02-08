@@ -142,6 +142,9 @@ class MovimientoCuentaCorriente(BaseModel):
     fecha: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     concepto: str
     monto: float
+    venta_id: Optional[str] = None  # ID completo de la venta asociada
+    usuario_id: Optional[str] = None  # ID del usuario que creó el movimiento
+    usuario_nombre: Optional[str] = None  # Nombre del usuario que creó el movimiento
 
 class DashboardStats(BaseModel):
     total_vendido_hoy: float
@@ -763,7 +766,10 @@ async def create_venta(input: VentaCreate, current_user: Usuario = Depends(get_c
         movimiento = MovimientoCuentaCorriente(
             cliente_id=input.cliente_id,
             concepto=f"Venta #{venta_obj.id[:8]}",
-            monto=-total
+            monto=-total,
+            venta_id=venta_obj.id,  # Guardar el ID completo
+            usuario_id=current_user.id,
+            usuario_nombre=current_user.nombre
         )
         mov_doc = movimiento.model_dump()
         mov_doc['fecha'] = mov_doc['fecha'].isoformat()
@@ -894,7 +900,9 @@ async def create_movimiento(cliente_id: str, concepto: str, monto: float, curren
     movimiento = MovimientoCuentaCorriente(
         cliente_id=cliente_id,
         concepto=concepto,
-        monto=monto
+        monto=monto,
+        usuario_id=current_user.id,
+        usuario_nombre=current_user.nombre
     )
     
     doc = movimiento.model_dump()

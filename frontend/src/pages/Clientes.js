@@ -7,11 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash2, Users, CreditCard, TrendingUp, TrendingDown, ArrowLeft, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2, Users, CreditCard, TrendingUp, TrendingDown, ArrowLeft, Search, ShoppingCart } from 'lucide-react';
 import { formatCurrency, formatNumber } from '@/lib/currency';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { capitalizeWords } from '@/lib/utils';
 import ResponsiveTable from '@/components/ResponsiveTable';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -25,6 +26,9 @@ const Clientes = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [cuentaDialogOpen, setCuentaDialogOpen] = useState(false);
   const [movimientoDialogOpen, setMovimientoDialogOpen] = useState(false);
+  const [ventaDialogOpen, setVentaDialogOpen] = useState(false);
+  const [selectedVenta, setSelectedVenta] = useState(null);
+  const [loadingVenta, setLoadingVenta] = useState(false);
   const [editingCliente, setEditingCliente] = useState(null);
   const [selectedCliente, setSelectedCliente] = useState(null);
   const [cuentaInfo, setCuentaInfo] = useState(null);
@@ -126,7 +130,7 @@ const Clientes = () => {
     setCuentaDialogOpen(true);
     setLoadingCuenta(true);
     
-    try {
+   try {
       const response = await axios.get(
         `${API}/clientes/${cliente.id}/cuenta-corriente`,
         { headers: getAuthHeader() }
@@ -168,6 +172,36 @@ const Clientes = () => {
     setCuentaDialogOpen(false);
     setSelectedCliente(null);
     setCuentaInfo(null);
+  };
+
+  const handleViewVenta = async (movimiento) => {
+    // Usar directamente el campo venta_id que ahora incluye el backend
+    const ventaId = movimiento.venta_id;
+    
+    if (!ventaId) {
+      return;
+    }
+    
+    setSelectedVenta(null);
+    setVentaDialogOpen(true);
+    setLoadingVenta(true);
+    
+    try {
+      const response = await axios.get(`${API}/ventas/${ventaId}`, {
+        headers: getAuthHeader()
+      });
+      setSelectedVenta(response.data);
+    } catch (error) {
+      toast.error('Error al cargar detalles de la venta');
+      setVentaDialogOpen(false);
+    } finally {
+      setLoadingVenta(false);
+    }
+  };
+
+  const handleVentaDialogClose = () => {
+    setVentaDialogOpen(false);
+    setSelectedVenta(null);
   };
 
   const filteredClientes = clientes.filter((c) =>
@@ -503,32 +537,54 @@ const Clientes = () => {
                     </p>
                   ) : (
                     <div className="space-y-2 max-h-60 overflow-y-auto">
-                      {cuentaInfo.movimientos.map((mov) => (
-                        <div
-                          key={mov.id}
-                          className="flex justify-between items-center p-3 bg-muted rounded-md"
-                        >
-                          <div className="flex items-center gap-3">
-                            {mov.monto > 0 ? (
-                              <TrendingUp className="w-4 h-4 text-green-600" />
-                            ) : (
-                              <TrendingDown className="w-4 h-4 text-red-600" />
-                            )}
-                            <div>
-                              <p className="font-medium text-sm">{mov.concepto}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {format(new Date(mov.fecha), 'PPP', { locale: es })}
-                              </p>
-                            </div>
-                          </div>
-                          <div className={`text-sm font-semibold ${
-                            mov.monto > 0 ? 'text-green-600' : 'text-red-600'
-                          }`}>
-                            {mov.monto > 0 ? '+' : ''}
-                            {formatCurrency(mov.monto)}
-                          </div>
-                        </div>
-                      ))}
+                       {cuentaInfo.movimientos.map((mov) => {
+                         // Detectar si es una venta por el campo venta_id
+                         const esVenta = mov.venta_id;
+                         
+                         return (
+                         <div
+                           key={mov.id}
+                           className={`flex justify-between items-center p-3 bg-muted rounded-md ${
+                             esVenta ? 'cursor-pointer hover:bg-accent/50 transition-colors' : ''
+                           }`}
+                           onClick={() => esVenta && handleViewVenta(mov)}
+                         >
+                           <div className="flex items-center gap-3">
+                             {esVenta ? (
+                               <ShoppingCart className="w-4 h-4 text-primary" />
+                             ) : mov.monto > 0 ? (
+                               <TrendingUp className="w-4 h-4 text-green-600" />
+                             ) : (
+                               <TrendingDown className="w-4 h-4 text-red-600" />
+                             )}
+                             <div>
+                               <p className="font-medium text-sm">{mov.concepto}</p>
+                               <p className="text-xs text-muted-foreground">
+                                 {format(new Date(mov.fecha), 'PPP HH:mm', { locale: es })}
+                               </p>
+                               {mov.usuario_nombre && (
+                                 <p className="text-xs text-blue-600 font-medium">
+                                   Por: {mov.usuario_nombre}
+                                 </p>
+                               )}
+                             </div>
+                           </div>
+                           <div className="flex items-center gap-2">
+                             <div className={`text-sm font-semibold ${
+                               mov.monto > 0 ? 'text-green-600' : 'text-red-600'
+                             }`}>
+                               {mov.monto > 0 ? '+' : ''}
+                               {formatCurrency(mov.monto)}
+                             </div>
+                             {esVenta && (
+                               <div className="w-4 h-4 rounded-full bg-primary/10 flex items-center justify-center">
+                                 <div className="w-2 h-2 rounded-full bg-primary"></div>
+                               </div>
+                             )}
+                           </div>
+                         </div>
+                         );
+                       })}
                     </div>
                   )}
                 </CardContent>
@@ -550,6 +606,85 @@ const Clientes = () => {
             </div>
           ) : (
             <div className="text-center py-8">No se pudo cargar la cuenta corriente</div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Detalle de Venta */}
+      <Dialog open={ventaDialogOpen} onOpenChange={handleVentaDialogClose}>
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle>Detalle de Venta</DialogTitle>
+            <DialogDescription>
+              Información completa de la venta seleccionada
+            </DialogDescription>
+          </DialogHeader>
+          {loadingVenta ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center py-8">Cargando detalles de la venta...</div>
+            </div>
+          ) : selectedVenta ? (
+            <div className="flex flex-col flex-1 min-h-0 space-y-4">
+              <div className="grid grid-cols-2 gap-4 p-4 bg-muted rounded-lg flex-shrink-0">
+                <div>
+                  <p className="text-sm text-muted-foreground">Fecha y Hora</p>
+                  <p className="font-medium">
+                    {format(new Date(selectedVenta.fecha), 'PPP HH:mm:ss', { locale: es })}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Usuario</p>
+                  <p className="font-medium">
+                    {selectedVenta.usuario_nombre || 'Usuario desconocido'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Medio de Pago</p>
+                  <p className="font-medium capitalize">
+                    {selectedVenta.medio_pago?.replace('_', ' ') ?? '—'}
+                  </p>
+                </div>
+                {selectedVenta.cliente_nombre && (
+                  <div className="col-span-2">
+                    <p className="text-sm text-muted-foreground">Cliente</p>
+                    <p className="font-medium">{selectedVenta.cliente_nombre}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-col flex-1 min-h-0">
+                <h3 className="font-semibold mb-3 flex-shrink-0">Productos</h3>
+                <div className="flex-1 overflow-y-auto space-y-2 max-h-[50vh]">
+                  {selectedVenta.detalles?.map((detalle, index) => (
+                    <div
+                      key={index}
+                      className="flex justify-between items-center p-3 bg-muted rounded-md"
+                    >
+                      <div>
+                        <p className="font-medium">{capitalizeWords(detalle.producto_nombre)}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {detalle.cantidad} x {formatCurrency(detalle.precio_unitario)}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-semibold">
+                          {formatCurrency(detalle.subtotal)}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center p-4 bg-primary/10 rounded-lg flex-shrink-0">
+                <span className="text-xl font-bold">Total</span>
+                <span className="text-2xl font-bold text-primary">
+                  {formatCurrency(selectedVenta.total)}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8">No se pudo cargar la venta</div>
           )}
         </DialogContent>
       </Dialog>
