@@ -79,17 +79,20 @@ const VirtualTable = ({ items, itemHeight, containerHeight, renderItem, headers 
 
 const Ventas = () => {
   const { getAuthHeader } = useAuth();
-  const [ventas, setVentas] = useState([]);
+const [ventas, setVentas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedVenta, setSelectedVenta] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [usuarios, setUsuarios] = useState([]);
   
   // Estados para filtros y ordenamiento
   const [filters, setFilters] = useState({
     dateType: 'all', // 'all', 'specific', 'range'
     specificDate: '',
     startDate: '',
-    endDate: ''
+    endDate: '',
+    medioPago: 'all', // 'all', 'cuenta_corriente', 'efectivo', 'posnet', 'transferencia'
+    usuario: 'all' // 'all' o ID de usuario específico
   });
   
   const [sortConfig, setSortConfig] = useState({
@@ -100,7 +103,7 @@ const Ventas = () => {
   const [viewMode, setViewMode] = useState('individual'); // 'individual' or 'grouped'
   const [expandedGroups, setExpandedGroups] = useState(new Set());
 
-  const fetchVentas = useCallback(async () => {
+const fetchVentas = useCallback(async () => {
     try {
       const response = await axios.get(`${API}/ventas`, {
         headers: getAuthHeader()
@@ -113,9 +116,21 @@ const Ventas = () => {
     }
   }, [getAuthHeader]);
 
+  const fetchUsuarios = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API}/admin/usuarios`, {
+        headers: getAuthHeader()
+      });
+      setUsuarios(response.data);
+    } catch (error) {
+      toast.error('Error al cargar usuarios');
+    }
+  }, [getAuthHeader]);
+
   useEffect(() => {
     fetchVentas();
-  }, [fetchVentas]);
+    fetchUsuarios();
+  }, [fetchVentas, fetchUsuarios]);
 
   // Función segura para parsear fechas
   const safeParseDate = useCallback((dateString) => {
@@ -127,7 +142,7 @@ const Ventas = () => {
     }
   }, []);
 
-  // Aplicar filtros
+// Aplicar filtros
   const filteredVentas = useMemo(() => {
     let filtered = [...ventas];
     
@@ -144,6 +159,16 @@ const Ventas = () => {
         const ventaDate = safeParseDate(venta.fecha);
         return isWithinInterval(ventaDate, { start, end });
       });
+    }
+    
+    // Filtrar por medio de pago
+    if (filters.medioPago !== 'all') {
+      filtered = filtered.filter(venta => venta.medio_pago === filters.medioPago);
+    }
+    
+    // Filtrar por usuario
+    if (filters.usuario !== 'all') {
+      filtered = filtered.filter(venta => venta.usuario_id === filters.usuario);
     }
     
     return filtered;
@@ -248,12 +273,14 @@ const Ventas = () => {
     setDialogOpen(true);
   };
 
-  const clearFilters = () => {
+const clearFilters = () => {
     setFilters({
       dateType: 'all',
       specificDate: '',
       startDate: '',
-      endDate: ''
+      endDate: '',
+      medioPago: 'all',
+      usuario: 'all'
     });
   };
 
@@ -512,7 +539,7 @@ const Ventas = () => {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+<div className="grid grid-cols-1 md:grid-cols-6 gap-4">
             <div className="space-y-2">
               <Label>Tipo de filtro</Label>
               <Select 
@@ -526,6 +553,45 @@ const Ventas = () => {
                   <SelectItem value="all">Todas las ventas</SelectItem>
                   <SelectItem value="specific">Fecha específica</SelectItem>
                   <SelectItem value="range">Rango de fechas</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Medio de Pago</Label>
+              <Select 
+                value={filters.medioPago} 
+                onValueChange={(value) => setFilters(prev => ({ ...prev, medioPago: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="cuenta_corriente">Cuenta Corriente</SelectItem>
+                  <SelectItem value="efectivo">Efectivo</SelectItem>
+                  <SelectItem value="posnet">PosNet</SelectItem>
+                  <SelectItem value="transferencia">Transferencia</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Usuario</Label>
+              <Select 
+                value={filters.usuario} 
+                onValueChange={(value) => setFilters(prev => ({ ...prev, usuario: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {usuarios.map(usuario => (
+                    <SelectItem key={usuario.id} value={usuario.id.toString()}>
+                      {usuario.nombre}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -563,8 +629,9 @@ const Ventas = () => {
             )}
           </div>
           
-          {(filters.dateType !== 'all' || (filters.dateType === 'specific' && filters.specificDate) || 
-            (filters.dateType === 'range' && (filters.startDate || filters.endDate))) && (
+{(filters.dateType !== 'all' || (filters.dateType === 'specific' && filters.specificDate) || 
+            (filters.dateType === 'range' && (filters.startDate || filters.endDate)) ||
+            filters.medioPago !== 'all' || filters.usuario !== 'all') && (
             <Button 
               variant="outline" 
               onClick={clearFilters}
