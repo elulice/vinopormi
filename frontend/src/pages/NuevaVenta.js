@@ -511,9 +511,9 @@ const NuevaVenta = () => {
                               <div
                                 key={producto.id}
                                 ref={el => resultRefs.current[resultIndex] = el}
-                                className={`px-3 py-2 hover:bg-muted cursor-pointer flex justify-between items-center ${
-                                  resultIndex === selectedResultIndex ? 'bg-muted' : ''
-                                }`}
+                                 className={`px-3 py-2 hover:bg-blue-50 cursor-pointer flex justify-between items-center transition-colors ${
+                                   resultIndex === selectedResultIndex ? 'bg-blue-100 border-l-4 border-blue-500' : ''
+                                 }`}
                                 onClick={() => {
                                   actualizarDetalle(index, 'producto_id', producto.id);
                                   setProductoSearchTerm('');
