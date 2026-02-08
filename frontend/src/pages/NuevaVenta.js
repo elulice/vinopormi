@@ -507,11 +507,33 @@ const NuevaVenta = () => {
                           <div className="relative">
                           {detalle.producto_id ? (
                             // Si el producto ya está seleccionado, mostrarlo como campo de solo lectura
-                            <div className="h-9 px-3 py-2 bg-muted border rounded-md flex items-center font-medium">
+                             <div className="h-9 px-3 py-2 bg-muted border rounded-md flex items-center font-medium">
                               {capitalizeWords(detalle.producto_nombre)}
-                              <span className="ml-auto text-muted-foreground">
-                                ${detalle.precio_unitario} c/u
-                              </span>
+                              <div className="ml-auto text-right">
+                                {(() => {
+                                  const producto = productos.find(p => p.id === detalle.producto_id);
+                                  const tieneDescuento = producto && producto.descuento_cantidad_minima && producto.descuento_precio_unitario && detalle.cantidad >= producto.descuento_cantidad_minima;
+                                  
+                                  if (tieneDescuento) {
+                                    return (
+                                      <>
+                                        <span className="text-muted-foreground text-xs line-through">
+                                          ${detalle.precio_unitario} c/u
+                                        </span>
+                                        <div className="text-xs text-green-500 font-bold">
+                                          ¡Descuento! ${producto.descuento_precio_unitario} c/u
+                                        </div>
+                                      </>
+                                    );
+                                  } else {
+                                    return (
+                                      <span className="text-muted-foreground">
+                                        ${detalle.precio_unitario} c/u
+                                      </span>
+                                    );
+                                  }
+                                })()}
+                              </div>
                             </div>
                           ) : (
                             // Si no hay producto seleccionado, mostrar el campo de búsqueda
@@ -622,17 +644,7 @@ const NuevaVenta = () => {
                             }}
                             data-testid={`cantidad-input-${index}`}
                           />
-                          {(() => {
-                            const producto = productos.find(p => p.id === detalle.producto_id);
-                            if (producto && producto.descuento_cantidad_minima && producto.descuento_precio_unitario && detalle.cantidad >= producto.descuento_cantidad_minima) {
-                              return (
-                                <div className="text-xs text-green-600 font-medium text-center mt-1">
-                                  ¡Descuento! ${producto.descuento_precio_unitario} c/u
-                                </div>
-                              );
-                            }
-                            return null;
-                          })()}
+
                         </div>
                         <div className="w-32 text-right">
                           <div className="h-9 px-3 py-2 bg-background border rounded-md flex items-center justify-end font-semibold">
