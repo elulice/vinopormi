@@ -520,9 +520,9 @@ const NuevaVenta = () => {
                                         <span className="text-muted-foreground text-xs line-through">
                                           ${detalle.precio_unitario} c/u
                                         </span>
-                                        <div className="text-xs text-green-500 font-bold">
-                                          ¡Descuento! ${producto.descuento_precio_unitario} c/u
-                                        </div>
+                                         <div className="text-xs text-green-500 font-bold pb-1">
+                                           ¡Descuento! ${producto.descuento_precio_unitario} c/u
+                                         </div>
                                       </>
                                     );
                                   } else {
