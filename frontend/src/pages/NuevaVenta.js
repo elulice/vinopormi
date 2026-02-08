@@ -366,19 +366,42 @@ const NuevaVenta = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="medio_pago">Medio de Pago</Label>
-                <Select value={medioPago} onValueChange={setMedioPago}>
-                  <SelectTrigger id="medio_pago" data-testid="medio-pago-select">
-                    <SelectValue />
-                  </SelectTrigger>
-<SelectContent>
-                    <SelectItem value="cuenta_corriente">Cuenta Corriente</SelectItem>
-                    <SelectItem value="efectivo">Efectivo</SelectItem>
-                    <SelectItem value="posnet">PosNet</SelectItem>
-                    <SelectItem value="transferencia">Transferencia</SelectItem>
-                  </SelectContent>
-                </Select>
+<div className="space-y-2">
+                <Label>Medio de Pago</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    variant={medioPago === 'cuenta_corriente' ? 'default' : 'outline'}
+                    onClick={() => setMedioPago('cuenta_corriente')}
+                    className="w-full"
+                  >
+                    Cuenta Corriente
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={medioPago === 'efectivo' ? 'default' : 'outline'}
+                    onClick={() => setMedioPago('efectivo')}
+                    className="w-full"
+                  >
+                    Efectivo
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={medioPago === 'posnet' ? 'default' : 'outline'}
+                    onClick={() => setMedioPago('posnet')}
+                    className="w-full"
+                  >
+                    PosNet
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={medioPago === 'transferencia' ? 'default' : 'outline'}
+                    onClick={() => setMedioPago('transferencia')}
+                    className="w-full"
+                  >
+                    Transferencia
+                  </Button>
+                </div>
               </div>
 
               {medioPago === 'cuenta_corriente' && (
