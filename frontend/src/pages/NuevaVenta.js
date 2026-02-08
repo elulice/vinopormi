@@ -160,22 +160,38 @@ const NuevaVenta = () => {
   };
 
   const agregarDetalle = () => {
-    const newDetalleIndex = detalles.length;
-    const newDetalle = {
-      producto_id: '',
-      producto_nombre: '',
-      cantidad: 1,
-      precio_unitario: 0,
-      subtotal: 0
-    };
-    setDetalles([...detalles, newDetalle]);
-    setActiveDetalleIndex(newDetalleIndex);
-    // Focus on search field after adding new row
-    setTimeout(() => {
-      if (searchRefs.current[newDetalleIndex]) {
-        searchRefs.current[newDetalleIndex].focus();
-      }
-    }, 100);
+    // Buscar si hay un item vacío (sin producto seleccionado)
+    const emptyIndex = detalles.findIndex(detalle => !detalle.producto_id);
+    
+    if (emptyIndex !== -1) {
+      // Si hay un item vacío, hacer focus en su campo de búsqueda
+      setActiveDetalleIndex(emptyIndex);
+      setSelectedResultIndex(0);
+      setProductoSearchTerm('');
+      setTimeout(() => {
+        if (searchRefs.current[emptyIndex]) {
+          searchRefs.current[emptyIndex].focus();
+        }
+      }, 100);
+    } else {
+      // Si no hay items vacíos, agregar uno nuevo
+      const newDetalleIndex = detalles.length;
+      const newDetalle = {
+        producto_id: '',
+        producto_nombre: '',
+        cantidad: 1,
+        precio_unitario: 0,
+        subtotal: 0
+      };
+      setDetalles([...detalles, newDetalle]);
+      setActiveDetalleIndex(newDetalleIndex);
+      // Focus on search field after adding new row
+      setTimeout(() => {
+        if (searchRefs.current[newDetalleIndex]) {
+          searchRefs.current[newDetalleIndex].focus();
+        }
+      }, 100);
+    }
   };
 
   const eliminarDetalle = (index) => {
