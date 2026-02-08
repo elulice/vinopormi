@@ -372,9 +372,11 @@ const NuevaVenta = () => {
                   <SelectTrigger id="medio_pago" data-testid="medio-pago-select">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="efectivo">Efectivo</SelectItem>
+<SelectContent>
                     <SelectItem value="cuenta_corriente">Cuenta Corriente</SelectItem>
+                    <SelectItem value="efectivo">Efectivo</SelectItem>
+                    <SelectItem value="posnet">PosNet</SelectItem>
+                    <SelectItem value="transferencia">Transferencia</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -422,18 +424,33 @@ const NuevaVenta = () => {
               </div>
             </div>
           </CardHeader>
-          <CardContent>
+<CardContent>
             {detalles.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">
                 No hay productos. Agrega uno para empezar.
               </p>
             ) : (
-              <div className="space-y-4">
-                {detalles.map((detalle, index) => (
-                   <div key={index} className="flex gap-4 items-end p-4 bg-muted rounded-lg" data-testid={`detalle-${index}`}>
-                    <div className="flex-1 space-y-2">
-                      <Label>Producto</Label>
-                      <div className="relative">
+              <div>
+                {/* Encabezado fijo con títulos */}
+                <div className="flex gap-4 items-end pb-3 mb-4 border-b">
+                  <div className="flex-1">
+                    <Label className="font-semibold">Producto</Label>
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <div className="w-24">
+                      <Label className="font-semibold">Cantidad</Label>
+                    </div>
+                    <div className="w-32">
+                      <Label className="font-semibold">Subtotal</Label>
+                    </div>
+                  </div>
+                </div>
+                {/* Lista de productos */}
+                <div className="space-y-1">
+                  {detalles.map((detalle, index) => (
+                     <div key={index} className="flex gap-4 items-end p-4 bg-muted rounded-lg" data-testid={`detalle-${index}`}>
+                      <div className="flex-1">
+                        <div className="relative">
                         {detalle.producto_id ? (
                           // Si el producto ya está seleccionado, mostrarlo como campo de solo lectura
                           <div className="h-10 px-3 py-2 bg-muted border rounded-md flex items-center font-medium">
@@ -530,10 +547,9 @@ const NuevaVenta = () => {
                           </SelectContent>
                         </Select>
                       )}
-                    </div>
-                    <div className="flex items-end gap-2">
-                      <div className="w-24 space-y-2">
-                        <Label>Cantidad</Label>
+</div>
+                      <div className="flex items-end gap-2">
+                      <div className="w-24">
                         <Input
                           ref={el => cantidadRefs.current[index] = el}
                           type="number"
@@ -565,13 +581,12 @@ const NuevaVenta = () => {
                         }
                         return null;
                       })()}
-                    </div>
-                      <div className="w-32 space-y-2">
-                        <Label>Subtotal</Label>
+                      <div className="w-32">
                         <div className="h-9 px-3 py-2 bg-background border rounded-md flex items-center font-semibold">
                           {formatCurrency(detalle.subtotal)}
                         </div>
                       </div>
+                    </div>
                     <Button
                       type="button"
                       variant="destructive"
@@ -582,7 +597,8 @@ const NuevaVenta = () => {
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
           </CardContent>
