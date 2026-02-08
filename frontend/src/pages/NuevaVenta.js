@@ -472,42 +472,40 @@ const NuevaVenta = () => {
                 <div className="space-y-1">
                   {detalles.map((detalle, index) => (
                      <div key={index} className="flex gap-4 items-end p-4 bg-muted rounded-lg" data-testid={`detalle-${index}`}>
-                      <div className="flex-1">
-                        <div className="relative">
-                        {detalle.producto_id ? (
-                          // Si el producto ya está seleccionado, mostrarlo como campo de solo lectura
-                          <div className="h-10 px-3 py-2 bg-muted border rounded-md flex items-center font-medium">
-                            {capitalizeWords(detalle.producto_nombre)}
-                            <span className="ml-auto text-sm text-muted-foreground">
-                              ${detalle.precio_unitario} c/u
-                            </span>
-                          </div>
-                        ) : (
-                          // Si no hay producto seleccionado, mostrar el campo de búsqueda
-                          <>
-                            <Input
-                              ref={el => searchRefs.current[index] = el}
-                              placeholder="Buscar producto..."
-                              value={activeDetalleIndex === index ? productoSearchTerm : ''}
-                              onChange={(e) => {
-                                setProductoSearchTerm(e.target.value);
-                                setActiveDetalleIndex(index);
-                              }}
-                              onFocus={() => {
-                                setActiveDetalleIndex(index);
-                                setProductoSearchTerm('');
-                              }}
-                              onKeyDown={(e) => handleKeyDown(e, index)}
-                              className="pr-4"
-                            />
-                            {activeDetalleIndex === index && (
-                              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 pointer-events-none" />
-                            )}
-                          </>
-                        )}
-                      </div>
-                      {activeDetalleIndex === index && productoSearchTerm && (
-                        <div className="relative z-10 w-full mt-1 bg-background border rounded-md shadow-lg max-h-48 overflow-auto">
+                       <div className="flex-1">
+                         <div className="relative">
+                         {detalle.producto_id ? (
+                           // Si el producto ya está seleccionado, mostrarlo como campo de solo lectura
+                           <div className="h-9 px-3 py-2 bg-muted border rounded-md flex items-center font-medium">
+                             {capitalizeWords(detalle.producto_nombre)}
+                             <span className="ml-auto text-sm text-muted-foreground">
+                               ${detalle.precio_unitario} c/u
+                             </span>
+                           </div>
+                         ) : (
+                           // Si no hay producto seleccionado, mostrar el campo de búsqueda
+                           <>
+                             <div className="relative">
+                               <Input
+                                 ref={el => searchRefs.current[index] = el}
+                                 placeholder="Buscar producto..."
+                                 value={activeDetalleIndex === index ? productoSearchTerm : ''}
+                                 onChange={(e) => {
+                                   setProductoSearchTerm(e.target.value);
+                                   setActiveDetalleIndex(index);
+                                 }}
+                                 onFocus={() => {
+                                   setActiveDetalleIndex(index);
+                                   setProductoSearchTerm('');
+                                 }}
+                                 onKeyDown={(e) => handleKeyDown(e, index)}
+                                 className="pr-4"
+                               />
+                               {activeDetalleIndex === index && (
+                                 <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 pointer-events-none" />
+                               )}
+                               {activeDetalleIndex === index && productoSearchTerm && (
+                                 <div className="absolute z-10 left-0 right-0 mt-1 bg-background border rounded-md shadow-lg max-h-48 overflow-auto">
                           {filteredProductos.length > 0 ? (
                              filteredProductos.map((producto, resultIndex) => (
                               <div
@@ -549,11 +547,15 @@ const NuevaVenta = () => {
                                 ? 'No hay productos disponibles' 
                                 : 'Todos los productos ya están agregados o no coinciden con la búsqueda'}
                             </div>
-                          )}
-                        </div>
-                      )}
+                           )}
+                                 </div>
+                               )}
+                             </div>
+                             </>
+                           )}
+                         </div>
 
-                      {(!detalle.producto_id && !activeDetalleIndex === index) && (
+                       {(!detalle.producto_id && !activeDetalleIndex === index) && (
                         <Select
                           value={detalle.producto_id}
                           onValueChange={(value) => actualizarDetalle(index, 'producto_id', value)}
