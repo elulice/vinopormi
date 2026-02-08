@@ -297,9 +297,8 @@ const Clientes = () => {
 
       <ResponsiveTable
         headers={[
-          { title: 'Cliente', width: '30%' },
-          { title: 'Teléfono', width: '20%' },
-          { title: 'Email', width: '25%' },
+          { title: 'Cliente', width: '40%' },
+          { title: 'Saldo', width: '35%' },
           { title: 'Acciones', width: '25%' }
         ]}
         rows={filteredClientes}
@@ -313,19 +312,18 @@ const Clientes = () => {
                 <span className="font-medium">{cliente.nombre}</span>
               </div>
             </td>
-            <td className="p-4 text-muted-foreground">
-              {cliente.telefono ? (
-                cliente.telefono
-              ) : (
-                <span className="italic">No especificado</span>
-              )}
-            </td>
             <td className="p-4">
-              {cliente.email ? (
-                <span className="text-sm text-muted-foreground">{cliente.email}</span>
-              ) : (
-                <span className="text-sm text-muted-foreground italic">No especificado</span>
-              )}
+              <div className={`text-lg font-semibold ${
+                cliente.saldo < 0 ? 'text-destructive' : 'text-green-600'
+              }`}>
+                {formatCurrency(Math.abs(cliente.saldo || 0))}
+                {cliente.saldo < 0 && (
+                  <span className="text-sm font-normal text-muted-foreground ml-2">(debe)</span>
+                )}
+                {cliente.saldo > 0 && (
+                  <span className="text-sm font-normal text-muted-foreground ml-2">(a favor)</span>
+                )}
+              </div>
             </td>
             <td className="p-4">
               <div className="flex justify-end gap-2">
@@ -374,18 +372,16 @@ const Clientes = () => {
             
             <div className="space-y-2 mb-4 text-sm">
               <div>
-                <span className="text-muted-foreground">Teléfono: </span>
-                <span className="font-medium">
-                  {cliente.telefono || (
-                    <span className="italic">No especificado</span>
+                <span className="text-muted-foreground">Saldo: </span>
+                <span className={`font-semibold text-lg ${
+                  cliente.saldo < 0 ? 'text-destructive' : 'text-green-600'
+                }`}>
+                  {formatCurrency(Math.abs(cliente.saldo || 0))}
+                  {cliente.saldo < 0 && (
+                    <span className="text-xs font-normal text-muted-foreground ml-1">(debe)</span>
                   )}
-                </span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Email: </span>
-                <span className="font-medium">
-                  {cliente.email || (
-                    <span className="italic">No especificado</span>
+                  {cliente.saldo > 0 && (
+                    <span className="text-xs font-normal text-muted-foreground ml-1">(a favor)</span>
                   )}
                 </span>
               </div>

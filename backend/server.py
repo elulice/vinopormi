@@ -614,13 +614,18 @@ async def create_cliente(
     
     return cliente_obj
 
-@api_router.get("/clientes", response_model=List[Cliente])
+@api_router.get("/clientes", response_model=List[dict])
 async def get_clientes(current_user: Usuario = Depends(get_current_user)):
     clientes = await db.clientes.find({}, {'_id': 0}).to_list(1000)
     
     for c in clientes:
         if isinstance(c.get('timestamp'), str):
             c['timestamp'] = datetime.fromisoformat(c['timestamp'])
+        
+        # Calcular saldo para cada cliente
+        movimientos = await db.movimientos.find({'cliente_id': c['id']}, {'_id': 0}).to_list(1000)
+        saldo = sum(m['monto'] for m in movimientos)
+        c['saldo'] = saldo
     
     return clientes
 
