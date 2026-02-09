@@ -143,6 +143,53 @@ La API expone endpoints RESTful para:
 - Empresas con sistema de cuenta corriente
 - Negocios que requieren control de stock avanzado
 
+## 👥 Contribuidores
+
+Gracias a todas las personas que han contribuido a hacer de VinoPorMi un proyecto mejor:
+
+### Maintainers
+
+- **[Your Name](https://github.com/yourusername)** - Fundador y desarrollador principal
+
+### Contribuidores
+
+<!-- 
+Contribuidores son automáticamente agregados por GitHub
+Puedes agregar manualmente contribuidores especiales aquí si lo deseas
+-->
+
+[![Contributors](https://contrib.rocks/image?repo=yourusername/vinopormi)](https://github.com/yourusername/vinopormi/graphs/contributors)
+
+### Cómo Contribuir
+
+¿Quieres ser parte de este proyecto? 🎉
+
+1. **Revisa nuestra [Guía de Contribución](CONTRIBUTING.md)**
+2. **Lee nuestro [Código de Conducta](CODE_OF_CONDUCT.md)**
+3. **Busca issues con la etiqueta `good first issue`**
+4. **Participa en nuestras [Discusiones](https://github.com/yourusername/vinopormi/discussions)**
+
+### Tipos de Contribuciones
+
+- 🐛 **Reporte de bugs** - Ayúdanos a encontrar y solucionar errores
+- 💡 **Nuevas ideas** - Sugiere mejoras y funcionalidades
+- 📖 **Documentación** - Mejora la documentación del proyecto
+- 🌍 **Traducciones** - Ayuda a traducir el proyecto a otros idiomas
+- 🎨 **Diseño** - Contribuye al diseño UI/UX
+- 🧪 **Testing** - Ayuda a mejorar la cobertura de pruebas
+
+### Reconocimientos
+
+- Los contribuidores activos son reconocidos en cada release
+- Las contribuciones significativas son destacadas en el README
+- Los maintainers del proyecto son invitados basados en sus contribuciones
+
+---
+
+## 📄 Licencia
+
+Este proyecto está licenciado bajo la [MIT License](LICENSE).
+
 ---
 
 **Desarrollado con ❤️ para la comunidad de vinos**

@@ -13,7 +13,8 @@ import {
   X,
   LogIn,
   History,
-  Building
+  Building,
+  Plus
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
@@ -36,7 +37,7 @@ const Layout = () => {
 
   const menuItems = [
     { path: '/dashboard', icon: LayoutDashboard, label: 'Escritorio' },
-    { path: '/nueva-venta', icon: ShoppingCart, label: 'Nueva Venta' },
+    { path: '/nueva-venta', icon: Plus, label: 'Nueva Venta' },
     { path: '/ventas', icon: ShoppingCart, label: 'Ventas' },
     { path: '/productos', icon: Package, label: 'Productos' },
     { path: '/clientes', icon: Users, label: 'Clientes' },
