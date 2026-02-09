@@ -135,10 +135,35 @@ class VentaCreate(BaseModel):
     cliente_id: Optional[str] = None
     detalles: List[DetalleVenta]
 
+class Proveedor(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    nombre: str
+    telefono: Optional[str] = None
+    email: Optional[str] = None
+    direccion: Optional[str] = None
+    cuit: Optional[str] = None
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class ProveedorCreate(BaseModel):
+    nombre: str
+    telefono: Optional[str] = None
+    email: Optional[str] = None
+    direccion: Optional[str] = None
+    cuit: Optional[str] = None
+
+class ProveedorUpdate(BaseModel):
+    nombre: Optional[str] = None
+    telefono: Optional[str] = None
+    email: Optional[str] = None
+    direccion: Optional[str] = None
+    cuit: Optional[str] = None
+
 class MovimientoCuentaCorriente(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    cliente_id: str
+    cliente_id: Optional[str] = None  # Para compatibilidad con clientes
+    proveedor_id: Optional[str] = None  # Nuevo campo para proveedores
     fecha: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     concepto: str
     monto: float
@@ -154,7 +179,8 @@ class DashboardStats(BaseModel):
     total_egresos_hoy: float
 
 class CuentaCorrienteInfo(BaseModel):
-    cliente: Cliente
+    cliente: Optional[Cliente] = None
+    proveedor: Optional[Proveedor] = None
     saldo: float
     movimientos: List[MovimientoCuentaCorriente]
 
@@ -871,10 +897,149 @@ async def get_dashboard_stats(current_user: Usuario = Depends(get_current_user))
         total_egresos_hoy=total_egresos_hoy
     )
 
+# ===== PROVEEDORES ROUTES =====
+
+@api_router.post("/proveedores", response_model=Proveedor)
+async def create_proveedor(
+    request: Request,
+    input: ProveedorCreate, 
+    current_user: Usuario = Depends(get_current_user)
+):
+    # Verificar si ya existe un proveedor con el mismo nombre
+    existing = await db.proveedores.find_one({"nombre": input.nombre})
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail=f"Ya existe un proveedor con el nombre '{input.nombre}'"
+        )
+    
+    proveedor_obj = Proveedor(**input.model_dump())
+    doc = proveedor_obj.model_dump()
+    doc['timestamp'] = doc['timestamp'].isoformat()
+    
+    await db.proveedores.insert_one(doc)
+    
+    # Registrar auditoría
+    await registrar_auditoria(
+        entidad='proveedor',
+        entidad_id=proveedor_obj.id,
+        entidad_nombre=proveedor_obj.nombre,
+        accion='creado',
+        valores_nuevos=input.model_dump(),
+        usuario_id=current_user.id,
+        usuario_nombre=current_user.nombre,
+        ip_address=request.client.host if request.client else None
+    )
+    
+    return proveedor_obj
+
+@api_router.get("/proveedores", response_model=List[dict])
+async def get_proveedores(current_user: Usuario = Depends(get_current_user)):
+    proveedores = await db.proveedores.find({}, {'_id': 0}).to_list(1000)
+    
+    for p in proveedores:
+        if isinstance(p.get('timestamp'), str):
+            p['timestamp'] = datetime.fromisoformat(p['timestamp'])
+        
+        # Calcular saldo para cada proveedor
+        movimientos = await db.movimientos.find({'proveedor_id': p['id']}, {'_id': 0}).to_list(1000)
+        saldo = sum(m['monto'] for m in movimientos)
+        p['saldo'] = saldo
+    
+    return proveedores
+
+@api_router.get("/proveedores/{proveedor_id}", response_model=Proveedor)
+async def get_proveedor(proveedor_id: str, current_user: Usuario = Depends(get_current_user)):
+    proveedor = await db.proveedores.find_one({'id': proveedor_id}, {'_id': 0})
+    if not proveedor:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+    
+    if isinstance(proveedor.get('timestamp'), str):
+        proveedor['timestamp'] = datetime.fromisoformat(proveedor['timestamp'])
+    
+    return Proveedor(**proveedor)
+
+@api_router.put("/proveedores/{proveedor_id}", response_model=Proveedor)
+async def update_proveedor(
+    request: Request,
+    proveedor_id: str, 
+    input: ProveedorUpdate, 
+    current_user: Usuario = Depends(get_current_user)
+):
+    proveedor = await db.proveedores.find_one({'id': proveedor_id}, {'_id': 0})
+    if not proveedor:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+    
+    # Guardar valores anteriores
+    valores_anteriores = {
+        'nombre': proveedor.get('nombre'),
+        'telefono': proveedor.get('telefono'),
+        'email': proveedor.get('email'),
+        'direccion': proveedor.get('direccion'),
+        'cuit': proveedor.get('cuit')
+    }
+    
+    update_data = {k: v for k, v in input.model_dump().items() if v is not None}
+    
+    if update_data:
+        await db.proveedores.update_one({'id': proveedor_id}, {'$set': update_data})
+        
+        # Registrar auditoría
+        await registrar_auditoria(
+            entidad='proveedor',
+            entidad_id=proveedor_id,
+            entidad_nombre=proveedor.get('nombre'),
+            accion='modificado',
+            valores_anteriores=valores_anteriores,
+            valores_nuevos=update_data,
+            usuario_id=current_user.id,
+            usuario_nombre=current_user.nombre,
+            ip_address=request.client.host if request.client else None
+        )
+    
+    updated_proveedor = await db.proveedores.find_one({'id': proveedor_id}, {'_id': 0})
+    if not updated_proveedor:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+    
+    if isinstance(updated_proveedor.get('timestamp'), str):
+        updated_proveedor['timestamp'] = datetime.fromisoformat(updated_proveedor['timestamp'])
+    
+    return Proveedor(**updated_proveedor)
+
+@api_router.delete("/proveedores/{proveedor_id}")
+async def delete_proveedor(
+    request: Request,
+    proveedor_id: str, 
+    current_user: Usuario = Depends(get_current_user)
+):
+    # Obtener proveedor antes de eliminar para auditoría
+    proveedor = await db.proveedores.find_one({'id': proveedor_id}, {'_id': 0})
+    if not proveedor:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+    
+    # Registrar auditoría antes de eliminar
+    await registrar_auditoria(
+        entidad='proveedor',
+        entidad_id=proveedor_id,
+        entidad_nombre=proveedor.get('nombre'),
+        accion='eliminado',
+        valores_anteriores=proveedor,
+        valores_nuevos=None,
+        usuario_id=current_user.id,
+        usuario_nombre=current_user.nombre,
+        ip_address=request.client.host if request.client else None
+    )
+    
+    result = await db.proveedores.delete_one({'id': proveedor_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+    
+    return {"message": "Proveedor eliminado"}
+
 # ===== CUENTA CORRIENTE ROUTES =====
 
 @api_router.get("/clientes/{cliente_id}/cuenta-corriente", response_model=CuentaCorrienteInfo)
-async def get_cuenta_corriente(cliente_id: str, current_user: Usuario = Depends(get_current_user)):
+async def get_cuenta_corriente_cliente(cliente_id: str, current_user: Usuario = Depends(get_current_user)):
     cliente = await db.clientes.find_one({'id': cliente_id}, {'_id': 0})
     if not cliente:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
@@ -896,14 +1061,57 @@ async def get_cuenta_corriente(cliente_id: str, current_user: Usuario = Depends(
         movimientos=[MovimientoCuentaCorriente(**m) for m in movimientos]
     )
 
+@api_router.get("/proveedores/{proveedor_id}/cuenta-corriente", response_model=CuentaCorrienteInfo)
+async def get_cuenta_corriente_proveedor(proveedor_id: str, current_user: Usuario = Depends(get_current_user)):
+    proveedor = await db.proveedores.find_one({'id': proveedor_id}, {'_id': 0})
+    if not proveedor:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+    
+    if isinstance(proveedor.get('timestamp'), str):
+        proveedor['timestamp'] = datetime.fromisoformat(proveedor['timestamp'])
+    
+    movimientos = await db.movimientos.find({'proveedor_id': proveedor_id}, {'_id': 0}).sort('fecha', -1).to_list(1000)
+    
+    for m in movimientos:
+        if isinstance(m.get('fecha'), str):
+            m['fecha'] = datetime.fromisoformat(m['fecha'])
+    
+    saldo = sum(m['monto'] for m in movimientos)
+    
+    return CuentaCorrienteInfo(
+        proveedor=Proveedor(**proveedor),
+        saldo=saldo,
+        movimientos=[MovimientoCuentaCorriente(**m) for m in movimientos]
+    )
+
 @api_router.post("/clientes/{cliente_id}/movimientos", response_model=MovimientoCuentaCorriente)
-async def create_movimiento(cliente_id: str, concepto: str, monto: float, current_user: Usuario = Depends(get_current_user)):
+async def create_movimiento_cliente(cliente_id: str, concepto: str, monto: float, current_user: Usuario = Depends(get_current_user)):
     cliente = await db.clientes.find_one({'id': cliente_id}, {'_id': 0})
     if not cliente:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
     
     movimiento = MovimientoCuentaCorriente(
         cliente_id=cliente_id,
+        concepto=concepto,
+        monto=monto,
+        usuario_id=current_user.id,
+        usuario_nombre=current_user.nombre
+    )
+    
+    doc = movimiento.model_dump()
+    doc['fecha'] = doc['fecha'].isoformat()
+    
+    await db.movimientos.insert_one(doc)
+    return movimiento
+
+@api_router.post("/proveedores/{proveedor_id}/movimientos", response_model=MovimientoCuentaCorriente)
+async def create_movimiento_proveedor(proveedor_id: str, concepto: str, monto: float, current_user: Usuario = Depends(get_current_user)):
+    proveedor = await db.proveedores.find_one({'id': proveedor_id}, {'_id': 0})
+    if not proveedor:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+    
+    movimiento = MovimientoCuentaCorriente(
+        proveedor_id=proveedor_id,
         concepto=concepto,
         monto=monto,
         usuario_id=current_user.id,
@@ -1248,6 +1456,7 @@ async def limpiar_base_de_datos(current_user: Usuario = Depends(get_admin_user))
         # Colecciones a limpiar (manteniendo productos y usuarios)
         colecciones = [
             'clientes',
+            'proveedores',
             'ventas', 
             'movimientos',
             'egresos',
@@ -1316,6 +1525,7 @@ async def limpiar_base_de_datos_direct():
         # Colecciones a limpiar (manteniendo productos y usuarios)
         colecciones = [
             'clientes',
+            'proveedores',
             'ventas', 
             'movimientos',
             'egresos',
