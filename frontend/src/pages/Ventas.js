@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ShoppingCart, Calendar, CreditCard, User, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, ChevronDown, ChevronRight, List, Layers } from 'lucide-react';
+import { ShoppingCart, Calendar, CreditCard, User, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, ChevronDown, ChevronRight, List, Layers, ChevronLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, isWithinInterval, parseISO, startOfDay, endOfDay, isToday, isYesterday } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -116,6 +116,13 @@ const [ventas, setVentas] = useState([]);
 
   const [viewMode, setViewMode] = useState('individual'); // 'individual' or 'grouped'
   const [expandedGroups, setExpandedGroups] = useState(new Set());
+
+  // Estados de paginación
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    itemsPerPage: 50,
+    totalItems: 0
+  });
 
 const fetchVentas = useCallback(async () => {
     try {
@@ -268,6 +275,162 @@ const fetchVentas = useCallback(async () => {
   const groupedVentas = useMemo(() => {
     return groupVentasByDay(sortedVentas);
   }, [groupVentasByDay, sortedVentas]);
+
+  // Datos paginados según el modo de vista
+  const paginatedData = useMemo(() => {
+    const data = viewMode === 'individual' ? sortedVentas : groupedVentas;
+    const startIndex = (pagination.currentPage - 1) * pagination.itemsPerPage;
+    const endIndex = startIndex + pagination.itemsPerPage;
+    
+    return data.slice(startIndex, endIndex);
+  }, [sortedVentas, groupedVentas, pagination, viewMode]);
+
+  // Calcular total de páginas
+  const totalPages = useMemo(() => {
+    const totalItems = viewMode === 'individual' ? sortedVentas.length : groupedVentas.length;
+    return Math.ceil(totalItems / pagination.itemsPerPage);
+  }, [sortedVentas, groupedVentas, pagination.itemsPerPage, viewMode]);
+
+  // Funciones para manejar paginación
+  const handlePageChange = (newPage) => {
+    setPagination(prev => ({ ...prev, currentPage: newPage }));
+  };
+
+  const handleItemsPerPageChange = (newItemsPerPage) => {
+    setPagination(prev => ({ 
+      ...prev, 
+      itemsPerPage: newItemsPerPage,
+      currentPage: 1 
+    }));
+  };
+
+  // Resetear página cuando cambian los filtros
+  useEffect(() => {
+    setPagination(prev => ({ ...prev, currentPage: 1 }));
+  }, [filters]);
+
+  // Componente de paginación
+  const PaginationComponent = ({ currentPage, totalPages, onPageChange, itemsPerPage, onItemsPerPageChange, totalItems }) => {
+    if (totalPages <= 1) return null;
+
+    const getVisiblePages = () => {
+      const delta = 2;
+      const range = [];
+      const rangeWithDots = [];
+      let l;
+
+      for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= currentPage - delta && i <= currentPage + delta)) {
+          range.push(i);
+        }
+      }
+
+      range.forEach((i) => {
+        if (l) {
+          if (i - l === 2) {
+            rangeWithDots.push(l + 1);
+          } else if (i - l !== 1) {
+            rangeWithDots.push('...');
+          }
+        }
+        rangeWithDots.push(i);
+        l = i;
+      });
+
+      return rangeWithDots;
+    };
+
+    return (
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 p-4 bg-muted/50 rounded-lg">
+        <div className="flex items-center gap-4">
+          <div className="text-sm text-muted-foreground">
+            Mostrando {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, totalItems)} de {totalItems} {viewMode === 'individual' ? 'ventas' : 'días'}
+          </div>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="items-per-page" className="text-sm">Items por página:</Label>
+            <Select
+              value={itemsPerPage.toString()}
+              onValueChange={(value) => onItemsPerPageChange(parseInt(value))}
+            >
+              <SelectTrigger className="w-20">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+                <SelectItem value="200">200</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onPageChange(1)}
+            disabled={currentPage === 1}
+            className="px-3"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-4 h-4 -ml-3" />
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="px-3"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          
+          <div className="flex items-center gap-1">
+            {getVisiblePages().map((page, index) => (
+              page === '...' ? (
+                <span key={`dots-${index}`} className="px-2 py-1 text-muted-foreground">
+                  ...
+                </span>
+              ) : (
+                <Button
+                  key={page}
+                  variant={currentPage === page ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => onPageChange(page)}
+                  className="px-3 py-1"
+                >
+                  {page}
+                </Button>
+              )
+            ))}
+          </div>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className="px-3"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onPageChange(totalPages)}
+            disabled={currentPage === totalPages}
+            className="px-3"
+          >
+            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-4 h-4 -ml-3" />
+          </Button>
+        </div>
+      </div>
+    );
+  };
 
   // Toggle expand/collapse de grupo
   const toggleGroup = (dateKey) => {
@@ -699,16 +862,18 @@ const clearFilters = () => {
       </div>
 
       {/* Tabla con virtual scrolling */}
-{(viewMode === 'individual' ? sortedVentas : groupedVentas).length > 0 ? (
+{paginatedData.length > 0 ? (
         <div className="space-y-4">
           <div className="text-sm text-muted-foreground">
             {viewMode === 'individual' 
               ? (filters.dateType === 'all' 
-                ? 'Mostrando todas las ventas'
+                ? totalPages > 1 
+                  ? `Ventas (página ${pagination.currentPage} de ${totalPages})`
+                  : 'Mostrando todas las ventas'
                 : filters.dateType === 'specific'
-                  ? `Ventas del ${filters.specificDate ? format(parseISO(filters.specificDate), 'PPP', { locale: es }) : 'fecha seleccionada'}`
-                  : `Ventas desde ${filters.startDate ? format(parseISO(filters.startDate), 'PPP', { locale: es }) : 'fecha inicio'} hasta ${filters.endDate ? format(parseISO(filters.endDate), 'PPP', { locale: es }) : 'fecha fin'}`)
-              : `Ventas agrupadas por día (${groupedVentas.length} día${groupedVentas.length !== 1 ? 's' : ''})`
+                  ? `Ventas del ${filters.specificDate ? format(parseISO(filters.specificDate), 'PPP', { locale: es }) : 'fecha seleccionada'}${totalPages > 1 ? ` (página ${pagination.currentPage} de ${totalPages})` : ''}`
+                  : `Ventas desde ${filters.startDate ? format(parseISO(filters.startDate), 'PPP', { locale: es }) : 'fecha inicio'} hasta ${filters.endDate ? format(parseISO(filters.endDate), 'PPP', { locale: es }) : 'fecha fin'}${totalPages > 1 ? ` (página ${pagination.currentPage} de ${totalPages})` : ''}`)
+              : `Ventas agrupadas por día (${groupedVentas.length} día${groupedVentas.length !== 1 ? 's' : ''})${totalPages > 1 ? ` - página ${pagination.currentPage} de ${totalPages}` : ''}`
             }
           </div>
           
@@ -718,7 +883,7 @@ const clearFilters = () => {
               {/* Versión desktop - Tabla virtualizada */}
               <div className="hidden lg:block">
                 <VirtualTable
-                  items={sortedVentas}
+                  items={paginatedData}
                   itemHeight={100}
                   containerHeight={600}
                   renderItem={renderRow}
@@ -728,7 +893,7 @@ const clearFilters = () => {
               
               {/* Versión móvil - Cards */}
               <div className="lg:hidden space-y-4">
-                {sortedVentas.slice(0, 50).map((venta, index) => (
+                {paginatedData.map((venta, index) => (
                   <div
                     key={venta.id}
                     className="cursor-pointer hover:bg-muted/50 transition-colors rounded-lg p-4 border"
@@ -815,12 +980,12 @@ const clearFilters = () => {
                 </div>
                 
                 {/* Grupos */}
-                {groupedVentas.map((group, index) => renderGroupRow(group, index))}
+                {paginatedData.map((group, index) => renderGroupRow(group, index))}
               </div>
               
               {/* Versión móvil - Cards agrupadas */}
               <div className="lg:hidden space-y-4">
-                {groupedVentas.map((group) => {
+                {paginatedData.map((group) => {
                   const isExpanded = expandedGroups.has(group.date);
                   
                   return (
@@ -913,6 +1078,16 @@ const clearFilters = () => {
               </div>
             </>
           )}
+          
+          {/* Componente de paginación */}
+          <PaginationComponent
+            currentPage={pagination.currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            itemsPerPage={pagination.itemsPerPage}
+            onItemsPerPageChange={handleItemsPerPageChange}
+            totalItems={viewMode === 'individual' ? sortedVentas.length : groupedVentas.length}
+          />
         </div>
       ) : (
         <Card>
@@ -933,8 +1108,7 @@ const clearFilters = () => {
       )}
 
       {/* Diálogo de detalles */}
-            {/* Diálogo de detalles */}
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
           <DialogHeader className="flex-shrink-0">
             <DialogTitle>Detalle de Venta</DialogTitle>
