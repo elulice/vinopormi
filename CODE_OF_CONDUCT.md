@@ -47,7 +47,7 @@ Si presencias o experimentas un comportamiento que viole este código de conduct
 
 ### Contacto para Reportes
 
-- **Email de contacto**: [conduct@vinopormi.com]
+- **Email de contacto**: [elulice@outlook.com]
 - **Issues privados**: Crea un issue en GitHub con la etiqueta `conduct`
 - **Contacto directo**: Reach out a cualquiera de los maintainers del proyecto
 
@@ -82,15 +82,6 @@ Las consecuencias dependerán de:
 - **Historial** de comportamiento previo
 - **Impacto** en la comunidad
 - **Intención** detrás del comportamiento
-
-## Disputa y Apelación
-
-Si no estás de acuerdo con una decisión:
-
-1. **Contacta al comité de conducta**: [conduct-committee@vinopormi.com]
-2. **Proporciona contexto adicional**: Explica tu perspectiva
-3. **Revisión**: El comité revisará el caso completamente
-4. **Decisión final**: La decisión del comité es definitiva
 
 ## Mejora Continua
 
