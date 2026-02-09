@@ -63,10 +63,10 @@ const Dashboard = () => {
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Total Vendido Hoy
             </CardTitle>
-            <DollarSign className="w-5 h-5 text-primary" />
+            <DollarSign className="w-5 h-5 text-primary !mt-0" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl sm:text-2xl font-bold text-foreground break-words overflow-wrap-anywhere">
+            <div className="text-xl sm:text-2xl font-bold text-foreground break-words overflow-wrap-anywhere pb-8">
               {formatCurrency(stats.total_vendido_hoy)}
             </div>
           </CardContent>
@@ -84,10 +84,10 @@ const Dashboard = () => {
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Total Egresos Hoy
             </CardTitle>
-            <TrendingDown className="w-5 h-5 text-destructive" />
+            <TrendingDown className="w-5 h-5 text-destructive !mt-0" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl sm:text-2xl font-bold text-destructive break-words overflow-wrap-anywhere">
+            <div className="text-xl sm:text-2xl font-bold text-destructive break-words overflow-wrap-anywhere pb-8">
               {formatCurrency(stats.total_egresos_hoy)}
             </div>
           </CardContent>
@@ -105,10 +105,10 @@ const Dashboard = () => {
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Balance del Día
             </CardTitle>
-            <DollarSign className="w-5 h-5 text-blue-600" />
+            <DollarSign className="w-5 h-5 text-blue-600 !mt-0" />
           </CardHeader>
           <CardContent>
-            <div className={`text-xl sm:text-2xl font-bold ${(stats.total_vendido_hoy - stats.total_egresos_hoy) >= 0 ? 'text-green-600' : 'text-destructive'} break-words overflow-wrap-anywhere`}>
+            <div className={`text-xl sm:text-2xl font-bold ${(stats.total_vendido_hoy - stats.total_egresos_hoy) >= 0 ? 'text-green-600' : 'text-destructive'} break-words overflow-wrap-anywhere pb-8`}>
               {formatCurrency(stats.total_vendido_hoy - stats.total_egresos_hoy)}
             </div>
           </CardContent>
@@ -126,10 +126,10 @@ const Dashboard = () => {
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Ventas Realizadas Hoy
             </CardTitle>
-            <ShoppingCart className="w-5 h-5 text-primary" />
+            <ShoppingCart className="w-5 h-5 text-primary !mt-0" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl sm:text-2xl font-bold text-foreground break-words overflow-wrap-anywhere">
+            <div className="text-xl sm:text-2xl font-bold text-foreground break-words overflow-wrap-anywhere pb-8">
               {stats.cantidad_ventas_hoy}
             </div>
           </CardContent>
@@ -144,13 +144,13 @@ const Dashboard = () => {
           onClick={() => navigate('/clientes')}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="text-sm font-medium text-muted-foreground leading-none">
               Saldo Cta. Cte.
             </CardTitle>
-            <Users className="w-5 h-5 text-orange-600" />
+            <Users className="w-5 h-5 text-orange-600 flex-shrink-0 !mt-0" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl sm:text-2xl font-bold text-orange-600 break-words overflow-wrap-anywhere">
+            <div className="text-xl sm:text-2xl font-bold text-orange-600 break-words overflow-wrap-anywhere pb-8">
               {formatCurrency(stats.total_saldo_cuenta_corriente)}
             </div>
           </CardContent>
