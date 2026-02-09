@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatCurrency, formatNumber } from '@/lib/currency';
 import {
   Dialog,
@@ -20,9 +22,12 @@ import {
   Trash2,
   TrendingDown,
   Search,
+  Filter,
+  X,
+  Calendar,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+import { format, isWithinInterval, parseISO, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import ResponsiveTable from '@/components/ResponsiveTable';
 
@@ -33,6 +38,7 @@ const API = `${BACKEND_URL}/api`;
 
 const Egresos = () => {
   const { getAuthHeader } = useAuth();
+  const [searchParams] = useSearchParams();
   const [egresos, setEgresos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -42,6 +48,26 @@ const Egresos = () => {
     descripcion: '',
     monto: ''
   });
+
+  // Estados para filtros y ordenamiento
+  const [filters, setFilters] = useState({
+    dateType: 'all', // 'all', 'specific', 'range'
+    specificDate: '',
+    startDate: '',
+    endDate: ''
+  });
+
+  // Efecto para aplicar filtro automático desde URL params
+  useEffect(() => {
+    const autoFilter = searchParams.get('filter');
+    if (autoFilter === 'today') {
+      setFilters(prev => ({
+        ...prev,
+        dateType: 'specific',
+        specificDate: format(new Date(), 'yyyy-MM-dd')
+      }));
+    }
+  }, [searchParams]);
 
   const fetchEgresos = useCallback(async () => {
     try {
@@ -118,9 +144,44 @@ const Egresos = () => {
     }
   };
 
-  const filteredEgresos = egresos.filter((e) =>
-    e.descripcion.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Función para limpiar filtros
+  const clearFilters = () => {
+    setFilters({
+      dateType: 'all',
+      specificDate: '',
+      startDate: '',
+      endDate: ''
+    });
+  };
+
+  const filteredEgresos = egresos.filter((egreso) => {
+    // Filtro por texto
+    const matchesSearch = egreso.descripcion.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Filtro por fecha
+    let matchesDate = true;
+    if (filters.dateType === 'specific' && filters.specificDate) {
+      const egresoDate = parseISO(egreso.fecha);
+      const filterDate = parseISO(filters.specificDate);
+      matchesDate = isWithinInterval(egresoDate, {
+        start: startOfDay(filterDate),
+        end: endOfDay(filterDate)
+      });
+    } else if (filters.dateType === 'range' && filters.startDate && filters.endDate) {
+      const egresoDate = parseISO(egreso.fecha);
+      const start = parseISO(filters.startDate);
+      const end = parseISO(filters.endDate);
+      matchesDate = isWithinInterval(egresoDate, {
+        start: startOfDay(start),
+        end: endOfDay(end)
+      });
+    }
+    
+    return matchesSearch && matchesDate;
+  });
+
+  // Calcular total de egresos filtrados
+  const totalEgresos = filteredEgresos.reduce((sum, egreso) => sum + egreso.monto, 0);
 
   const totalEgresosHoy = filteredEgresos
     .filter(e => {
@@ -148,13 +209,105 @@ const Egresos = () => {
             Gestiona los gastos y pagos de tu vinoteca
           </p>
         </div>
-        <div className="text-right">
-          <div className="text-2xl font-bold text-destructive">
-            {formatCurrency(totalEgresosHoy)}
-          </div>
-          <p className="text-sm text-muted-foreground">Egresos de hoy</p>
-        </div>
       </div>
+
+      {/* FILTROS */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Filter className="w-5 h-5" />
+            Filtros
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Tipo de filtro de fecha */}
+            <div className="space-y-2">
+              <Label>Período</Label>
+              <Select
+                value={filters.dateType}
+                onValueChange={(value) =>
+                  setFilters((prev) => ({ ...prev, dateType: value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar período" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="specific">Fecha específica</SelectItem>
+                  <SelectItem value="range">Rango de fechas</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Fecha específica */}
+            {filters.dateType === 'specific' && (
+              <div className="space-y-2">
+                <Label>Fecha</Label>
+                <Input
+                  type="date"
+                  value={filters.specificDate}
+                  onChange={(e) =>
+                    setFilters((prev) => ({ ...prev, specificDate: e.target.value }))
+                  }
+                />
+              </div>
+            )}
+
+            {/* Rango de fechas */}
+            {filters.dateType === 'range' && (
+              <>
+                <div className="space-y-2">
+                  <Label>Fecha desde</Label>
+                  <Input
+                    type="date"
+                    value={filters.startDate}
+                    onChange={(e) =>
+                      setFilters((prev) => ({ ...prev, startDate: e.target.value }))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Fecha hasta</Label>
+                  <Input
+                    type="date"
+                    value={filters.endDate}
+                    onChange={(e) =>
+                      setFilters((prev) => ({ ...prev, endDate: e.target.value }))
+                  }
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Botón limpiar filtros */}
+            {(filters.dateType !== 'all' || filters.specificDate || filters.startDate || filters.endDate) && (
+              <div className="space-y-2">
+                <Label>&nbsp;</Label>
+                <Button
+                  variant="outline"
+                  onClick={clearFilters}
+                  className="w-full"
+                >
+                  <X className="w-4 h-4 mr-2" />
+                  Limpiar filtros
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Estadísticas */}
+          <div className="flex items-center justify-between pt-4 border-t">
+            <div className="text-sm text-muted-foreground">
+              {filteredEgresos.length} egresos encontrados
+            </div>
+            <div className="text-lg font-bold text-destructive">
+              Total: {formatCurrency(totalEgresos)}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* BUSCADOR + BOTÓN AGREGAR */}
       <div className="flex gap-3 items-center">

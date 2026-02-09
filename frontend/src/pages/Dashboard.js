@@ -78,7 +78,7 @@ const Dashboard = () => {
         <Card 
           data-testid="card-total-egresos"
           className="cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-[1.02] relative"
-          onClick={() => navigate('/egresos')}
+          onClick={() => navigate('/egresos?filter=today')}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
