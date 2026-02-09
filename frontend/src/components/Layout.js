@@ -12,7 +12,8 @@ import {
   Settings,
   X,
   LogIn,
-  History
+  History,
+  Building
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
@@ -39,6 +40,7 @@ const Layout = () => {
     { path: '/ventas', icon: ShoppingCart, label: 'Ventas' },
     { path: '/productos', icon: Package, label: 'Productos' },
     { path: '/clientes', icon: Users, label: 'Clientes' },
+    { path: '/proveedores', icon: Building, label: 'Proveedores' },
     { path: '/egresos', icon: TrendingDown, label: 'Egresos' },
     ...(user?.rol === 'admin' ? [
       { path: '/usuarios', icon: Shield, label: 'Usuarios' },

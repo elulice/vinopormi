@@ -5,6 +5,7 @@ import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import Productos from "@/pages/Productos";
 import Clientes from "@/pages/Clientes";
+import Proveedores from "@/pages/Proveedores";
 import Ventas from "@/pages/Ventas";
 import NuevaVenta from "@/pages/NuevaVenta";
 
@@ -39,6 +40,7 @@ function App() {
             <Route path="/nueva-venta" element={<NuevaVenta />} />
             <Route path="/productos" element={<Productos />} />
             <Route path="/clientes" element={<Clientes />} />
+            <Route path="/proveedores" element={<Proveedores />} />
             <Route path="/ventas" element={<Ventas />} />
             <Route path="/egresos" element={<Egresos />} />
             <Route path="/usuarios" element={
