@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, ShoppingCart, CreditCard, Users, TrendingDown } from 'lucide-react';
+import { DollarSign, ShoppingCart, CreditCard, Users, TrendingDown, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import '@/components/Dashboard.css';
 import { formatCurrency, formatNumber } from '@/lib/currency';
@@ -12,6 +13,7 @@ const API = `${BACKEND_URL}/api`;
 
 const Dashboard = () => {
   const { getAuthHeader } = useAuth();
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     total_vendido_hoy: 0,
     cantidad_ventas_hoy: 0,
@@ -52,7 +54,11 @@ const Dashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 dashboard-stats-grid">
-        <Card data-testid="card-total-vendido">
+        <Card 
+          data-testid="card-total-vendido"
+          className="cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-[1.02] relative"
+          onClick={() => navigate('/ventas')}
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Total Vendido Hoy
@@ -64,9 +70,16 @@ const Dashboard = () => {
               {formatCurrency(stats.total_vendido_hoy)}
             </div>
           </CardContent>
+          <div className="absolute bottom-3 right-3 bg-blue-100 rounded-full p-2 hover:bg-blue-200 transition-colors duration-200">
+            <ArrowRight className="w-4 h-4 text-blue-600" />
+          </div>
         </Card>
 
-        <Card data-testid="card-total-egresos">
+        <Card 
+          data-testid="card-total-egresos"
+          className="cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-[1.02] relative"
+          onClick={() => navigate('/egresos')}
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Total Egresos Hoy
@@ -78,9 +91,16 @@ const Dashboard = () => {
               {formatCurrency(stats.total_egresos_hoy)}
             </div>
           </CardContent>
+          <div className="absolute bottom-3 right-3 bg-red-100 rounded-full p-2 hover:bg-red-200 transition-colors duration-200">
+            <ArrowRight className="w-4 h-4 text-red-600" />
+          </div>
         </Card>
 
-        <Card data-testid="card-balance-del-dia">
+        <Card 
+          data-testid="card-balance-del-dia"
+          className="cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-[1.02] relative"
+          onClick={() => navigate('/dashboard')}
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Balance del Día
@@ -92,9 +112,16 @@ const Dashboard = () => {
               {formatCurrency(stats.total_vendido_hoy - stats.total_egresos_hoy)}
             </div>
           </CardContent>
+          <div className="absolute bottom-3 right-3 bg-green-100 rounded-full p-2 hover:bg-green-200 transition-colors duration-200">
+            <ArrowRight className="w-4 h-4 text-green-600" />
+          </div>
         </Card>
 
-        <Card data-testid="card-cantidad-ventas">
+        <Card 
+          data-testid="card-cantidad-ventas"
+          className="cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-[1.02] relative"
+          onClick={() => navigate('/ventas')}
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Ventas Realizadas
@@ -106,9 +133,16 @@ const Dashboard = () => {
               {stats.cantidad_ventas_hoy}
             </div>
           </CardContent>
+          <div className="absolute bottom-3 right-3 bg-purple-100 rounded-full p-2 hover:bg-purple-200 transition-colors duration-200">
+            <ArrowRight className="w-4 h-4 text-purple-600" />
+          </div>
         </Card>
 
-        <Card data-testid="card-saldo-cuenta-corriente">
+        <Card 
+          data-testid="card-saldo-cuenta-corriente"
+          className="cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-[1.02] relative"
+          onClick={() => navigate('/clientes')}
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Saldo Cta. Cte.
@@ -120,6 +154,9 @@ const Dashboard = () => {
               {formatCurrency(stats.total_saldo_cuenta_corriente)}
             </div>
           </CardContent>
+          <div className="absolute bottom-3 right-3 bg-orange-100 rounded-full p-2 hover:bg-orange-200 transition-colors duration-200">
+            <ArrowRight className="w-4 h-4 text-orange-600" />
+          </div>
         </Card>
       </div>
 
