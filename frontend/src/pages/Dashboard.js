@@ -66,7 +66,7 @@ const Dashboard = () => {
             <DollarSign className="w-5 h-5 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl sm:text-3xl font-bold text-foreground break-words overflow-wrap-anywhere">
+            <div className="text-xl sm:text-2xl font-bold text-foreground break-words overflow-wrap-anywhere">
               {formatCurrency(stats.total_vendido_hoy)}
             </div>
           </CardContent>
@@ -87,7 +87,7 @@ const Dashboard = () => {
             <TrendingDown className="w-5 h-5 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl sm:text-3xl font-bold text-destructive break-words overflow-wrap-anywhere">
+            <div className="text-xl sm:text-2xl font-bold text-destructive break-words overflow-wrap-anywhere">
               {formatCurrency(stats.total_egresos_hoy)}
             </div>
           </CardContent>
@@ -108,7 +108,7 @@ const Dashboard = () => {
             <DollarSign className="w-5 h-5 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl sm:text-3xl font-bold ${(stats.total_vendido_hoy - stats.total_egresos_hoy) >= 0 ? 'text-green-600' : 'text-destructive'} break-words overflow-wrap-anywhere`}>
+            <div className={`text-xl sm:text-2xl font-bold ${(stats.total_vendido_hoy - stats.total_egresos_hoy) >= 0 ? 'text-green-600' : 'text-destructive'} break-words overflow-wrap-anywhere`}>
               {formatCurrency(stats.total_vendido_hoy - stats.total_egresos_hoy)}
             </div>
           </CardContent>
@@ -129,7 +129,7 @@ const Dashboard = () => {
             <ShoppingCart className="w-5 h-5 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl sm:text-3xl font-bold text-foreground break-words overflow-wrap-anywhere">
+            <div className="text-xl sm:text-2xl font-bold text-foreground break-words overflow-wrap-anywhere">
               {stats.cantidad_ventas_hoy}
             </div>
           </CardContent>
@@ -150,7 +150,7 @@ const Dashboard = () => {
             <Users className="w-5 h-5 text-orange-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl sm:text-3xl font-bold text-orange-600 break-words overflow-wrap-anywhere">
+            <div className="text-xl sm:text-2xl font-bold text-orange-600 break-words overflow-wrap-anywhere">
               {formatCurrency(stats.total_saldo_cuenta_corriente)}
             </div>
           </CardContent>
