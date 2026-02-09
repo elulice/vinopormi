@@ -7,7 +7,7 @@ import Productos from "@/pages/Productos";
 import Clientes from "@/pages/Clientes";
 import Ventas from "@/pages/Ventas";
 import NuevaVenta from "@/pages/NuevaVenta";
-import CuentaCorriente from "@/pages/CuentaCorriente";
+
 import Egresos from "@/pages/Egresos";
 import Usuarios from "@/pages/Usuarios";
 import LoginRegistros from "@/pages/LoginRegistros";
@@ -61,14 +61,7 @@ function App() {
                 <Herramientas />
               </AdminRoute>
             } />
-            <Route
-              path="/clientes/:clienteId/cuenta-corriente"
-              element={<CuentaCorriente />}
-            />
-            <Route
-              path="/clientes/:clienteId/cuenta-corriente"
-              element={<CuentaCorriente />}
-            />
+
           </Route>
         </Routes>
 

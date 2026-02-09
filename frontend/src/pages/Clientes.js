@@ -532,7 +532,7 @@ const Clientes = () => {
                       No hay movimientos registrados
                     </p>
                   ) : (
-                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                    <div className="flex-1 overflow-y-auto space-y-2 max-h-[50vh]">
                        {cuentaInfo.movimientos.map((mov) => {
                          // Detectar si es una venta por el campo venta_id
                          const esVenta = mov.venta_id;
@@ -586,19 +586,7 @@ const Clientes = () => {
                 </CardContent>
               </Card>
 
-              {/* Botón para ver página completa */}
-              <div className="flex justify-center">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    navigate(`/clientes/${selectedCliente.id}/cuenta-corriente`);
-                    handleCuentaDialogClose();
-                  }}
-                >
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Ver página completa
-                </Button>
-              </div>
+
             </div>
           ) : (
             <div className="text-center py-8">No se pudo cargar la cuenta corriente</div>
