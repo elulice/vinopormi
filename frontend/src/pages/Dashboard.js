@@ -57,7 +57,7 @@ const Dashboard = () => {
         <Card 
           data-testid="card-total-vendido"
           className="cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-[1.02] relative"
-          onClick={() => navigate('/ventas')}
+          onClick={() => navigate('/ventas?filter=today')}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -120,11 +120,11 @@ const Dashboard = () => {
         <Card 
           data-testid="card-cantidad-ventas"
           className="cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-[1.02] relative"
-          onClick={() => navigate('/ventas')}
+          onClick={() => navigate('/ventas?filter=today')}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Ventas Realizadas
+              Ventas Realizadas Hoy
             </CardTitle>
             <ShoppingCart className="w-5 h-5 text-primary" />
           </CardHeader>

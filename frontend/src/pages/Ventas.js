@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -79,6 +80,7 @@ const VirtualTable = ({ items, itemHeight, containerHeight, renderItem, headers 
 
 const Ventas = () => {
   const { getAuthHeader } = useAuth();
+  const [searchParams] = useSearchParams();
 const [ventas, setVentas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedVenta, setSelectedVenta] = useState(null);
@@ -94,6 +96,18 @@ const [ventas, setVentas] = useState([]);
     medioPago: 'all', // 'all', 'cuenta_corriente', 'efectivo', 'posnet', 'transferencia'
     usuario: 'all' // 'all' o ID de usuario específico
   });
+
+  // Efecto para aplicar filtro automático desde URL params
+  useEffect(() => {
+    const autoFilter = searchParams.get('filter');
+    if (autoFilter === 'today') {
+      setFilters(prev => ({
+        ...prev,
+        dateType: 'specific',
+        specificDate: format(new Date(), 'yyyy-MM-dd')
+      }));
+    }
+  }, [searchParams]);
   
   const [sortConfig, setSortConfig] = useState({
     key: 'fecha',
