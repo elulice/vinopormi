@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useConfig } from '@/context/ConfigContext';
-import { Settings as SettingsIcon, DollarSign, Loader2, AlertCircle, Menu } from 'lucide-react';
+import { Settings as SettingsIcon, Package, Users, Truck, TrendingDown, DollarSign, Loader2, AlertCircle, Menu } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency';
 
 const Configuracion = () => {
@@ -150,7 +150,7 @@ const Configuracion = () => {
             <div className="grid grid-cols-2 gap-3">
               <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
                 <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center">
-                  📦
+                  <Package className="w-4 h-4 text-blue-600" />
                 </div>
                 <div>
                   <p className="text-sm font-medium">Buscar Producto</p>
@@ -159,7 +159,7 @@ const Configuracion = () => {
               </div>
               <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
                 <div className="w-8 h-8 bg-green-100 rounded flex items-center justify-center">
-                  👤
+                  <Users className="w-4 h-4 text-green-600" />
                 </div>
                 <div>
                   <p className="text-sm font-medium">Buscar Cliente</p>
@@ -168,7 +168,7 @@ const Configuracion = () => {
               </div>
               <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
                 <div className="w-8 h-8 bg-purple-100 rounded flex items-center justify-center">
-                  🏢
+                  <Truck className="w-4 h-4 text-purple-600" />
                 </div>
                 <div>
                   <p className="text-sm font-medium">Buscar Proveedor</p>
@@ -177,7 +177,7 @@ const Configuracion = () => {
               </div>
               <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
                 <div className="w-8 h-8 bg-red-100 rounded flex items-center justify-center">
-                  💰
+                  <TrendingDown className="w-4 h-4 text-red-600" />
                 </div>
                 <div>
                   <p className="text-sm font-medium">Nuevo Egreso</p>

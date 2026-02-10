@@ -1,13 +1,11 @@
 import { useState } from 'react';
 import { 
-  Search, 
-  User, 
-  Building, 
-  Truck,
-  DollarSign,
+  Package, 
+  Users, 
+  Truck, 
+  TrendingDown,
   Plus,
-  Edit,
-  Package
+  Edit
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -63,7 +61,7 @@ const FloatingMenu = () => {
       setOpen: setProductModalOpen,
     },
     {
-      icon: User,
+      icon: Users,
       label: 'Buscar Cliente',
       modal: 'customer',
       setOpen: setCustomerModalOpen,
@@ -75,7 +73,7 @@ const FloatingMenu = () => {
       setOpen: setProviderModalOpen,
     },
     {
-      icon: DollarSign,
+      icon: TrendingDown,
       label: 'Nuevo Egreso',
       modal: 'egress',
       setOpen: setEgressModalOpen,
