@@ -4,11 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useConfig } from '@/context/ConfigContext';
-import { Settings as SettingsIcon, DollarSign } from 'lucide-react';
+import { Settings as SettingsIcon, DollarSign, Loader2, AlertCircle } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency';
 
 const Configuracion = () => {
-  const { showCents, toggleShowCents } = useConfig();
+  const { showCents, toggleShowCents, loading, error } = useConfig();
   const [localShowCents, setLocalShowCents] = useState(showCents);
 
   const handleToggle = () => {
@@ -31,12 +31,14 @@ const Configuracion = () => {
         </div>
       </div>
 
-      {/* Tarjeta de configuración de moneda */}
+          {/* Tarjeta de configuración de moneda */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <DollarSign className="w-5 h-5" />
             Configuración de Moneda
+            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+            {error && <AlertCircle className="w-4 h-4 text-red-500" />}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -85,11 +87,26 @@ const Configuracion = () => {
           <div className="border-t pt-4">
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-800">
-                <strong>Nota:</strong> Esta configuración se guarda localmente en tu navegador 
-                y se aplicará automáticamente cuando inicies sesión en este dispositivo.
+                <strong>Nota:</strong> Esta configuración se guarda en tu perfil de usuario 
+                y estará disponible en todos los dispositivos donde inicies sesión.
+                {error && (
+                  <span className="block mt-2 text-red-600">
+                    ⚠️ Hay un problema de conexión. Los cambios se guardarán temporalmente.
+                  </span>
+                )}
               </p>
             </div>
           </div>
+
+          {/* Estado de conexión */}
+          {loading && (
+            <div className="border-t pt-4">
+              <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                <span className="text-sm text-gray-600">Sincronizando configuración...</span>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

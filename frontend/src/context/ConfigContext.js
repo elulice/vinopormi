@@ -1,4 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import { useAuth } from './AuthContext';
+import axios from 'axios';
 
 const ConfigContext = createContext(undefined);
 
@@ -11,26 +13,78 @@ export const useConfig = () => {
 };
 
 export const ConfigProvider = ({ children }) => {
-  // Cargar configuración desde localStorage o usar valor por defecto
-  const [showCents, setShowCentsState] = useState(() => {
-    const saved = localStorage.getItem('vinopormi_show_cents');
-    return saved !== null ? JSON.parse(saved) : true; // Por defecto mostrar centavos
-  });
+  const { user, getAuthHeader } = useAuth();
+  const [showCents, setShowCentsState] = useState(true); // Por defecto mostrar centavos
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const setShowCents = (show: boolean) => {
-    setShowCentsState(show);
-    localStorage.setItem('vinopormi_show_cents', JSON.stringify(show));
+  // Cargar preferencias del usuario desde el backend
+  const loadPreferences = async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+      const response = await axios.get(`${BACKEND_URL}/api/auth/preferencias`, {
+        headers: getAuthHeader()
+      });
+      
+      const preferencias = response.data;
+      setShowCentsState(preferencias.showCents !== undefined ? preferencias.showCents : true);
+    } catch (err) {
+      console.error('Error cargando preferencias:', err);
+      // En caso de error, usar valor por defecto
+      setError(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Guardar preferencias en el backend
+  const setShowCents = async (show) => {
+    if (!user) return;
+
+    try {
+      const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+      await axios.put(`${BACKEND_URL}/api/auth/preferencias`, 
+        { showCents: show },
+        { headers: getAuthHeader() }
+      );
+      
+      setShowCentsState(show);
+      setError(null);
+    } catch (err) {
+      console.error('Error guardando preferencias:', err);
+      setError(err);
+      // Guardar temporalmente en localStorage como fallback
+      localStorage.setItem('vinopormi_show_cents_fallback', JSON.stringify(show));
+    }
   };
 
   const toggleShowCents = () => {
     setShowCents(!showCents);
   };
 
+  // Cargar preferencias cuando el usuario cambia
+  useEffect(() => {
+    if (user) {
+      loadPreferences();
+    } else {
+      // Resetear cuando no hay usuario
+      setShowCentsState(true);
+      setLoading(false);
+    }
+  }, [user]);
+
   return (
     <ConfigContext.Provider value={{
       showCents,
       setShowCents,
-      toggleShowCents
+      toggleShowCents,
+      loading,
+      error
     }}>
       {children}
     </ConfigContext.Provider>

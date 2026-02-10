@@ -44,6 +44,7 @@ class Usuario(BaseModel):
     username: str
     nombre: str
     rol: str = "comun"  # "admin" o "comun"
+    preferencias: dict = Field(default_factory=lambda: {"showCents": True})  # Preferencias del usuario
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class UsuarioCreate(BaseModel):
@@ -57,6 +58,10 @@ class UsuarioUpdate(BaseModel):
     nombre: Optional[str] = None
     password: Optional[str] = None
     rol: Optional[str] = None
+    preferencias: Optional[dict] = None
+
+class PreferenciasUpdate(BaseModel):
+    showCents: Optional[bool] = None
 
 class LoginRequest(BaseModel):
     username: str
@@ -352,6 +357,35 @@ async def login(request: Request, input: LoginRequest):
 @api_router.get("/auth/me", response_model=Usuario)
 async def get_me(current_user: Usuario = Depends(get_current_user)):
     return current_user
+
+@api_router.get("/auth/preferencias")
+async def get_preferencias(current_user: Usuario = Depends(get_current_user)):
+    """Obtener las preferencias del usuario actual"""
+    return current_user.preferencias or {'showCents': True}
+
+@api_router.put("/auth/preferencias")
+async def update_preferencias(
+    preferencias: PreferenciasUpdate, 
+    current_user: Usuario = Depends(get_current_user)
+):
+    """Actualizar preferencias del usuario actual"""
+    # Obtener preferencias actuales
+    preferencias_actuales = current_user.preferencias or {'showCents': True}
+    
+    # Actualizar solo los campos proporcionados
+    if preferencias.showCents is not None:
+        preferencias_actuales['showCents'] = preferencias.showCents
+    
+    # Guardar en la base de datos
+    result = await db.usuarios.update_one(
+        {'id': current_user.id},
+        {'$set': {'preferencias': preferencias_actuales}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=500, detail="Error al actualizar preferencias")
+    
+    return {"message": "Preferencias actualizadas exitosamente", "preferencias": preferencias_actuales}
 
 @api_router.get("/auth/login-registros", response_model=List[dict])
 async def get_login_registros(current_user: Usuario = Depends(get_current_user)):

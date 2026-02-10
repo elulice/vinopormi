@@ -126,7 +126,7 @@ const Dashboard = () => {
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Ventas Realizadas Hoy
+              Ventas Realizadas
             </CardTitle>
             <ShoppingCart className="w-5 h-5 text-primary !mt-0" />
           </CardHeader>
@@ -145,13 +145,13 @@ const Dashboard = () => {
           className="cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-[1.02] relative"
           onClick={() => navigate('/clientes')}
         >
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 p-4">
             <CardTitle className="text-sm font-medium text-muted-foreground leading-none">
               Saldo Cta. Cte.
             </CardTitle>
             <Users className="w-5 h-5 text-orange-600 flex-shrink-0 !mt-0" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 pt-0">
             <div className="text-xl sm:text-2xl font-bold text-orange-600 break-words overflow-wrap-anywhere pb-8">
               {formatCurrency(stats.total_saldo_cuenta_corriente, showCents)}
             </div>
