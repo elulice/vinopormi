@@ -1,6 +1,7 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useConfig } from '@/context/ConfigContext';
+import FloatingMenu from '@/components/FloatingMenu';
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -318,6 +319,9 @@ const Layout = () => {
           <Outlet />
         </div>
       </main>
+
+      {/* FloatingMenu - Solo para usuarios autenticados */}
+      {user && <FloatingMenu />}
     </div>
   );
 };
