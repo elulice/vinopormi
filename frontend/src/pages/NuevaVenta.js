@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
+import { useConfig } from '@/context/ConfigContext';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +19,7 @@ const API = `${BACKEND_URL}/api`;
 
 const NuevaVenta = () => {
   const { getAuthHeader } = useAuth();
+  const { showCents } = useConfig();
   const navigate = useNavigate();
   const [productos, setProductos] = useState([]);
 
@@ -648,7 +650,7 @@ const NuevaVenta = () => {
                         </div>
                         <div className="w-32 text-right">
                           <div className="h-9 px-3 py-2 bg-background border rounded-md flex items-center justify-end font-semibold">
-                            {formatCurrency(detalle.subtotal)}
+                            {formatCurrency(detalle.subtotal, showCents)}
                           </div>
                         </div>
                         <div className="w-10 flex justify-center">
@@ -675,7 +677,7 @@ const NuevaVenta = () => {
             <div className="flex justify-between items-center mb-6">
               <span className="text-2xl font-bold">Total:</span>
               <span className="text-3xl font-bold text-primary" data-testid="total-venta">
-                {formatCurrency(calcularTotal())}
+                {formatCurrency(calcularTotal(), showCents)}
               </span>
             </div>
             <div className="flex gap-4">

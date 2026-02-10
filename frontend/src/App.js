@@ -14,14 +14,17 @@ import Usuarios from "@/pages/Usuarios";
 import LoginRegistros from "@/pages/LoginRegistros";
 import Auditoria from "@/pages/Auditoria";
 import Herramientas from "@/pages/Herramientas";
+import Configuracion from "@/pages/Configuracion";
 import Layout from "@/components/Layout";
 import AdminRoute from "@/components/AdminRoute";
 import { AuthProvider } from "@/context/AuthContext";
+import { ConfigProvider } from "@/context/ConfigContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
 function App() {
   return (
     <AuthProvider>
+      <ConfigProvider>
       <BrowserRouter>
         <Routes>
           {/* LOGIN */}
@@ -63,12 +66,18 @@ function App() {
                 <Herramientas />
               </AdminRoute>
             } />
+            <Route path="/configuracion" element={
+              <AdminRoute>
+                <Configuracion />
+              </AdminRoute>
+            } />
 
           </Route>
         </Routes>
 
         <Toaster position="top-right" />
       </BrowserRouter>
+      </ConfigProvider>
     </AuthProvider>
   );
 }

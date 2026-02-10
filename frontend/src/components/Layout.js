@@ -9,15 +9,18 @@ import {
   Menu,
   TrendingDown,
   Shield,
-  Settings,
+  Settings as SettingsIcon,
   X,
   LogIn,
   History,
   Building,
-  Plus
+  Plus,
+  Wrench,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { logoImage } from '@/assets/images';
 
 const Layout = () => {
@@ -25,6 +28,8 @@ const Layout = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [configMenuOpen, setConfigMenuOpen] = useState(false);
+  const configMenuRef = useRef(null);
 
   const handleLogout = () => {
     logout();
@@ -35,6 +40,24 @@ const Layout = () => {
     setSidebarOpen(!sidebarOpen);
   };
 
+  // Cerrar menú de configuración al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (configMenuRef.current && !configMenuRef.current.contains(event.target)) {
+        setConfigMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const toggleConfigMenu = () => {
+    setConfigMenuOpen(!configMenuOpen);
+  };
+
   const menuItems = [
     { path: '/dashboard', icon: LayoutDashboard, label: 'Escritorio' },
     { path: '/nueva-venta', icon: Plus, label: 'Nueva Venta' },
@@ -43,12 +66,15 @@ const Layout = () => {
     { path: '/clientes', icon: Users, label: 'Clientes' },
     { path: '/proveedores', icon: Building, label: 'Proveedores' },
     { path: '/egresos', icon: TrendingDown, label: 'Egresos' },
-    ...(user?.rol === 'admin' ? [
-      { path: '/usuarios', icon: Shield, label: 'Usuarios' },
-      { path: '/login-registros', icon: LogIn, label: 'Registros de Login' },
-      { path: '/auditoria', icon: History, label: 'Auditoría' },
-      { path: '/herramientas', icon: Settings, label: 'Herramientas' }
-    ] : []),
+  ];
+
+  // Items del menú de configuración (solo para admin)
+  const configMenuItems = [
+    { path: '/configuracion', icon: SettingsIcon, label: 'Configuración' },
+    { path: '/login-registros', icon: LogIn, label: 'Registros' },
+    { path: '/auditoria', icon: History, label: 'Auditoría' },
+    { path: '/usuarios', icon: Shield, label: 'Usuarios' },
+    { path: '/herramientas', icon: Wrench, label: 'Herramientas' },
   ];
 
   return (
@@ -148,6 +174,55 @@ const Layout = () => {
               @{user?.username}
             </p>
           </div>
+
+          {/* Menú de configuración - Solo para admin */}
+          {user?.rol === 'admin' && (
+            <div className="relative mb-2" ref={configMenuRef}>
+              <Button
+                onClick={() => {
+                  toggleConfigMenu();
+                }}
+                variant="outline"
+                className="w-full justify-between"
+              >
+                <div className="flex items-center">
+                  <SettingsIcon className="w-4 h-4 mr-2" />
+                  Configuración
+                </div>
+                {configMenuOpen ? (
+                  <ChevronUp className="w-4 h-4" />
+                ) : (
+                  <ChevronDown className="w-4 h-4" />
+                )}
+              </Button>
+
+              {/* Menú flotante */}
+              {configMenuOpen && (
+                <div className="absolute bottom-full left-0 right-0 mb-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                  <div className="py-1">
+                    {configMenuItems.map((item, index) => (
+                      <Link
+                        key={item.path}
+                        to={item.path}
+                        className={`flex items-center px-4 py-3 text-sm hover:bg-gray-50 transition-colors ${
+                          location.pathname === item.path
+                            ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600'
+                            : 'text-gray-700'
+                        }`}
+                        onClick={() => {
+                          setConfigMenuOpen(false);
+                          setSidebarOpen(false); // Cerrar sidebar en móviles
+                        }}
+                      >
+                        <item.icon className="w-4 h-4 mr-3 flex-shrink-0" />
+                        <span className="font-medium">{item.label}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <Button
             onClick={() => {

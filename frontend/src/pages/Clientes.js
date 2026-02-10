@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
+import { useConfig } from '@/context/ConfigContext';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +21,7 @@ const API = `${BACKEND_URL}/api`;
 
 const Clientes = () => {
   const { getAuthHeader } = useAuth();
+  const { showCents } = useConfig();
   const navigate = useNavigate();
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -316,7 +318,7 @@ const Clientes = () => {
               <div className={`text-lg font-semibold ${
                 cliente.saldo < 0 ? 'text-destructive' : 'text-green-600'
               }`}>
-                {formatCurrency(Math.abs(cliente.saldo || 0))}
+                {formatCurrency(Math.abs(cliente.saldo || 0), showCents)}
                 {cliente.saldo < 0 && (
                   <span className="text-sm font-normal text-muted-foreground ml-2">(debe)</span>
                 )}
@@ -376,7 +378,7 @@ const Clientes = () => {
                 <span className={`font-semibold text-lg ${
                   cliente.saldo < 0 ? 'text-destructive' : 'text-green-600'
                 }`}>
-                  {formatCurrency(Math.abs(cliente.saldo || 0))}
+                  {formatCurrency(Math.abs(cliente.saldo || 0), showCents)}
                   {cliente.saldo < 0 && (
                     <span className="text-xs font-normal text-muted-foreground ml-1">(debe)</span>
                   )}
@@ -515,7 +517,7 @@ const Clientes = () => {
                   <div className={`text-3xl font-bold ${
                     cuentaInfo.saldo < 0 ? 'text-destructive' : 'text-primary'
                   }`}>
-                    {formatCurrency(Math.abs(cuentaInfo.saldo))}
+                    {formatCurrency(Math.abs(cuentaInfo.saldo), showCents)}
                     {cuentaInfo.saldo < 0 && ' (debe)'}
                   </div>
                 </CardContent>
@@ -570,7 +572,7 @@ const Clientes = () => {
                                mov.monto > 0 ? 'text-green-600' : 'text-red-600'
                              }`}>
                                {mov.monto > 0 ? '+' : ''}
-                               {formatCurrency(mov.monto)}
+                               {formatCurrency(mov.monto, showCents)}
                              </div>
                              {esVenta && (
                                <div className="w-4 h-4 rounded-full bg-primary/10 flex items-center justify-center">
@@ -647,12 +649,12 @@ const Clientes = () => {
                       <div>
                         <p className="font-medium">{capitalizeWords(detalle.producto_nombre)}</p>
                         <p className="text-sm text-muted-foreground">
-                          {detalle.cantidad} x {formatCurrency(detalle.precio_unitario)}
+                          {detalle.cantidad} x {formatCurrency(detalle.precio_unitario, showCents)}
                         </p>
                       </div>
                       <div className="text-right">
                         <div className="font-semibold">
-                          {formatCurrency(detalle.subtotal)}
+                          {formatCurrency(detalle.subtotal, showCents)}
                         </div>
                       </div>
                     </div>
@@ -663,7 +665,7 @@ const Clientes = () => {
               <div className="flex justify-between items-center p-4 bg-primary/10 rounded-lg flex-shrink-0">
                 <span className="text-xl font-bold">Total</span>
                 <span className="text-2xl font-bold text-primary">
-                  {formatCurrency(selectedVenta.total)}
+                  {formatCurrency(selectedVenta.total, showCents)}
                 </span>
               </div>
             </div>

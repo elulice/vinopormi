@@ -3,19 +3,20 @@
  * - Punto para separar miles
  * - Coma para separar centavos
  * @param {number} amount - El número a formatear
+ * @param {boolean} showCents - Si mostrar o no los centavos
  * @returns {string} El número formateado como moneda
  */
-export const formatCurrency = (amount) => {
+export const formatCurrency = (amount, showCents = true) => {
   if (amount === null || amount === undefined || isNaN(amount)) {
-    return '$0,00';
+    return showCents ? '$0,00' : '$0';
   }
   
   const number = Number(amount);
   const options = {
     style: 'currency',
     currency: 'ARS',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: showCents ? 2 : 0,
+    maximumFractionDigits: showCents ? 2 : 0,
     useGrouping: true
   };
   
@@ -30,17 +31,18 @@ export const formatCurrency = (amount) => {
  * Formatea un número como moneda pero sin el símbolo $
  * Útil para mostrar precios unitarios en tablas
  * @param {number} amount - El número a formatear
+ * @param {boolean} showCents - Si mostrar o no los centavos
  * @returns {string} El número formateado
  */
-export const formatNumber = (amount) => {
+export const formatNumber = (amount, showCents = true) => {
   if (amount === null || amount === undefined || isNaN(amount)) {
-    return '0,00';
+    return showCents ? '0,00' : '0';
   }
   
   const number = Number(amount);
   const options = {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: showCents ? 2 : 0,
+    maximumFractionDigits: showCents ? 2 : 0,
     useGrouping: true
   };
   

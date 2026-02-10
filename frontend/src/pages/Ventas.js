@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
+import { useConfig } from '@/context/ConfigContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -80,6 +81,7 @@ const VirtualTable = ({ items, itemHeight, containerHeight, renderItem, headers 
 
 const Ventas = () => {
   const { getAuthHeader } = useAuth();
+  const { showCents } = useConfig();
   const [searchParams] = useSearchParams();
 const [ventas, setVentas] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -528,7 +530,7 @@ const clearFilters = () => {
       </div>
       <div className="col-span-1">
         <div className="font-semibold text-primary">
-          {formatCurrency(venta.total)}
+          {formatCurrency(venta.total, showCents)}
         </div>
       </div>
       <div className="col-span-1 text-sm text-muted-foreground">
@@ -581,7 +583,7 @@ const clearFilters = () => {
           </div>
           <div className="col-span-1">
             <div className="font-semibold text-primary text-lg">
-              {formatCurrency(group.total)}
+              {formatCurrency(group.total, showCents)}
             </div>
             <div className="text-xs text-muted-foreground">
               Total del día
@@ -597,7 +599,7 @@ const clearFilters = () => {
           </div>
           <div className="col-span-1">
             <div className="text-sm text-muted-foreground">
-              Promedio: {formatCurrency(group.count > 0 ? group.total / group.count : 0)}
+              Promedio: {formatCurrency(group.count > 0 ? group.total / group.count : 0, showCents)}
             </div>
           </div>
           <div className="col-span-1">
@@ -642,7 +644,7 @@ const clearFilters = () => {
                 </div>
                 <div className="col-span-1">
                   <div className="font-semibold text-primary">
-                    {formatCurrency(venta.total)}
+                    {formatCurrency(venta.total, showCents)}
                   </div>
                 </div>
                 <div className="col-span-1 text-sm text-muted-foreground">
@@ -839,7 +841,7 @@ const clearFilters = () => {
         <Card>
           <CardContent className="p-4">
             <div className="text-2xl font-bold text-green-600">
-              {formatCurrency(sortedVentas.reduce((sum, v) => sum + v.total, 0))}
+              {formatCurrency(sortedVentas.reduce((sum, v) => sum + v.total, 0), showCents)}
             </div>
             <p className="text-sm text-muted-foreground">
               Total {filters.dateType === 'all' ? 'general' : 'filtrado'}
@@ -850,8 +852,8 @@ const clearFilters = () => {
           <CardContent className="p-4">
             <div className="text-2xl font-bold text-blue-600">
               {viewMode === 'individual' 
-                ? formatCurrency(sortedVentas.length > 0 ? sortedVentas.reduce((sum, v) => sum + v.total, 0) / sortedVentas.length : 0)
-                : formatCurrency(groupedVentas.length > 0 ? groupedVentas.reduce((sum, g) => sum + g.total, 0) / groupedVentas.length : 0)
+                ? formatCurrency(sortedVentas.length > 0 ? sortedVentas.reduce((sum, v) => sum + v.total, 0) / sortedVentas.length : 0, showCents)
+                : formatCurrency(groupedVentas.length > 0 ? groupedVentas.reduce((sum, g) => sum + g.total, 0) / groupedVentas.length : 0, showCents)
               }
             </div>
             <p className="text-sm text-muted-foreground">
@@ -917,7 +919,7 @@ const clearFilters = () => {
                       </div>
                       <div className="text-right">
                         <div className="text-xl font-bold text-primary">
-                          {formatCurrency(venta.total)}
+                          {formatCurrency(venta.total, showCents)}
                         </div>
                         <div className="text-xs text-muted-foreground">
                           {venta.detalles.length} producto{venta.detalles.length !== 1 ? 's' : ''}
@@ -1009,7 +1011,7 @@ const clearFilters = () => {
                           </div>
                           <div className="text-right">
                             <div className="text-xl font-bold text-primary">
-                              {formatCurrency(group.total)}
+                              {formatCurrency(group.total, showCents)}
                             </div>
                             <div className="text-xs text-muted-foreground">
                               {group.count} venta{group.count !== 1 ? 's' : ''}
@@ -1019,7 +1021,7 @@ const clearFilters = () => {
                         
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-muted-foreground">
-                            Promedio: {formatCurrency(group.count > 0 ? group.total / group.count : 0)}
+                            Promedio: {formatCurrency(group.count > 0 ? group.total / group.count : 0, showCents)}
                           </span>
                           <Button
                             variant="outline"
@@ -1054,7 +1056,7 @@ const clearFilters = () => {
                                   </span>
                                 </div>
                                 <span className="font-semibold text-primary">
-                                  {formatCurrency(venta.total)}
+                                  {formatCurrency(venta.total, showCents)}
                                 </span>
                               </div>
                               
@@ -1156,12 +1158,12 @@ const clearFilters = () => {
                       <div>
                         <p className="font-medium">{capitalizeWords(detalle.producto_nombre)}</p>
                         <p className="text-sm text-muted-foreground">
-                          {detalle.cantidad} x {formatCurrency(detalle.precio_unitario)}
+                          {detalle.cantidad} x {formatCurrency(detalle.precio_unitario, showCents)}
                         </p>
                       </div>
                       <div className="text-right">
                         <div className="font-semibold">
-                          {formatCurrency(detalle.subtotal)}
+                          {formatCurrency(detalle.subtotal, showCents)}
                         </div>
                       </div>
                     </div>
@@ -1172,7 +1174,7 @@ const clearFilters = () => {
               <div className="flex justify-between items-center p-4 bg-primary/10 rounded-lg flex-shrink-0">
                 <span className="text-xl font-bold">Total</span>
                 <span className="text-2xl font-bold text-primary">
-                  {formatCurrency(selectedVenta.total)}
+                  {formatCurrency(selectedVenta.total, showCents)}
                 </span>
               </div>
             </div>

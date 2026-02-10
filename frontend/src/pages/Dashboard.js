@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
+import { useConfig } from '@/context/ConfigContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DollarSign, ShoppingCart, CreditCard, Users, TrendingDown, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
@@ -13,6 +14,7 @@ const API = `${BACKEND_URL}/api`;
 
 const Dashboard = () => {
   const { getAuthHeader } = useAuth();
+  const { showCents } = useConfig();
   const navigate = useNavigate();
   const [stats, setStats] = useState({
     total_vendido_hoy: 0,
@@ -67,7 +69,7 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="text-xl sm:text-2xl font-bold text-foreground break-words overflow-wrap-anywhere pb-8">
-              {formatCurrency(stats.total_vendido_hoy)}
+              {formatCurrency(stats.total_vendido_hoy, showCents)}
             </div>
           </CardContent>
           <div className="absolute bottom-3 right-3 bg-blue-100 rounded-full p-2 hover:bg-blue-200 transition-colors duration-200">
@@ -88,7 +90,7 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="text-xl sm:text-2xl font-bold text-destructive break-words overflow-wrap-anywhere pb-8">
-              {formatCurrency(stats.total_egresos_hoy)}
+              {formatCurrency(stats.total_egresos_hoy, showCents)}
             </div>
           </CardContent>
           <div className="absolute bottom-3 right-3 bg-red-100 rounded-full p-2 hover:bg-red-200 transition-colors duration-200">
@@ -109,7 +111,7 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className={`text-xl sm:text-2xl font-bold ${(stats.total_vendido_hoy - stats.total_egresos_hoy) >= 0 ? 'text-green-600' : 'text-destructive'} break-words overflow-wrap-anywhere pb-8`}>
-              {formatCurrency(stats.total_vendido_hoy - stats.total_egresos_hoy)}
+              {formatCurrency(stats.total_vendido_hoy - stats.total_egresos_hoy, showCents)}
             </div>
           </CardContent>
           <div className="absolute bottom-3 right-3 bg-green-100 rounded-full p-2 hover:bg-green-200 transition-colors duration-200">
@@ -151,7 +153,7 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="text-xl sm:text-2xl font-bold text-orange-600 break-words overflow-wrap-anywhere pb-8">
-              {formatCurrency(stats.total_saldo_cuenta_corriente)}
+              {formatCurrency(stats.total_saldo_cuenta_corriente, showCents)}
             </div>
           </CardContent>
           <div className="absolute bottom-3 right-3 bg-orange-100 rounded-full p-2 hover:bg-orange-200 transition-colors duration-200">
@@ -176,7 +178,7 @@ const Dashboard = () => {
                     {medio.replace('_', ' ')}
                   </span>
                    <span className="text-base sm:text-lg font-semibold text-primary break-words overflow-wrap-anywhere">
-                      {formatCurrency(total)}
+                      {formatCurrency(total, showCents)}
                    </span>
                 </div>
               ))}

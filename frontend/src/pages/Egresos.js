@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
+import { useConfig } from '@/context/ConfigContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -38,6 +39,7 @@ const API = `${BACKEND_URL}/api`;
 
 const Egresos = () => {
   const { getAuthHeader } = useAuth();
+  const { showCents } = useConfig();
   const [searchParams] = useSearchParams();
   const [egresos, setEgresos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -303,7 +305,7 @@ const Egresos = () => {
               {filteredEgresos.length} egresos encontrados
             </div>
             <div className="text-lg font-bold text-destructive">
-              Total: {formatCurrency(totalEgresos)}
+              Total: {formatCurrency(totalEgresos, showCents)}
             </div>
           </div>
         </CardContent>
@@ -415,7 +417,7 @@ const Egresos = () => {
               {format(new Date(egreso.fecha), 'dd/MM/yyyy', { locale: es })}
             </td>
             <td className="p-4 font-semibold text-destructive">
-                  {formatCurrency(egreso.monto)}
+                  {formatCurrency(egreso.monto, showCents)}
             </td>
             <td className="p-4 text-right">
               <div className="flex justify-end gap-2">
@@ -449,7 +451,7 @@ const Egresos = () => {
               <div className="flex-1">
                 <h3 className="font-semibold text-foreground">{egreso.descripcion}</h3>
                 <div className="text-lg font-bold text-destructive">
-              {formatCurrency(egreso.monto)}
+              {formatCurrency(egreso.monto, showCents)}
                 </div>
               </div>
             </div>

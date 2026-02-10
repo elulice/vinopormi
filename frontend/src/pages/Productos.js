@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
+import { useConfig } from '@/context/ConfigContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,6 +27,7 @@ const API = `${BACKEND_URL}/api`;
 
 const Productos = () => {
   const { getAuthHeader } = useAuth();
+  const { showCents } = useConfig();
 
   const [productos, setProductos] = useState([]);
   const [pagination, setPagination] = useState({
@@ -379,7 +381,7 @@ const Productos = () => {
               {Number(p.stock) || 0} unidades
             </td>
             <td className="p-4 font-semibold text-primary">
-              {formatCurrency(p.precio_unitario)}
+              {formatCurrency(p.precio_unitario, showCents)}
             </td>
             <td className="p-4">
               {p.descuento_cantidad_minima && p.descuento_precio_unitario ? (
@@ -387,7 +389,7 @@ const Productos = () => {
                   <div className="text-green-600 font-medium">
                     ≥{p.descuento_cantidad_minima} u.
                   </div>
-                  <div>{formatCurrency(p.descuento_precio_unitario)} c/u</div>
+                  <div>{formatCurrency(p.descuento_precio_unitario, showCents)} c/u</div>
                 </div>
               ) : (
                 <span className="text-gray-400 text-xs">Sin descuento</span>
@@ -419,7 +421,7 @@ const Productos = () => {
               <div className="flex-1">
                 <h3 className="font-semibold text-foreground">{capitalizeWords(p.nombre)}</h3>
                 <div className="text-lg font-bold text-primary">
-                  {formatCurrency(p.precio_unitario)}
+                  {formatCurrency(p.precio_unitario, showCents)}
                 </div>
               </div>
             </div>
@@ -435,7 +437,7 @@ const Productos = () => {
                     Descuento ≥{p.descuento_cantidad_minima}u
                   </div>
                   <div className="text-green-600">
-                    {formatCurrency(p.descuento_precio_unitario)} c/u
+                    {formatCurrency(p.descuento_precio_unitario, showCents)} c/u
                   </div>
                 </div>
               ) : (

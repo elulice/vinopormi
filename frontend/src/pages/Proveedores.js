@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
+import { useConfig } from '@/context/ConfigContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,6 +20,7 @@ const API = `${BACKEND_URL}/api`;
 
 const Proveedores = () => {
   const { getAuthHeader } = useAuth();
+  const { showCents } = useConfig();
   const [proveedores, setProveedores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -314,7 +316,7 @@ const Proveedores = () => {
               <div className={`text-lg font-semibold ${
                 proveedor.saldo < 0 ? 'text-destructive' : 'text-green-600'
               }`}>
-                {formatCurrency(Math.abs(proveedor.saldo || 0))}
+                {formatCurrency(Math.abs(proveedor.saldo || 0), showCents)}
                 {proveedor.saldo < 0 && (
                   <span className="text-sm font-normal text-muted-foreground ml-2">(adeuda)</span>
                 )}
@@ -392,7 +394,7 @@ const Proveedores = () => {
                 <span className={`font-semibold text-lg ${
                   proveedor.saldo < 0 ? 'text-destructive' : 'text-green-600'
                 }`}>
-                  {formatCurrency(Math.abs(proveedor.saldo || 0))}
+                  {formatCurrency(Math.abs(proveedor.saldo || 0), showCents)}
                   {proveedor.saldo < 0 && (
                     <span className="text-xs font-normal text-muted-foreground ml-1">(adeuda)</span>
                   )}
@@ -528,7 +530,7 @@ const Proveedores = () => {
                   <div className={`text-3xl font-bold ${
                     cuentaInfo.saldo < 0 ? 'text-destructive' : 'text-primary'
                   }`}>
-                    {formatCurrency(Math.abs(cuentaInfo.saldo))}
+                    {formatCurrency(Math.abs(cuentaInfo.saldo), showCents)}
                     {cuentaInfo.saldo < 0 && ' (adeuda)'}
                   </div>
                 </CardContent>
@@ -573,7 +575,7 @@ const Proveedores = () => {
                              mov.monto > 0 ? 'text-green-600' : 'text-red-600'
                            }`}>
                              {mov.monto > 0 ? '+' : ''}
-                             {formatCurrency(mov.monto)}
+                             {formatCurrency(mov.monto, showCents)}
                            </div>
                          </div>
                        ))}
