@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import axios from 'axios';
 
@@ -19,7 +19,7 @@ export const ConfigProvider = ({ children }) => {
   const [error, setError] = useState(null);
 
   // Cargar preferencias del usuario desde el backend
-  const loadPreferences = async () => {
+  const loadPreferences = useCallback(async () => {
     if (!user) {
       setLoading(false);
       return;
@@ -40,7 +40,7 @@ export const ConfigProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, getAuthHeader]);
 
   // Guardar preferencias en el backend
   const setShowCents = async (show) => {
@@ -76,7 +76,7 @@ export const ConfigProvider = ({ children }) => {
       setShowCentsState(true);
       setLoading(false);
     }
-  }, [user]);
+  }, [user, loadPreferences]);
 
   return (
     <ConfigContext.Provider value={{
