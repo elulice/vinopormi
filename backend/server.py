@@ -44,7 +44,7 @@ class Usuario(BaseModel):
     username: str
     nombre: str
     rol: str = "comun"  # "admin" o "comun"
-    preferencias: dict = Field(default_factory=lambda: {"showCents": True})  # Preferencias del usuario
+    preferencias: dict = Field(default_factory=lambda: {"showCents": True, "sidebarWidth": "normal"})  # Preferencias del usuario
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class UsuarioCreate(BaseModel):
@@ -62,6 +62,7 @@ class UsuarioUpdate(BaseModel):
 
 class PreferenciasUpdate(BaseModel):
     showCents: Optional[bool] = None
+    sidebarWidth: Optional[str] = None  # 'compact', 'normal', 'expanded'
 
 class LoginRequest(BaseModel):
     username: str
@@ -375,6 +376,8 @@ async def update_preferencias(
     # Actualizar solo los campos proporcionados
     if preferencias.showCents is not None:
         preferencias_actuales['showCents'] = preferencias.showCents
+    if preferencias.sidebarWidth is not None:
+        preferencias_actuales['sidebarWidth'] = preferencias.sidebarWidth
     
     # Guardar en la base de datos
     result = await db.usuarios.update_one(

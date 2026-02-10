@@ -15,6 +15,7 @@ export const useConfig = () => {
 export const ConfigProvider = ({ children }) => {
   const { user, getAuthHeader } = useAuth();
   const [showCents, setShowCentsState] = useState(true); // Por defecto mostrar centavos
+  const [sidebarWidth, setSidebarWidthState] = useState('normal'); // 'compact', 'normal', 'expanded'
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -33,6 +34,7 @@ export const ConfigProvider = ({ children }) => {
       
       const preferencias = response.data;
       setShowCentsState(preferencias.showCents !== undefined ? preferencias.showCents : true);
+      setSidebarWidthState(preferencias.sidebarWidth !== undefined ? preferencias.sidebarWidth : 'normal');
     } catch (err) {
       console.error('Error cargando preferencias:', err);
       // En caso de error, usar valor por defecto
@@ -63,6 +65,27 @@ export const ConfigProvider = ({ children }) => {
     }
   };
 
+  // Guardar sidebarWidth en el backend
+  const setSidebarWidth = async (width) => {
+    if (!user) return;
+
+    try {
+      const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+      await axios.put(`${BACKEND_URL}/api/auth/preferencias`, 
+        { sidebarWidth: width },
+        { headers: getAuthHeader() }
+      );
+      
+      setSidebarWidthState(width);
+      setError(null);
+    } catch (err) {
+      console.error('Error guardando preferencias:', err);
+      setError(err);
+      // Guardar temporalmente en localStorage como fallback
+      localStorage.setItem('vinopormi_sidebar_width_fallback', JSON.stringify(width));
+    }
+  };
+
   const toggleShowCents = () => {
     setShowCents(!showCents);
   };
@@ -74,6 +97,7 @@ export const ConfigProvider = ({ children }) => {
     } else {
       // Resetear cuando no hay usuario
       setShowCentsState(true);
+      setSidebarWidthState('normal');
       setLoading(false);
     }
   }, [user, loadPreferences]);
@@ -83,6 +107,8 @@ export const ConfigProvider = ({ children }) => {
       showCents,
       setShowCents,
       toggleShowCents,
+      sidebarWidth,
+      setSidebarWidth,
       loading,
       error
     }}>

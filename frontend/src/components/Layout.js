@@ -1,5 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { useConfig } from '@/context/ConfigContext';
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -25,12 +26,13 @@ import { useState, useRef, useEffect } from 'react';
 import { logoImage } from '@/assets/images';
 
 const Layout = () => {
+  const { user, logout } = useAuth();
+  const { sidebarWidth, setSidebarWidth } = useConfig();
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [configMenuOpen, setConfigMenuOpen] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState('normal'); // 'compact', 'normal', 'expanded'
   const configMenuRef = useRef(null);
 
   const handleLogout = () => {
