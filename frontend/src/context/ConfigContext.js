@@ -16,6 +16,7 @@ export const ConfigProvider = ({ children }) => {
   const { user, getAuthHeader } = useAuth();
   const [showCents, setShowCentsState] = useState(true); // Por defecto mostrar centavos
   const [sidebarWidth, setSidebarWidthState] = useState('normal'); // 'compact', 'normal', 'expanded'
+  const [floatingMenu, setFloatingMenuState] = useState(false); // Por defecto deshabilitado
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -35,6 +36,7 @@ export const ConfigProvider = ({ children }) => {
       const preferencias = response.data;
       setShowCentsState(preferencias.showCents !== undefined ? preferencias.showCents : true);
       setSidebarWidthState(preferencias.sidebarWidth !== undefined ? preferencias.sidebarWidth : 'normal');
+      setFloatingMenuState(preferencias.floatingMenu !== undefined ? preferencias.floatingMenu : false);
     } catch (err) {
       console.error('Error cargando preferencias:', err);
       // En caso de error, usar valor por defecto
@@ -86,6 +88,27 @@ export const ConfigProvider = ({ children }) => {
     }
   };
 
+  // Guardar floatingMenu en el backend
+  const setFloatingMenu = async (enabled) => {
+    if (!user) return;
+
+    try {
+      const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+      await axios.put(`${BACKEND_URL}/api/auth/preferencias`, 
+        { floatingMenu: enabled },
+        { headers: getAuthHeader() }
+      );
+      
+      setFloatingMenuState(enabled);
+      setError(null);
+    } catch (err) {
+      console.error('Error guardando preferencias:', err);
+      setError(err);
+      // Guardar temporalmente en localStorage como fallback
+      localStorage.setItem('vinopormi_floating_menu_fallback', JSON.stringify(enabled));
+    }
+  };
+
   const toggleShowCents = () => {
     setShowCents(!showCents);
   };
@@ -98,6 +121,7 @@ export const ConfigProvider = ({ children }) => {
       // Resetear cuando no hay usuario
       setShowCentsState(true);
       setSidebarWidthState('normal');
+      setFloatingMenuState(false);
       setLoading(false);
     }
   }, [user, loadPreferences]);
@@ -109,6 +133,8 @@ export const ConfigProvider = ({ children }) => {
       toggleShowCents,
       sidebarWidth,
       setSidebarWidth,
+      floatingMenu,
+      setFloatingMenu,
       loading,
       error
     }}>

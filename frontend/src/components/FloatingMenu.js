@@ -3,6 +3,7 @@ import {
   Search, 
   User, 
   Building, 
+  Truck,
   DollarSign,
   Plus,
   Edit,
@@ -68,7 +69,7 @@ const FloatingMenu = () => {
       setOpen: setCustomerModalOpen,
     },
     {
-      icon: Building,
+      icon: Truck,
       label: 'Buscar Proveedor',
       modal: 'provider',
       setOpen: setProviderModalOpen,

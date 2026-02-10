@@ -15,7 +15,7 @@ import {
   X,
   LogIn,
   History,
-  Building,
+  Truck,
   Plus,
   Wrench,
   ChevronDown,
@@ -28,7 +28,7 @@ import { logoImage } from '@/assets/images';
 
 const Layout = () => {
   const { user, logout } = useAuth();
-  const { sidebarWidth, setSidebarWidth } = useConfig();
+  const { sidebarWidth, setSidebarWidth, floatingMenu } = useConfig();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -86,7 +86,7 @@ const Layout = () => {
     { path: '/ventas', icon: ShoppingCart, label: 'Ventas' },
     { path: '/productos', icon: Package, label: 'Productos' },
     { path: '/clientes', icon: Users, label: 'Clientes' },
-    { path: '/proveedores', icon: Building, label: 'Proveedores' },
+    { path: '/proveedores', icon: Truck, label: 'Proveedores' },
     { path: '/egresos', icon: TrendingDown, label: 'Egresos' },
   ];
 
@@ -320,8 +320,8 @@ const Layout = () => {
         </div>
       </main>
 
-      {/* FloatingMenu - Solo para usuarios autenticados */}
-      {user && <FloatingMenu />}
+      {/* FloatingMenu - Solo para usuarios autenticados y con la configuración activada */}
+      {user && floatingMenu && <FloatingMenu />}
     </div>
   );
 };
