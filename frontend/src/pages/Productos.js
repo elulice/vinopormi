@@ -87,20 +87,20 @@ const Productos = () => {
       setLoading(false);
       setLoadingPage(false);
     }
-  }, [getAuthHeader, pagination.limit]);
+  }, [pagination.limit]);
 
-  useEffect(() => {
+useEffect(() => {
     fetchProductos(1);
-  }, [fetchProductos]);
+  }, []);
 
   // Función de búsqueda - solo se ejecuta con ENTER
-  const handleSearchSubmit = useCallback((e) => {
+const handleSearchSubmit = useCallback((e) => {
     e.preventDefault();
     fetchProductos(1, searchTerm);
-  }, [searchTerm, fetchProductos]);
+  }, [searchTerm]);
 
   // Función para limpiar búsqueda
-  const handleClearSearch = useCallback(() => {
+const handleClearSearch = useCallback(() => {
     setSearchTerm('');
     fetchProductos(1, '');
     // Enfocar el input inmediatamente después de limpiar
@@ -109,7 +109,7 @@ const Productos = () => {
         searchInputRef.current.focus();
       }
     }, 0);
-  }, [fetchProductos]);
+  }, []);
 
   /* ==============================
      FORM
@@ -158,7 +158,7 @@ const Productos = () => {
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Error al guardar producto');
     }
-  }, [editingProducto, fetchProductos, formData, getAuthHeader, pagination.page, resetForm, searchTerm]);
+  }, [editingProducto, formData, pagination.page, resetForm, searchTerm]);
 
   const handleEdit = useCallback((producto) => {
     setEditingProducto(producto);
@@ -184,7 +184,7 @@ const Productos = () => {
     } catch {
       toast.error('Error al eliminar producto');
     }
-  }, [fetchProductos, getAuthHeader, pagination.page, searchTerm]);
+  }, [fetchProductos, pagination.page, searchTerm]);
 
   // Manejador de cambio de página
   const handlePageChange = useCallback((newPage) => {
@@ -215,7 +215,7 @@ const Productos = () => {
       window.scroll({ top: 0, left: 0, behavior: 'instant' });
       document.documentElement.scroll({ top: 0, left: 0 });
     }, 200); // Mayor delay para asegurar que el contenido se renderizó
-  }, [fetchProductos, searchTerm]);
+  }, [searchTerm]);
 
   if (loading) {
     return <div className="text-center py-8">Cargando...</div>;
