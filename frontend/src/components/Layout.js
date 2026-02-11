@@ -85,7 +85,7 @@ const Layout = () => {
     { path: '/nueva-venta', icon: Plus, label: 'Nueva Venta' },
     { path: '/ventas', icon: ShoppingCart, label: 'Ventas' },
     { path: '/productos', icon: Package, label: 'Productos' },
-    { path: '/clientes', icon: Users, label: 'Clientes' },
+    { path: '/clientes', icon: Users, label: 'Ctas. Ctes.' },
     { path: '/proveedores', icon: Truck, label: 'Proveedores' },
     { path: '/egresos', icon: TrendingDown, label: 'Egresos' },
   ];

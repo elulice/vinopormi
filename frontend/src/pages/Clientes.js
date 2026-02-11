@@ -227,7 +227,7 @@ const Clientes = () => {
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-bold mb-2">Clientes</h1>
+          <h1 className="text-4xl font-bold mb-2">Cuentas Corrientes</h1>
           <p className="text-muted-foreground">Gestiona tus clientes y sus cuentas corrientes</p>
         </div>
       </div>
@@ -441,7 +441,7 @@ const Clientes = () => {
           <CardContent className="py-12 text-center">
             <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
             <p className="text-muted-foreground">
-              {searchTerm
+                 {searchTerm
                 ? `No se encontraron clientes con "${searchTerm}"`
                 : 'No hay clientes aún. Crea uno para empezar.'}
             </p>

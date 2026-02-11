@@ -62,7 +62,7 @@ const FloatingMenu = () => {
     },
     {
       icon: Users,
-      label: 'Buscar Cliente',
+      label: 'Buscar Cta. Cte.',
       modal: 'customer',
       setOpen: setCustomerModalOpen,
     },
@@ -310,7 +310,7 @@ const CustomerModalContent = ({ customers, onClose }) => {
         />
         <Button onClick={() => setIsNewCustomer(true)} className="flex items-center gap-2">
           <Plus className="w-4 h-4" />
-          Nuevo Cliente
+          Nueva Cta. Cte.
         </Button>
       </div>
 
@@ -352,7 +352,7 @@ const CustomerModalContent = ({ customers, onClose }) => {
 const NewCustomerForm = ({ onClose }) => {
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Nuevo Cliente</h3>
+      <h3 className="text-lg font-semibold">Nueva Cta. Cte.</h3>
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium mb-1">Nombre</label>
@@ -369,7 +369,7 @@ const NewCustomerForm = ({ onClose }) => {
       </div>
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={onClose}>Cancelar</Button>
-        <Button>Guardar Cliente</Button>
+        <Button>Guardar Cta. Cte.</Button>
       </div>
     </div>
   );
@@ -379,7 +379,7 @@ const NewCustomerForm = ({ onClose }) => {
 const EditCustomerForm = ({ customer, onClose }) => {
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Editar Cliente</h3>
+      <h3 className="text-lg font-semibold">Editar Cta. Cte.</h3>
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium mb-1">Nombre</label>
