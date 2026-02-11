@@ -93,12 +93,6 @@ const Clientes = () => {
     }
   };
 
-  const hasChanges = editingCliente && (
-    formData.nombre !== editingCliente.nombre ||
-    formData.telefono !== editingCliente.telefono ||
-    formData.email !== (editingCliente.email || '')
-  );
-
   const handleEdit = (cliente) => {
     setEditingCliente(cliente);
     setFormData({
@@ -150,6 +144,12 @@ const Clientes = () => {
       setLoadingCuenta(false);
     }
   };
+
+  const hasChanges = editingCliente && (
+    formData.nombre !== editingCliente.nombre ||
+    formData.telefono !== editingCliente.telefono ||
+    formData.email !== (editingCliente.email || '')
+  );
 
   const handleMovimientoSubmit = async (e) => {
     e.preventDefault();
@@ -211,6 +211,12 @@ const Clientes = () => {
     setVentaDialogOpen(false);
     setSelectedVenta(null);
   };
+
+  const hasChanges = editingCliente && (
+    formData.nombre !== editingCliente.nombre ||
+    formData.telefono !== editingCliente.telefono ||
+    formData.email !== (editingCliente.email || '')
+  );
 
   const filteredClientes = clientes.filter((c) =>
     c.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -291,7 +297,12 @@ const Clientes = () => {
                 />
               </div>
               <div className="flex gap-2 pt-4">
-                <Button type="submit" className="flex-1" data-testid="cliente-submit-button">
+                <Button 
+                  type="submit" 
+                  className="flex-1" 
+                  data-testid="cliente-submit-button"
+                  disabled={editingCliente && !hasChanges}
+                >
                   {editingCliente ? 'Actualizar' : 'Crear'}
                 </Button>
                 <Button type="button" variant="outline" onClick={handleDialogClose}>
