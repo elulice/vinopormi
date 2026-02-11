@@ -1587,6 +1587,10 @@ async def obtener_sticky_notes(current_user: Usuario = Depends(get_current_user)
         cursor = db["sticky_notes"].find().sort("fijada", -1).sort("timestamp", -1)
         
         async for document in cursor:
+            # Convertir ObjectId a string y eliminar _id
+            if '_id' in document:
+                document['_id'] = str(document['_id'])
+            
             # Agregar timestamp relativo
             timestamp = document.get('timestamp')
             tiempo_relativo = ""
@@ -1610,8 +1614,10 @@ async def obtener_sticky_notes(current_user: Usuario = Depends(get_current_user)
                 else:
                     tiempo_relativo = "hace instantes"
             
-            document['tiempo_relativo'] = tiempo_relativo
-            sticky_notes.append(document)
+            # Crear una copia sin el _id para evitar problemas de serialización
+            doc_copy = {k: v for k, v in document.items() if k != '_id'}
+            doc_copy['tiempo_relativo'] = tiempo_relativo
+            sticky_notes.append(doc_copy)
             
         return sticky_notes
     except Exception as e:
