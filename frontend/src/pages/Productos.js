@@ -57,6 +57,9 @@ const Productos = () => {
   /* =============================
      FETCH
   ============================== */
+  // Referencia estable para fetchProductos
+  const fetchProductosRef = useRef();
+  
   const fetchProductos = useCallback(async (page = 1, search = null) => {
     try {
       if (page === 1) {
@@ -87,29 +90,32 @@ const Productos = () => {
       setLoading(false);
       setLoadingPage(false);
     }
-  }, [getAuthHeader, pagination.limit]);
+  }, [pagination.limit, getAuthHeader]);
 
-  useEffect(() => {
-    fetchProductos(1);
-  }, [fetchProductos]);
+  // Mantener la referencia actualizada
+  fetchProductosRef.current = fetchProductos;
+
+useEffect(() => {
+    fetchProductosRef.current?.(1);
+  }, []);
 
   // Función de búsqueda - solo se ejecuta con ENTER
-  const handleSearchSubmit = useCallback((e) => {
+const handleSearchSubmit = useCallback((e) => {
     e.preventDefault();
-    fetchProductos(1, searchTerm);
-  }, [searchTerm, fetchProductos]);
+    fetchProductosRef.current?.(1, searchTerm);
+  }, [searchTerm]);
 
   // Función para limpiar búsqueda
-  const handleClearSearch = useCallback(() => {
+const handleClearSearch = useCallback(() => {
     setSearchTerm('');
-    fetchProductos(1, '');
+    fetchProductosRef.current?.(1, '');
     // Enfocar el input inmediatamente después de limpiar
     setTimeout(() => {
       if (searchInputRef.current) {
         searchInputRef.current.focus();
       }
     }, 0);
-  }, [fetchProductos]);
+  }, []);
 
   /* ==============================
      FORM
@@ -154,11 +160,11 @@ const Productos = () => {
 
       setDialogOpen(false);
       resetForm();
-      fetchProductos(pagination.page, searchTerm);
+      fetchProductosRef.current?.(pagination.page, searchTerm);
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Error al guardar producto');
     }
-  }, [editingProducto, fetchProductos, formData, getAuthHeader, pagination.page, resetForm, searchTerm]);
+  }, [editingProducto, formData, pagination.page, resetForm, searchTerm, getAuthHeader]);
 
   const handleEdit = useCallback((producto) => {
     setEditingProducto(producto);
@@ -180,15 +186,15 @@ const Productos = () => {
         headers: getAuthHeader(),
       });
       toast.success('Producto eliminado');
-      fetchProductos(pagination.page, searchTerm);
+      fetchProductosRef.current?.(pagination.page, searchTerm);
     } catch {
       toast.error('Error al eliminar producto');
     }
-  }, [fetchProductos, getAuthHeader, pagination.page, searchTerm]);
+  }, [pagination.page, searchTerm, getAuthHeader]);
 
   // Manejador de cambio de página
   const handlePageChange = useCallback((newPage) => {
-    fetchProductos(newPage, searchTerm);
+    fetchProductosRef.current?.(newPage, searchTerm);
     setPagination(prev => ({ ...prev, page: newPage }));
     
     // Múltiples métodos para asegurar el scroll hacia arriba
@@ -215,7 +221,7 @@ const Productos = () => {
       window.scroll({ top: 0, left: 0, behavior: 'instant' });
       document.documentElement.scroll({ top: 0, left: 0 });
     }, 200); // Mayor delay para asegurar que el contenido se renderizó
-  }, [fetchProductos, searchTerm]);
+  }, [searchTerm]);
 
   if (loading) {
     return <div className="text-center py-8">Cargando...</div>;
@@ -378,7 +384,7 @@ const Productos = () => {
               {capitalizeWords(p.nombre)}
             </td>
             <td className="p-4">
-              {Number(p.stock) || 0} unidades
+              {Number(p.stock) || 0} unid.
             </td>
             <td className="p-4 font-semibold text-primary">
               {formatCurrency(p.precio_unitario, showCents)}
@@ -429,7 +435,7 @@ const Productos = () => {
             <div className="grid grid-cols-2 gap-3 mb-3">
               <div className="text-sm">
                 <span className="text-muted-foreground">Stock: </span>
-                <span className="font-medium">{Number(p.stock) || 0} unidades</span>
+                <span className="font-medium">{Number(p.stock) || 0} unid.</span>
               </div>
               {p.descuento_cantidad_minima && p.descuento_precio_unitario ? (
                 <div className="text-sm">

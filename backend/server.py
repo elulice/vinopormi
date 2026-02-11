@@ -44,8 +44,9 @@ class Usuario(BaseModel):
     username: str
     nombre: str
     rol: str = "comun"  # "admin" o "comun"
-    preferencias: dict = Field(default_factory=lambda: {"showCents": True, "sidebarWidth": "normal", "floatingMenu": False})  # Preferencias del usuario
+    preferencias: dict = Field(default_factory=lambda: {"showCents": True, "sidebarWidth": "normal", "floatingMenu": False, "autoLogout": True})  # Preferencias del usuario
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    lastActivity: Optional[datetime] = None  # Última actividad del usuario
 
 class UsuarioCreate(BaseModel):
     username: str
@@ -64,6 +65,7 @@ class PreferenciasUpdate(BaseModel):
     showCents: Optional[bool] = None
     sidebarWidth: Optional[str] = None  # 'compact', 'normal', 'expanded'
     floatingMenu: Optional[bool] = None  # Habilitar/deshabilitar menú flotante
+    autoLogout: Optional[bool] = None   # Habilitar/deshabilitar cierre de sesión automático
 
 class LoginRequest(BaseModel):
     username: str
@@ -290,6 +292,30 @@ async def registrar_auditoria(
 
 # ===== AUTH HELPERS =====
 
+async def update_last_activity(username: str):
+    """Actualiza la última actividad del usuario"""
+    await db.usuarios.update_one(
+        {'username': username},
+        {'$set': {'lastActivity': datetime.now(timezone.utc).isoformat()}}
+    )
+
+async def check_auto_logout(user_data: dict) -> bool:
+    """Verifica si el usuario debe ser desconectado por inactividad"""
+    if not user_data.get('preferencias', {}).get('autoLogout', False):
+        return False
+    
+    last_activity = user_data.get('lastActivity')
+    if not last_activity:
+        return False
+    
+    # Convertir a datetime si es string
+    if isinstance(last_activity, str):
+        last_activity = datetime.fromisoformat(last_activity)
+    
+    # Verificar si han pasado más de 1 hora (3600 segundos)
+    time_diff = datetime.now(timezone.utc) - last_activity
+    return time_diff.total_seconds() > 3600
+
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
         token = credentials.credentials
@@ -301,6 +327,13 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         user = await db.usuarios.find_one({'username': username}, {'_id': 0, 'password': 0})
         if not user:
             raise HTTPException(status_code=401, detail="Usuario no encontrado")
+        
+        # Verificar auto logout por inactividad
+        if await check_auto_logout(user):
+            raise HTTPException(status_code=401, detail="Sesión expirada por inactividad")
+        
+        # Actualizar última actividad
+        await update_last_activity(username)
         
         if isinstance(user.get('timestamp'), str):
             user['timestamp'] = datetime.fromisoformat(user['timestamp'])
@@ -394,13 +427,15 @@ async def update_preferencias(
     # Obtener preferencias actuales
     preferencias_actuales = current_user.preferencias or {'showCents': True}
     
-    # Actualizar solo los campos proporcionados
+# Actualizar solo los campos proporcionados
     if preferencias.showCents is not None:
         preferencias_actuales['showCents'] = preferencias.showCents
     if preferencias.sidebarWidth is not None:
         preferencias_actuales['sidebarWidth'] = preferencias.sidebarWidth
     if preferencias.floatingMenu is not None:
         preferencias_actuales['floatingMenu'] = preferencias.floatingMenu
+    if preferencias.autoLogout is not None:
+        preferencias_actuales['autoLogout'] = preferencias.autoLogout
     
     # Guardar en la base de datos
     result = await db.usuarios.update_one(
@@ -1414,7 +1449,7 @@ async def admin_update_usuario(
     if current_user.id == usuario_id and 'rol' in input.model_dump() and input.rol != 'admin':
         raise HTTPException(status_code=400, detail="No puedes cambiar tu propio rol de administrador")
     
-    # Guardar valores anteriores
+# Guardar valores anteriores
     valores_anteriores = {
         'username': usuario.get('username'),
         'nombre': usuario.get('nombre'),
@@ -1422,6 +1457,10 @@ async def admin_update_usuario(
     }
     
     update_data = {k: v for k, v in input.model_dump().items() if v is not None}
+    
+    # Si hay contraseña, encriptarla antes de guardar
+    if 'password' in update_data and update_data['password']:
+        update_data['password'] = bcrypt.hashpw(update_data['password'].encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     
     if update_data:
         await db.usuarios.update_one({'id': usuario_id}, {'$set': update_data})

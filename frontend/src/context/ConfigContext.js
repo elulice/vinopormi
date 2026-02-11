@@ -13,10 +13,11 @@ export const useConfig = () => {
 };
 
 export const ConfigProvider = ({ children }) => {
-  const { user, getAuthHeader } = useAuth();
+  const { user, getAuthHeader, updateAutoLogoutSetting } = useAuth();
   const [showCents, setShowCentsState] = useState(true); // Por defecto mostrar centavos
   const [sidebarWidth, setSidebarWidthState] = useState('normal'); // 'compact', 'normal', 'expanded'
   const [floatingMenu, setFloatingMenuState] = useState(false); // Por defecto deshabilitado
+  const [autoLogout, setAutoLogoutState] = useState(true); // Por defecto habilitado
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -37,6 +38,7 @@ export const ConfigProvider = ({ children }) => {
       setShowCentsState(preferencias.showCents !== undefined ? preferencias.showCents : true);
       setSidebarWidthState(preferencias.sidebarWidth !== undefined ? preferencias.sidebarWidth : 'normal');
       setFloatingMenuState(preferencias.floatingMenu !== undefined ? preferencias.floatingMenu : false);
+      setAutoLogoutState(preferencias.autoLogout !== undefined ? preferencias.autoLogout : false);
     } catch (err) {
       console.error('Error cargando preferencias:', err);
       // En caso de error, usar valor por defecto
@@ -109,6 +111,29 @@ export const ConfigProvider = ({ children }) => {
     }
   };
 
+  // Guardar autoLogout en el backend
+  const setAutoLogout = async (enabled) => {
+    if (!user) return;
+
+    try {
+      const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+      await axios.put(`${BACKEND_URL}/api/auth/preferencias`, 
+        { autoLogout: enabled },
+        { headers: getAuthHeader() }
+      );
+      
+      setAutoLogoutState(enabled);
+      // Actualizar el contexto de autenticación
+      updateAutoLogoutSetting(enabled);
+      setError(null);
+    } catch (err) {
+      console.error('Error guardando preferencias:', err);
+      setError(err);
+      // Guardar temporalmente en localStorage como fallback
+      localStorage.setItem('vinopormi_auto_logout_fallback', JSON.stringify(enabled));
+    }
+  };
+
   const toggleShowCents = () => {
     setShowCents(!showCents);
   };
@@ -122,6 +147,7 @@ export const ConfigProvider = ({ children }) => {
       setShowCentsState(true);
       setSidebarWidthState('normal');
       setFloatingMenuState(false);
+      setAutoLogoutState(false);
       setLoading(false);
     }
   }, [user, loadPreferences]);
@@ -135,6 +161,8 @@ export const ConfigProvider = ({ children }) => {
       setSidebarWidth,
       floatingMenu,
       setFloatingMenu,
+      autoLogout,
+      setAutoLogout,
       loading,
       error
     }}>

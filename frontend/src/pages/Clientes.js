@@ -69,7 +69,7 @@ const Clientes = () => {
     const data = {
       nombre: formData.nombre,
       telefono: formData.telefono,
-      email: formData.email || null
+      email: formData.email
     };
 
     try {
@@ -144,6 +144,12 @@ const Clientes = () => {
       setLoadingCuenta(false);
     }
   };
+
+  const hasChanges = editingCliente && (
+    formData.nombre !== editingCliente.nombre ||
+    formData.telefono !== editingCliente.telefono ||
+    formData.email !== (editingCliente.email || '')
+  );
 
   const handleMovimientoSubmit = async (e) => {
     e.preventDefault();
@@ -221,7 +227,7 @@ const Clientes = () => {
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-bold mb-2">Clientes</h1>
+          <h1 className="text-4xl font-bold mb-2">Cuentas Corrientes</h1>
           <p className="text-muted-foreground">Gestiona tus clientes y sus cuentas corrientes</p>
         </div>
       </div>
@@ -285,7 +291,12 @@ const Clientes = () => {
                 />
               </div>
               <div className="flex gap-2 pt-4">
-                <Button type="submit" className="flex-1" data-testid="cliente-submit-button">
+                <Button 
+                  type="submit" 
+                  className="flex-1" 
+                  data-testid="cliente-submit-button"
+                  disabled={editingCliente && !hasChanges}
+                >
                   {editingCliente ? 'Actualizar' : 'Crear'}
                 </Button>
                 <Button type="button" variant="outline" onClick={handleDialogClose}>
@@ -430,7 +441,7 @@ const Clientes = () => {
           <CardContent className="py-12 text-center">
             <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
             <p className="text-muted-foreground">
-              {searchTerm
+                 {searchTerm
                 ? `No se encontraron clientes con "${searchTerm}"`
                 : 'No hay clientes aún. Crea uno para empezar.'}
             </p>

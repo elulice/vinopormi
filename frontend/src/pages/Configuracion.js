@@ -4,13 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useConfig } from '@/context/ConfigContext';
-import { Settings as SettingsIcon, Package, Users, Truck, TrendingDown, DollarSign, Loader2, AlertCircle, Menu } from 'lucide-react';
+import { Settings as SettingsIcon, Package, Users, Truck, TrendingDown, DollarSign, Loader2, AlertCircle, Menu, LogOut } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency';
 
 const Configuracion = () => {
-  const { showCents, toggleShowCents, floatingMenu, setFloatingMenu, loading, error } = useConfig();
+  const { showCents, toggleShowCents, floatingMenu, setFloatingMenu, autoLogout, setAutoLogout, loading, error } = useConfig();
   const [localShowCents, setLocalShowCents] = useState(showCents);
   const [localFloatingMenu, setLocalFloatingMenu] = useState(floatingMenu);
+  const [localAutoLogout, setLocalAutoLogout] = useState(autoLogout);
 
   // Sincronizar estados locales con los globales cuando cambian
   useEffect(() => {
@@ -21,16 +22,26 @@ const Configuracion = () => {
     setLocalFloatingMenu(floatingMenu);
   }, [floatingMenu]);
 
+  useEffect(() => {
+    setLocalAutoLogout(autoLogout);
+  }, [autoLogout]);
+
   const handleToggle = () => {
     const newValue = !localShowCents;
     setLocalShowCents(newValue);
     toggleShowCents();
   };
 
-  const handleFloatingMenuToggle = () => {
+const handleFloatingMenuToggle = () => {
     const newValue = !localFloatingMenu;
     setLocalFloatingMenu(newValue);
     setFloatingMenu(newValue);
+  };
+
+  const handleAutoLogoutToggle = () => {
+    const newValue = !localAutoLogout;
+    setLocalAutoLogout(newValue);
+    setAutoLogout(newValue);
   };
 
   return (
@@ -194,6 +205,101 @@ const Configuracion = () => {
                   <p className="text-xs text-muted-foreground">Registrar nuevos egresos</p>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Información adicional */}
+          <div className="border-t pt-4">
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800">
+                <strong>Nota:</strong> Esta configuración se guarda en tu perfil de usuario 
+                y estará disponible en todos los dispositivos donde inicies sesión.
+                {error && (
+                  <span className="block mt-2 text-red-600">
+                    ⚠️ Hay un problema de conexión. Los cambios se guardarán temporalmente.
+                  </span>
+                )}
+              </p>
+            </div>
+          </div>
+</CardContent>
+      </Card>
+
+      {/* Tarjeta de configuración de cierre de sesión automático */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <LogOut className="w-5 h-5" />
+            Cierre de Sesión Automático
+            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+            {error && <AlertCircle className="w-4 h-4 text-red-500" />}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="auto-logout" className="text-base font-medium">
+                Cierre de sesión automático
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                Cierra automáticamente la sesión después de 1 hora de inactividad
+              </p>
+            </div>
+            <Switch
+              id="auto-logout"
+              checked={localAutoLogout}
+              onCheckedChange={handleAutoLogoutToggle}
+            />
+          </div>
+
+          {/* Información sobre la funcionalidad */}
+          <div className="border-t pt-4">
+            <p className="text-sm font-medium mb-3">¿Cómo funciona?</p>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mt-0.5">
+                  <span className="text-xs font-bold text-blue-600">1</span>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Seguimiento de actividad</p>
+                  <p className="text-xs text-muted-foreground">
+                    El sistema detecta tu actividad (clics, movimientos del mouse, teclado)
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mt-0.5">
+                  <span className="text-xs font-bold text-blue-600">2</span>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Verificación periódica</p>
+                  <p className="text-xs text-muted-foreground">
+                    Cada 5 minutos se verifica tu actividad reciente
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mt-0.5">
+                  <span className="text-xs font-bold text-blue-600">3</span>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Cierre automático</p>
+                  <p className="text-xs text-muted-foreground">
+                    Si no hay actividad por 1 hora, la sesión se cierra automáticamente
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Advertencia de seguridad */}
+          <div className="border-t pt-4">
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-sm text-amber-800">
+                <strong>⚠️ Importante:</strong> Si el navegador está cerrado, el seguimiento de actividad 
+                no funcionará. La sesión se cerrará automáticamente la próxima vez que abras la aplicación 
+                si ha pasado más de 1 hora desde tu última actividad.
+              </p>
             </div>
           </div>
 
