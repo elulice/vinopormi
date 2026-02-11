@@ -103,15 +103,7 @@ const Layout = () => {
     <div className="min-h-screen bg-gray-50">
       {/* MOBILE HEADER - Solo visible en móviles */}
       <div className="lg:hidden bg-white border-b border-gray-200 fixed top-0 left-0 right-0 z-40">
-        <div className="flex items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-3">
-            <img 
-              src={logoImage} 
-              alt="Vinoteca Logo" 
-              className="w-6 h-6"
-            />
-            <h1 className="text-lg font-bold text-foreground">Vino Por Mi</h1>
-          </div>
+        <div className="flex items-center px-4 py-3">
           <Button
             variant="ghost"
             size="sm"
@@ -120,6 +112,14 @@ const Layout = () => {
           >
             <Menu className="w-5 h-5" />
           </Button>
+          <div className="flex items-center gap-3 ml-2">
+            <img 
+              src={logoImage} 
+              alt="Vinoteca Logo" 
+              className="w-6 h-6"
+            />
+            <h1 className="text-lg font-bold text-foreground">Vino Por Mi</h1>
+          </div>
         </div>
       </div>
 
