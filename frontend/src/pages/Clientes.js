@@ -212,12 +212,6 @@ const Clientes = () => {
     setSelectedVenta(null);
   };
 
-  const hasChanges = editingCliente && (
-    formData.nombre !== editingCliente.nombre ||
-    formData.telefono !== editingCliente.telefono ||
-    formData.email !== (editingCliente.email || '')
-  );
-
   const filteredClientes = clientes.filter((c) =>
     c.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.telefono.toLowerCase().includes(searchTerm.toLowerCase()) ||
