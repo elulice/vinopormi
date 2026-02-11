@@ -57,6 +57,9 @@ const Productos = () => {
   /* =============================
      FETCH
   ============================== */
+  // Referencia estable para fetchProductos
+  const fetchProductosRef = useRef();
+  
   const fetchProductos = useCallback(async (page = 1, search = null) => {
     try {
       if (page === 1) {
@@ -87,22 +90,25 @@ const Productos = () => {
       setLoading(false);
       setLoadingPage(false);
     }
-  }, [pagination.limit]);
+  }, [pagination.limit, getAuthHeader]);
+
+  // Mantener la referencia actualizada
+  fetchProductosRef.current = fetchProductos;
 
 useEffect(() => {
-    fetchProductos(1);
+    fetchProductosRef.current?.(1);
   }, []);
 
   // Función de búsqueda - solo se ejecuta con ENTER
 const handleSearchSubmit = useCallback((e) => {
     e.preventDefault();
-    fetchProductos(1, searchTerm);
+    fetchProductosRef.current?.(1, searchTerm);
   }, [searchTerm]);
 
   // Función para limpiar búsqueda
 const handleClearSearch = useCallback(() => {
     setSearchTerm('');
-    fetchProductos(1, '');
+    fetchProductosRef.current?.(1, '');
     // Enfocar el input inmediatamente después de limpiar
     setTimeout(() => {
       if (searchInputRef.current) {
@@ -154,11 +160,11 @@ const handleClearSearch = useCallback(() => {
 
       setDialogOpen(false);
       resetForm();
-      fetchProductos(pagination.page, searchTerm);
+      fetchProductosRef.current?.(pagination.page, searchTerm);
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Error al guardar producto');
     }
-  }, [editingProducto, formData, pagination.page, resetForm, searchTerm]);
+  }, [editingProducto, formData, pagination.page, resetForm, searchTerm, getAuthHeader]);
 
   const handleEdit = useCallback((producto) => {
     setEditingProducto(producto);
@@ -180,15 +186,15 @@ const handleClearSearch = useCallback(() => {
         headers: getAuthHeader(),
       });
       toast.success('Producto eliminado');
-      fetchProductos(pagination.page, searchTerm);
+      fetchProductosRef.current?.(pagination.page, searchTerm);
     } catch {
       toast.error('Error al eliminar producto');
     }
-  }, [fetchProductos, pagination.page, searchTerm]);
+  }, [pagination.page, searchTerm, getAuthHeader]);
 
   // Manejador de cambio de página
   const handlePageChange = useCallback((newPage) => {
-    fetchProductos(newPage, searchTerm);
+    fetchProductosRef.current?.(newPage, searchTerm);
     setPagination(prev => ({ ...prev, page: newPage }));
     
     // Múltiples métodos para asegurar el scroll hacia arriba
