@@ -8,6 +8,7 @@ import { DollarSign, ShoppingCart, CreditCard, Users, TrendingDown, ArrowRight }
 import { toast } from 'sonner';
 import '@/components/Dashboard.css';
 import { formatCurrency, formatNumber } from '@/lib/currency';
+import StickyNotesContainer from '@/components/StickyNotesContainer';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -186,6 +187,9 @@ const Dashboard = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Sticky Notes Container */}
+      <StickyNotesContainer />
     </div>
   );
 };
