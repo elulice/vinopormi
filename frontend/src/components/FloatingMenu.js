@@ -15,18 +15,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import Productos from '@/pages/Productos';
 
 const FloatingMenu = () => {
   const [productModalOpen, setProductModalOpen] = useState(false);
@@ -34,12 +23,7 @@ const FloatingMenu = () => {
   const [providerModalOpen, setProviderModalOpen] = useState(false);
   const [egressModalOpen, setEgressModalOpen] = useState(false);
 
-  // Datos de ejemplo
-  const sampleProducts = [
-    { id: 1, name: 'Vino Malbec', code: 'VIN001', stock: 50, price: 1500 },
-    { id: 2, name: 'Vino Cabernet', code: 'VIN002', stock: 30, price: 1800 },
-    { id: 3, name: 'Vino Merlot', code: 'VIN003', stock: 25, price: 1600 },
-  ];
+
 
   const sampleCustomers = [
     { id: 1, name: 'Juan Pérez', email: 'juan@email.com', phone: '11-1234-5678' },
@@ -56,25 +40,25 @@ const FloatingMenu = () => {
   const quickActions = [
     {
       icon: Package,
-      label: 'Buscar Producto',
+      label: 'Productos',
       modal: 'product',
       setOpen: setProductModalOpen,
     },
     {
       icon: Users,
-      label: 'Buscar Cta. Cte.',
+      label: 'Ctas. Ctes.',
       modal: 'customer',
       setOpen: setCustomerModalOpen,
     },
     {
       icon: Truck,
-      label: 'Buscar Proveedor',
+      label: 'Proveedores',
       modal: 'provider',
       setOpen: setProviderModalOpen,
     },
     {
       icon: TrendingDown,
-      label: 'Nuevo Egreso',
+      label: 'Egresos',
       modal: 'egress',
       setOpen: setEgressModalOpen,
     },
@@ -102,7 +86,7 @@ const FloatingMenu = () => {
                     <Icon className="w-5 h-5" />
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                       <Icon className="w-5 h-5" />
@@ -110,10 +94,9 @@ const FloatingMenu = () => {
                     </DialogTitle>
                   </DialogHeader>
                   {action.modal === 'product' && (
-                    <ProductModalContent 
-                      products={sampleProducts} 
-                      onClose={() => setProductModalOpen(false)} 
-                    />
+                    <div className="max-w-none">
+                      <Productos />
+                    </div>
                   )}
                   {action.modal === 'customer' && (
                     <CustomerModalContent 
@@ -144,141 +127,7 @@ const FloatingMenu = () => {
   );
 };
 
-// Componente de contenido para productos
-const ProductModalContent = ({ products, onClose }) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isNewProduct, setIsNewProduct] = useState(false);
-  const [editingProduct, setEditingProduct] = useState(null);
 
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.code.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  if (isNewProduct) {
-    return <NewProductForm onClose={() => setIsNewProduct(false)} />;
-  }
-
-  if (editingProduct) {
-    return <EditProductForm product={editingProduct} onClose={() => setEditingProduct(null)} />;
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <Input
-          placeholder="Buscar por nombre o código..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-md"
-        />
-        <Button onClick={() => setIsNewProduct(true)} className="flex items-center gap-2">
-          <Plus className="w-4 h-4" />
-          Nuevo Producto
-        </Button>
-      </div>
-
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Código</TableHead>
-            <TableHead>Nombre</TableHead>
-            <TableHead>Stock</TableHead>
-            <TableHead>Precio</TableHead>
-            <TableHead>Acciones</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filteredProducts.map((product) => (
-            <TableRow key={product.id}>
-              <TableCell>{product.code}</TableCell>
-              <TableCell className="font-medium">{product.name}</TableCell>
-              <TableCell>
-                <Badge variant={product.stock < 20 ? "destructive" : "default"}>
-                  {product.stock}
-                </Badge>
-              </TableCell>
-              <TableCell>${product.price}</TableCell>
-              <TableCell>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setEditingProduct(product)}
-                  >
-                    <Edit className="w-4 h-4" />
-                  </Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
-  );
-};
-
-// Formulario de nuevo producto
-const NewProductForm = ({ onClose }) => {
-  return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Nuevo Producto</h3>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">Código</label>
-          <Input placeholder="Código del producto" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Nombre</label>
-          <Input placeholder="Nombre del producto" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Stock</label>
-          <Input type="number" placeholder="Stock inicial" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Precio</label>
-          <Input type="number" placeholder="Precio de venta" />
-        </div>
-      </div>
-      <div className="flex justify-end gap-2">
-        <Button variant="outline" onClick={onClose}>Cancelar</Button>
-        <Button>Guardar Producto</Button>
-      </div>
-    </div>
-  );
-};
-
-// Formulario de editar producto
-const EditProductForm = ({ product, onClose }) => {
-  return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Editar Producto</h3>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">Código</label>
-          <Input defaultValue={product.code} />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Nombre</label>
-          <Input defaultValue={product.name} />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Stock</label>
-          <Input type="number" defaultValue={product.stock} />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Precio</label>
-          <Input type="number" defaultValue={product.price} />
-        </div>
-      </div>
-      <div className="flex justify-end gap-2">
-        <Button variant="outline" onClick={onClose}>Cancelar</Button>
-        <Button>Guardar Cambios</Button>
-      </div>
-    </div>
-  );
-};
 
 // Componente de contenido para clientes
 const CustomerModalContent = ({ customers, onClose }) => {

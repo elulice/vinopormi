@@ -384,7 +384,7 @@ const handleClearSearch = useCallback(() => {
               {capitalizeWords(p.nombre)}
             </td>
             <td className="p-4">
-              {Number(p.stock) || 0} unidades
+              {Number(p.stock) || 0} unid.
             </td>
             <td className="p-4 font-semibold text-primary">
               {formatCurrency(p.precio_unitario, showCents)}
@@ -435,7 +435,7 @@ const handleClearSearch = useCallback(() => {
             <div className="grid grid-cols-2 gap-3 mb-3">
               <div className="text-sm">
                 <span className="text-muted-foreground">Stock: </span>
-                <span className="font-medium">{Number(p.stock) || 0} unidades</span>
+                <span className="font-medium">{Number(p.stock) || 0} unid.</span>
               </div>
               {p.descuento_cantidad_minima && p.descuento_precio_unitario ? (
                 <div className="text-sm">
