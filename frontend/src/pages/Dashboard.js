@@ -61,13 +61,13 @@ const Dashboard = () => {
           className="cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-[1.02] relative"
           onClick={() => navigate('/ventas?filter=today')}
         >
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 p-4">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Total Vendido Hoy
             </CardTitle>
             <DollarSign className="w-5 h-5 text-primary !mt-0" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 pt-0">
             <div className="text-xl sm:text-2xl font-bold text-foreground break-words overflow-wrap-anywhere pb-8">
               {formatCurrency(stats.total_vendido_hoy, showCents)}
             </div>
@@ -82,13 +82,13 @@ const Dashboard = () => {
           className="cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-[1.02] relative"
           onClick={() => navigate('/egresos?filter=today')}
         >
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 p-4">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Total Egresos Hoy
             </CardTitle>
             <TrendingDown className="w-5 h-5 text-destructive !mt-0" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 pt-0">
             <div className="text-xl sm:text-2xl font-bold text-destructive break-words overflow-wrap-anywhere pb-8">
               {formatCurrency(stats.total_egresos_hoy, showCents)}
             </div>
@@ -103,13 +103,13 @@ const Dashboard = () => {
           className="cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-[1.02] relative"
           onClick={() => navigate('/dashboard')}
         >
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 p-4">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Balance del Día
             </CardTitle>
             <DollarSign className="w-5 h-5 text-blue-600 !mt-0" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 pt-0">
             <div className={`text-xl sm:text-2xl font-bold ${(stats.total_vendido_hoy - stats.total_egresos_hoy) >= 0 ? 'text-green-600' : 'text-destructive'} break-words overflow-wrap-anywhere pb-8`}>
               {formatCurrency(stats.total_vendido_hoy - stats.total_egresos_hoy, showCents)}
             </div>
@@ -124,13 +124,13 @@ const Dashboard = () => {
           className="cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-[1.02] relative"
           onClick={() => navigate('/ventas?filter=today')}
         >
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 p4">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Ventas Realizadas
             </CardTitle>
             <ShoppingCart className="w-5 h-5 text-primary !mt-0" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 pt-0">
             <div className="text-xl sm:text-2xl font-bold text-foreground break-words overflow-wrap-anywhere pb-8">
               {stats.cantidad_ventas_hoy}
             </div>
