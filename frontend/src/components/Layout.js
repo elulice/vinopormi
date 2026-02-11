@@ -90,14 +90,26 @@ const Layout = () => {
     { path: '/egresos', icon: TrendingDown, label: 'Egresos' },
   ];
 
-  // Items del menú de configuración (solo para admin)
-  const configMenuItems = [
+  // Items del menú de configuración según rol
+  const getAllConfigMenuItems = () => [
     { path: '/configuracion', icon: SettingsIcon, label: 'Configuración' },
     { path: '/login-registros', icon: LogIn, label: 'Registros' },
     { path: '/auditoria', icon: History, label: 'Auditoría' },
     { path: '/usuarios', icon: Shield, label: 'Usuarios' },
     { path: '/herramientas', icon: Wrench, label: 'Herramientas' },
   ];
+
+  const getConfigMenuItems = () => {
+    const allItems = getAllConfigMenuItems();
+    if (user?.rol === 'admin') {
+      return allItems;
+    } else {
+      // Usuarios comunes solo ven "Configuración"
+      return allItems.filter(item => item.path === '/configuracion');
+    }
+  };
+
+  const configMenuItems = getConfigMenuItems();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -220,8 +232,8 @@ const Layout = () => {
             )}
           </div>
 
-          {/* Menú de configuración - Solo para admin */}
-          {user?.rol === 'admin' && (
+          {/* Menú de configuración - Para todos los usuarios */}
+          {user && (
             <div className="relative text-center mb-2" ref={configMenuRef}>
               <Button
                 onClick={() => {

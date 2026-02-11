@@ -66,11 +66,7 @@ function App() {
                 <Herramientas />
               </AdminRoute>
             } />
-            <Route path="/configuracion" element={
-              <AdminRoute>
-                <Configuracion />
-              </AdminRoute>
-            } />
+            <Route path="/configuracion" element={<Configuracion />} />
 
           </Route>
         </Routes>
