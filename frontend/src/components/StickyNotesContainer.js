@@ -182,106 +182,7 @@ const StickyNotesContainer = () => {
       </CardHeader>
       
       <CardContent>
-        {/* Formulario de creación - Simulado como sticky note */}
-        {showCreateForm && (
-          <div className={`relative border-2 rounded-lg p-4 min-h-[150px] w-full max-w-xs transition-all duration-200 ${
-            newNoteColor === 'yellow' ? 'bg-yellow-200 border-yellow-300' :
-            newNoteColor === 'pink' ? 'bg-pink-200 border-pink-300' :
-            newNoteColor === 'blue' ? 'bg-blue-200 border-blue-300' :
-            'bg-green-200 border-green-300'
-          } shadow-md hover:shadow-lg`}>
-            
-            {/* Header simulado de autor */}
-            <div className="mb-2 border-b border-gray-400 pb-1">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-gray-700">
-                  {user?.nombre || 'Tú'}
-                </span>
-                <span className="text-xs text-gray-600">
-                  Nueva nota
-                </span>
-              </div>
-            </div>
 
-            <div className="space-y-2">
-              <Textarea
-                value={newNoteText}
-                onChange={(e) => setNewNoteText(e.target.value)}
-                className="min-h-[80px] text-sm resize-none bg-white/50"
-                placeholder="Escribe tu nota aquí..."
-                autoFocus
-              />
-              
-              {/* Controles de edición */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowColorPicker(!showColorPicker)}
-                    className="h-6 text-xs"
-                  >
-                    <Palette className="w-3 h-3 mr-1" />
-                    Color
-                  </Button>
-                  
-                  {/* Toggle fijada */}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setNewNoteFijada(!newNoteFijada)}
-                    className={`h-6 text-xs ${newNoteFijada ? 'bg-red-100 border-red-300' : ''}`}
-                  >
-                    {newNoteFijada ? <Pin className="w-3 h-3 mr-1" /> : <PinOff className="w-3 h-3 mr-1" />}
-                    {newNoteFijada ? 'Fijada' : 'Fijar'}
-                  </Button>
-                </div>
-                
-                {/* Paleta de colores */}
-                {showColorPicker && (
-                  <div className="flex gap-1 mt-2">
-                    {colores.map((color) => (
-                      <button
-                        key={color.value}
-                        onClick={() => {
-                          setNewNoteColor(color.value);
-                          setShowColorPicker(false);
-                        }}
-                        className={`w-6 h-6 rounded border-2 ${color.clase} ${
-                          newNoteColor === color.value ? 'ring-2 ring-blue-500' : ''
-                        }`}
-                        title={color.nombre}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Botones de acción */}
-              <div className="flex gap-1">
-                <Button
-                  size="sm"
-                  onClick={handleCreateNote}
-                  disabled={creating || !newNoteText.trim()}
-                  className="h-6 text-xs bg-green-600 hover:bg-green-700"
-                >
-                  <Save className="w-3 h-3 mr-1" />
-                  Crear
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleCancelCreate}
-                  disabled={creating}
-                  className="h-6 text-xs"
-                >
-                  <X className="w-3 h-3 mr-1" />
-                  Cancelar
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Lista de sticky notes */}
         {loading ? (
@@ -289,7 +190,7 @@ const StickyNotesContainer = () => {
             <RefreshCw className="w-6 h-6 animate-spin mr-2" />
             Cargando notas...
           </div>
-        ) : stickyNotes.length === 0 ? (
+        ) : stickyNotes.length === 0 && !showCreateForm ? (
           <div className="text-center py-8 text-muted-foreground">
             <StickyNoteIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
             <p>No hay sticky notes todavía</p>
@@ -297,6 +198,115 @@ const StickyNotesContainer = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {/* Nota de creación */}
+            {showCreateForm && (
+              <div className={`relative border-2 rounded-lg p-4 min-h-[150px] w-full max-w-xs transition-all duration-200 ${
+                newNoteColor === 'yellow' ? 'bg-yellow-200 border-yellow-300' :
+                newNoteColor === 'pink' ? 'bg-pink-200 border-pink-300' :
+                newNoteColor === 'blue' ? 'bg-blue-200 border-blue-300' :
+                'bg-green-200 border-green-300'
+              } ${newNoteFijada ? 'ring-2 ring-red-400 shadow-lg' : 'shadow-md hover:shadow-lg'}`}>
+                
+                {/* Indicador de nota fijada */}
+                {newNoteFijada && (
+                  <div className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1">
+                    <Pin className="w-4 h-4" />
+                  </div>
+                )}
+
+                {/* Header con autor */}
+                <div className="mb-2 border-b border-gray-400 pb-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-gray-700">
+                      {user?.nombre || 'Tú'}
+                    </span>
+                    <span className="text-xs text-gray-600">
+                      Nueva nota
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Textarea
+                    value={newNoteText}
+                    onChange={(e) => setNewNoteText(e.target.value)}
+                    className="min-h-[80px] text-sm resize-none bg-white/50"
+                    placeholder="Escribe tu nota aquí..."
+                    autoFocus
+                  />
+                  
+                  {/* Controles de edición */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowColorPicker(!showColorPicker)}
+                        className="h-6 text-xs"
+                      >
+                        <Palette className="w-3 h-3 mr-1" />
+                        Color
+                      </Button>
+                      
+                      {/* Toggle fijada */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setNewNoteFijada(!newNoteFijada)}
+                        className={`h-6 text-xs ${newNoteFijada ? 'bg-red-100 border-red-300' : ''}`}
+                      >
+                        {newNoteFijada ? <Pin className="w-3 h-3 mr-1" /> : <PinOff className="w-3 h-3 mr-1" />}
+                        {newNoteFijada ? 'Fijada' : 'Fijar'}
+                      </Button>
+                    </div>
+                    
+                    {/* Paleta de colores */}
+                    {showColorPicker && (
+                      <div className="flex gap-1 mt-2">
+                        {colores.map((color) => (
+                          <button
+                            key={color.value}
+                            onClick={() => {
+                              setNewNoteColor(color.value);
+                              setShowColorPicker(false);
+                            }}
+                            className={`w-6 h-6 rounded border-2 ${color.clase} ${
+                              newNoteColor === color.value ? 'ring-2 ring-blue-500' : ''
+                            }`}
+                            title={color.nombre}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Botones de acción */}
+                  <div className="flex gap-1">
+                    <Button
+                      size="sm"
+                      onClick={handleCreateNote}
+                      disabled={creating || !newNoteText.trim()}
+                      className="h-6 text-xs bg-green-600 hover:bg-green-700"
+                    >
+                      <Save className="w-3 h-3 mr-1" />
+                      Crear
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCancelCreate}
+                      disabled={creating}
+                      className="h-6 text-xs"
+                    >
+                      <X className="w-3 h-3 mr-1" />
+                      Cancelar
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Notas existentes */}
             {stickyNotes.map((note) => (
               <StickyNote
                 key={note.id}

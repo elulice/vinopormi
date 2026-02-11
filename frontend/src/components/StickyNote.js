@@ -161,17 +161,27 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
           <span className="text-xs font-semibold text-gray-700">
             {note.autor_nombre}
           </span>
-          {canDelete && (
+          <div className="flex gap-1">
             <Button
               variant="ghost"
               size="sm"
-              onClick={handleDelete}
-              className="h-6 w-6 p-0 text-gray-600 hover:text-red-600"
-              disabled={loading}
+              onClick={() => setIsEditing(true)}
+              className="h-6 w-6 p-0 text-gray-600 hover:text-blue-600"
             >
-              <Trash2 className="w-3 h-3" />
+              <Edit2 className="w-3 h-3" />
             </Button>
-          )}
+            {canDelete && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDelete}
+                className="h-6 w-6 p-0 text-gray-600 hover:text-red-600"
+                disabled={loading}
+              >
+                <Trash2 className="w-3 h-3" />
+              </Button>
+            )}
+          </div>
         </div>
         <span className="text-xs text-gray-600">
           {tiempoRelativo}
@@ -265,10 +275,9 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
             variant="ghost"
             size="sm"
             onClick={() => setIsEditing(true)}
-            className="h-6 text-xs text-gray-600 hover:text-blue-600"
+            className="h-6 w-6 p-0 text-gray-600 hover:text-blue-600"
           >
-            <Edit2 className="w-3 h-3 mr-1" />
-            Editar
+            <Edit2 className="w-3 h-3" />
           </Button>
         </div>
       )}
