@@ -290,7 +290,7 @@ const Layout = () => {
               )}
             </div>
           )}
-<div class="relative text-center mb-2">
+<div className="relative text-center mb-2">
           <Button
             onClick={() => {
               handleLogout();
