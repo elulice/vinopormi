@@ -515,10 +515,22 @@ async def get_auditoria(
     # Obtener registros
     registros = await db.auditoria.find(filtro, {'_id': 0}).sort('fecha', -1).to_list(1000)
     
-    # Convertir fechas string a datetime
-    for r in registros:
-        if isinstance(r.get('fecha'), str):
-            r['fecha'] = datetime.fromisoformat(r['fecha'])
+    # Procesar registros para limpiar ObjectIds
+    for registro in registros:
+        # Convertir ObjectIds anidados a strings
+        if 'valores_anteriores' in registro and isinstance(registro['valores_anteriores'], dict):
+            for key, value in registro['valores_anteriores'].items():
+                if hasattr(value, '__str__') and 'ObjectId' in str(type(value)):
+                    registro['valores_anteriores'][key] = str(value)
+        
+        if 'valores_nuevos' in registro and isinstance(registro['valores_nuevos'], dict):
+            for key, value in registro['valores_nuevos'].items():
+                if hasattr(value, '__str__') and 'ObjectId' in str(type(value)):
+                    registro['valores_nuevos'][key] = str(value)
+        
+        # Convertir fechas string a datetime
+        if isinstance(registro.get('fecha'), str):
+            registro['fecha'] = datetime.fromisoformat(registro['fecha'])
     
     return registros
 
