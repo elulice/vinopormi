@@ -269,16 +269,6 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
           <p className="text-sm text-gray-800 whitespace-pre-wrap mb-2">
             {note.texto}
           </p>
-          
-          {/* Botón de edición */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsEditing(true)}
-            className="h-6 w-6 p-0 text-gray-600 hover:text-blue-600"
-          >
-            <Edit2 className="w-3 h-3" />
-          </Button>
         </div>
       )}
     </div>
