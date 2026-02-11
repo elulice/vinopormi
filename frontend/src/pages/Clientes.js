@@ -69,7 +69,7 @@ const Clientes = () => {
     const data = {
       nombre: formData.nombre,
       telefono: formData.telefono,
-      email: formData.email || null
+      email: formData.email
     };
 
     try {
@@ -92,6 +92,12 @@ const Clientes = () => {
       toast.error(error.response?.data?.detail || 'Error al guardar cliente');
     }
   };
+
+  const hasChanges = editingCliente && (
+    formData.nombre !== editingCliente.nombre ||
+    formData.telefono !== editingCliente.telefono ||
+    formData.email !== (editingCliente.email || '')
+  );
 
   const handleEdit = (cliente) => {
     setEditingCliente(cliente);
