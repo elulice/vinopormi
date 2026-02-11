@@ -124,7 +124,7 @@ const Dashboard = () => {
           className="cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-[1.02] relative"
           onClick={() => navigate('/ventas?filter=today')}
         >
-          <CardHeader className="flex flex-row items-center justify-between pb-2 p4">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 p-4">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Ventas Realizadas
             </CardTitle>

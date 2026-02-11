@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -12,8 +12,18 @@ const Configuracion = () => {
   const [localShowCents, setLocalShowCents] = useState(showCents);
   const [localFloatingMenu, setLocalFloatingMenu] = useState(floatingMenu);
 
+  // Sincronizar estados locales con los globales cuando cambian
+  useEffect(() => {
+    setLocalShowCents(showCents);
+  }, [showCents]);
+
+  useEffect(() => {
+    setLocalFloatingMenu(floatingMenu);
+  }, [floatingMenu]);
+
   const handleToggle = () => {
-    setLocalShowCents(!localShowCents);
+    const newValue = !localShowCents;
+    setLocalShowCents(newValue);
     toggleShowCents();
   };
 
