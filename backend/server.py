@@ -240,6 +240,26 @@ class EgresoUpdate(BaseModel):
     monto: Optional[float] = None
     categoria: Optional[str] = None
 
+class StickyNote(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    texto: str
+    autor_id: str  # ID del usuario que creó la nota
+    autor_nombre: str  # Nombre del autor
+    color: str = "yellow"  # yellow, pink, blue, green
+    fijada: bool = False  # Nota fijada (prioritaria)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class StickyNoteCreate(BaseModel):
+    texto: str
+    color: str = "yellow"
+    fijada: bool = False
+
+class StickyNoteUpdate(BaseModel):
+    texto: Optional[str] = None
+    color: Optional[str] = None
+    fijada: Optional[bool] = None
+
 # ===== AUDITORÍA HELPER =====
 
 async def registrar_auditoria(
@@ -495,10 +515,22 @@ async def get_auditoria(
     # Obtener registros
     registros = await db.auditoria.find(filtro, {'_id': 0}).sort('fecha', -1).to_list(1000)
     
-    # Convertir fechas string a datetime
-    for r in registros:
-        if isinstance(r.get('fecha'), str):
-            r['fecha'] = datetime.fromisoformat(r['fecha'])
+    # Procesar registros para limpiar ObjectIds
+    for registro in registros:
+        # Convertir ObjectIds anidados a strings
+        if 'valores_anteriores' in registro and isinstance(registro['valores_anteriores'], dict):
+            for key, value in registro['valores_anteriores'].items():
+                if hasattr(value, '__str__') and 'ObjectId' in str(type(value)):
+                    registro['valores_anteriores'][key] = str(value)
+        
+        if 'valores_nuevos' in registro and isinstance(registro['valores_nuevos'], dict):
+            for key, value in registro['valores_nuevos'].items():
+                if hasattr(value, '__str__') and 'ObjectId' in str(type(value)):
+                    registro['valores_nuevos'][key] = str(value)
+        
+        # Convertir fechas string a datetime
+        if isinstance(registro.get('fecha'), str):
+            registro['fecha'] = datetime.fromisoformat(registro['fecha'])
     
     return registros
 
@@ -1525,6 +1557,172 @@ async def listar_colecciones_disponibles(current_user: Usuario = Depends(get_adm
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al listar colecciones: {str(e)}")
+
+# ===== STICKY NOTES ENDPOINTS =====
+
+@api_router.post("/sticky-notes", response_model=StickyNote)
+async def crear_sticky_note(
+    note: StickyNoteCreate, 
+    current_user: Usuario = Depends(get_current_user)
+):
+    """Crea una nueva sticky note"""
+    try:
+        sticky_note = StickyNote(
+            texto=note.texto,
+            autor_id=current_user.id,
+            autor_nombre=current_user.nombre,
+            color=note.color,
+            fijada=note.fijada
+        )
+        
+        await db["sticky_notes"].insert_one(sticky_note.model_dump())
+        
+        # Registrar auditoría
+        await registrar_auditoria(
+            entidad="sticky_note",
+            entidad_id=sticky_note.id,
+            accion="crear",
+            valores_nuevos=sticky_note.model_dump(),
+            usuario_id=current_user.id,
+            usuario_nombre=current_user.nombre
+        )
+        
+        return sticky_note
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al crear sticky note: {str(e)}")
+
+@api_router.get("/sticky-notes", response_model=List[dict])
+async def obtener_sticky_notes(current_user: Usuario = Depends(get_current_user)):
+    """Obtiene todas las sticky notes (visibles para todos)"""
+    try:
+        sticky_notes = []
+        cursor = db["sticky_notes"].find().sort("fijada", -1).sort("timestamp", -1)
+        
+        async for document in cursor:
+            # Convertir ObjectId a string y eliminar _id
+            if '_id' in document:
+                document['_id'] = str(document['_id'])
+            
+            # Agregar timestamp relativo
+            timestamp = document.get('timestamp')
+            tiempo_relativo = ""
+            if timestamp:
+                now = datetime.now(timezone.utc)
+                
+                # Manejar timestamp con o sin timezone
+                if timestamp.tzinfo is None:
+                    # Si no tiene timezone, asumir UTC
+                    timestamp = timestamp.replace(tzinfo=timezone.utc)
+                
+                diff = now - timestamp
+                if diff.days > 0:
+                    tiempo_relativo = f"hace {diff.days} día{'s' if diff.days != 1 else ''}"
+                elif diff.seconds > 3600:
+                    hours = diff.seconds // 3600
+                    tiempo_relativo = f"hace {hours} hora{'s' if hours != 1 else ''}"
+                elif diff.seconds > 60:
+                    minutes = diff.seconds // 60
+                    tiempo_relativo = f"hace {minutes} min"
+                else:
+                    tiempo_relativo = "hace instantes"
+            
+            # Crear una copia sin el _id para evitar problemas de serialización
+            doc_copy = {k: v for k, v in document.items() if k != '_id'}
+            doc_copy['tiempo_relativo'] = tiempo_relativo
+            sticky_notes.append(doc_copy)
+            
+        return sticky_notes
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener sticky notes: {str(e)}")
+
+@api_router.put("/sticky-notes/{note_id}", response_model=StickyNote)
+async def actualizar_sticky_note(
+    note_id: str,
+    note_update: StickyNoteUpdate,
+    current_user: Usuario = Depends(get_current_user)
+):
+    """Actualiza una sticky note (cualquier usuario puede editar)"""
+    try:
+        # Verificar que la nota existe
+        existing_note = await db["sticky_notes"].find_one({"id": note_id})
+        if not existing_note:
+            raise HTTPException(status_code=404, detail="Sticky note no encontrada")
+        
+        # Preparar campos a actualizar
+        update_data = {}
+        if note_update.texto is not None:
+            update_data["texto"] = note_update.texto
+        if note_update.color is not None:
+            update_data["color"] = note_update.color
+        if note_update.fijada is not None:
+            update_data["fijada"] = note_update.fijada
+            
+        await db["sticky_notes"].update_one(
+            {"id": note_id},
+            {"$set": update_data}
+        )
+        
+        # Obtener la nota actualizada
+        updated_note = await db["sticky_notes"].find_one({"id": note_id})
+        
+        if not updated_note:
+            raise HTTPException(status_code=404, detail="Sticky note no encontrada después de actualizar")
+        
+        # Registrar auditoría
+        await registrar_auditoria(
+            entidad="sticky_note",
+            entidad_id=note_id,
+            accion="actualizar",
+            valores_anteriores=existing_note,
+            valores_nuevos=updated_note,
+            usuario_id=current_user.id,
+            usuario_nombre=current_user.nombre
+        )
+        
+        return StickyNote(
+            id=updated_note['id'],
+            texto=updated_note['texto'],
+            autor_id=updated_note['autor_id'],
+            autor_nombre=updated_note['autor_nombre'],
+            color=updated_note['color'],
+            fijada=updated_note['fijada'],
+            timestamp=updated_note['timestamp']
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al actualizar sticky note: {str(e)}")
+
+@api_router.delete("/sticky-notes/{note_id}")
+async def eliminar_sticky_note(
+    note_id: str,
+    current_user: Usuario = Depends(get_current_user)
+):
+    """Elimina una sticky note (solo el autor puede eliminar)"""
+    try:
+        # Verificar que la nota existe y obtener el autor
+        existing_note = await db["sticky_notes"].find_one({"id": note_id})
+        if not existing_note:
+            raise HTTPException(status_code=404, detail="Sticky note no encontrada")
+        
+        # Verificar que el usuario actual es el autor
+        if existing_note.get('autor_id') != current_user.id:
+            raise HTTPException(status_code=403, detail="Solo el autor puede eliminar esta sticky note")
+        
+        # Eliminar la nota
+        await db["sticky_notes"].delete_one({"id": note_id})
+        
+        # Registrar auditoría
+        await registrar_auditoria(
+            entidad="sticky_note",
+            entidad_id=note_id,
+            accion="eliminar",
+            valores_anteriores=existing_note,
+            usuario_id=current_user.id,
+            usuario_nombre=current_user.nombre
+        )
+        
+        return {"message": "Sticky note eliminada correctamente"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al eliminar sticky note: {str(e)}")
 
 app.include_router(api_router)
 async def limpiar_base_de_datos(current_user: Usuario = Depends(get_admin_user)):
