@@ -143,11 +143,13 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
 
   return (
     <div className={`relative border-2 rounded-lg p-4 min-h-[150px] w-full max-w-xs transition-all duration-200 ${
-      getColorClasses(note.color)
-    } ${note.fijada ? 'ring-2 ring-red-400 shadow-lg' : 'shadow-md hover:shadow-lg'}`}>
+      isEditing ? getColorClasses(editColor) : getColorClasses(note.color)
+    } ${isEditing && editFijada ? 'ring-2 ring-red-400 shadow-lg' : 
+        !isEditing && note.fijada ? 'ring-2 ring-red-400 shadow-lg' : 
+        'shadow-md hover:shadow-lg'}`}>
       
       {/* Indicador de nota fijada */}
-      {note.fijada && (
+      {(isEditing ? editFijada : note.fijada) && (
         <div className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1">
           <Pin className="w-4 h-4" />
         </div>

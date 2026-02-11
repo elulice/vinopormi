@@ -8,7 +8,11 @@ import {
   Plus, 
   StickyNote as StickyNoteIcon,
   RefreshCw,
-  Palette
+  Palette,
+  Pin,
+  PinOff,
+  Save,
+  X
 } from 'lucide-react';
 import { toast } from 'sonner';
 import axios from 'axios';
@@ -178,32 +182,64 @@ const StickyNotesContainer = () => {
       </CardHeader>
       
       <CardContent>
-        {/* Formulario de creación */}
+        {/* Formulario de creación - Simulado como sticky note */}
         {showCreateForm && (
-          <div className="mb-6 p-4 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
-            <div className="space-y-3">
+          <div className={`relative border-2 rounded-lg p-4 min-h-[150px] w-full max-w-xs transition-all duration-200 ${
+            newNoteColor === 'yellow' ? 'bg-yellow-200 border-yellow-300' :
+            newNoteColor === 'pink' ? 'bg-pink-200 border-pink-300' :
+            newNoteColor === 'blue' ? 'bg-blue-200 border-blue-300' :
+            'bg-green-200 border-green-300'
+          } shadow-md hover:shadow-lg`}>
+            
+            {/* Header simulado de autor */}
+            <div className="mb-2 border-b border-gray-400 pb-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-gray-700">
+                  {user?.nombre || 'Tú'}
+                </span>
+                <span className="text-xs text-gray-600">
+                  Nueva nota
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
               <Textarea
                 value={newNoteText}
                 onChange={(e) => setNewNoteText(e.target.value)}
-                className="min-h-[80px] resize-none"
+                className="min-h-[80px] text-sm resize-none bg-white/50"
                 placeholder="Escribe tu nota aquí..."
                 autoFocus
               />
               
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowColorPicker(!showColorPicker)}
-                  className="text-xs"
-                >
-                  <Palette className="w-3 h-3 mr-1" />
-                  Color: {colores.find(c => c.value === newNoteColor)?.nombre}
-                </Button>
+              {/* Controles de edición */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowColorPicker(!showColorPicker)}
+                    className="h-6 text-xs"
+                  >
+                    <Palette className="w-3 h-3 mr-1" />
+                    Color
+                  </Button>
+                  
+                  {/* Toggle fijada */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setNewNoteFijada(!newNoteFijada)}
+                    className={`h-6 text-xs ${newNoteFijada ? 'bg-red-100 border-red-300' : ''}`}
+                  >
+                    {newNoteFijada ? <Pin className="w-3 h-3 mr-1" /> : <PinOff className="w-3 h-3 mr-1" />}
+                    {newNoteFijada ? 'Fijada' : 'Fijar'}
+                  </Button>
+                </div>
                 
-                {/* Selector de color */}
+                {/* Paleta de colores */}
                 {showColorPicker && (
-                  <div className="flex gap-1">
+                  <div className="flex gap-1 mt-2">
                     {colores.map((color) => (
                       <button
                         key={color.value}
@@ -221,20 +257,25 @@ const StickyNotesContainer = () => {
                 )}
               </div>
 
-              <div className="flex gap-2">
+              {/* Botones de acción */}
+              <div className="flex gap-1">
                 <Button
                   size="sm"
                   onClick={handleCreateNote}
                   disabled={creating || !newNoteText.trim()}
+                  className="h-6 text-xs bg-green-600 hover:bg-green-700"
                 >
-                  Crear Nota
+                  <Save className="w-3 h-3 mr-1" />
+                  Crear
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleCancelCreate}
                   disabled={creating}
+                  className="h-6 text-xs"
                 >
+                  <X className="w-3 h-3 mr-1" />
                   Cancelar
                 </Button>
               </div>
