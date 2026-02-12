@@ -176,27 +176,6 @@ La API expone endpoints RESTful para:
 
 Este proyecto está licenciado bajo la [MIT License](LICENSE).
 
-## 🔄 Actualizaciones Recientes (Última Optimización)
-
-### ✅ Optimización de Código y Dependencias
-- **Eliminadas 6 dependencias principales**: `recharts`, `react-window`, `react-window-infinite-loader`, `@hookform/resolvers`, `zod`, `input-otp`
-- **Removidos 43 paquetes totales** incluyendo dependencias Radix UI no utilizadas
-- **Limpiados 33 componentes UI** que no tenían referencias en el código
-- **Bundle size optimizado**: Reducción significativa del tamaño final
-- **Build sin warnings**: Corregidos todos los warnings de ESLint
-
-### 🧹 Limpieza de Código
-- Eliminados imports sin uso (`Edit` de FloatingMenu.js)
-- Removido código muerto y espacios vacíos innecesarios
-- Verificadas y corregidas referencias a assets
-- Estructura de componentes UI simplificada y optimizada
-
-### 📊 Impacto en Rendimiento
-- **Tiempo de construcción mejorado**
-- **Consumo de memoria reducido** 
-- **Carga inicial más rápida**
-- **Mantenimiento simplificado**
-
 ---
 
 **Desarrollado con ❤️ para la comunidad de vinos**
