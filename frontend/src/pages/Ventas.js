@@ -141,7 +141,7 @@ const fetchVentas = useCallback(async () => {
 
   const fetchUsuarios = useCallback(async () => {
     try {
-      const response = await axios.get(`${API}/admin/usuarios`, {
+      const response = await axios.get(`${API}/usuarios`, {
         headers: getAuthHeader()
       });
       setUsuarios(response.data);

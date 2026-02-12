@@ -1398,6 +1398,14 @@ async def fix_admin_role():
     except Exception as e:
         return {"error": str(e)}
 
+# ===== USUARIOS ROUTES =====
+
+@api_router.get("/usuarios", response_model=List[dict])
+async def get_usuarios_basicos(current_user: Usuario = Depends(get_current_user)):
+    """Retorna lista básica de usuarios (id, nombre) para filtros - accesible para todos los usuarios autenticados"""
+    usuarios = await db.usuarios.find({}, {'_id': 0, 'password': 0, 'rol': 0, 'timestamp': 0}).to_list(1000)
+    return usuarios
+
 # ===== ADMIN USUARIOS ROUTES =====
 
 @api_router.get("/admin/usuarios", response_model=List[Usuario])
