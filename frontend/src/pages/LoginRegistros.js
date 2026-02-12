@@ -35,6 +35,7 @@ const LoginRegistros = () => {
 
   useEffect(() => {
     fetchRegistros();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchRegistros]);
 
   if (loading) {
