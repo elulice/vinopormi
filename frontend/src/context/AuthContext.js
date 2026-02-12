@@ -1,10 +1,34 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
+import { toast } from 'sonner';
 
 const AuthContext = createContext(null);
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
+
+// Configurar interceptor global para manejar 401
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      const errorMessage = error.response.data?.detail || 'Token inválido o expirado';
+      
+      // Mostrar mensaje específico si es por inactividad
+      if (errorMessage.includes('Sesión expirada por inactividad')) {
+        toast.error('Tu sesión ha expirado por inactividad. Por favor, inicia sesión nuevamente.');
+      } else {
+        toast.error('Token inválido o expirado. Por favor, inicia sesión nuevamente.');
+      }
+      
+      // Limpiar token y estado
+      localStorage.removeItem('token');
+      window.location.href = '/login';
+      return Promise.reject(error);
+    }
+    return Promise.reject(error);
+  }
+);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -43,6 +67,7 @@ export const AuthProvider = ({ children }) => {
                 headers: { Authorization: `Bearer ${token}` }
               });
             } catch (error) {
+              // El interceptor global manejará el 401, pero mantenemos el auto-logout por consistencia
               if (error.response?.status === 401) {
                 handleAutoLogout();
               }
@@ -69,9 +94,12 @@ export const AuthProvider = ({ children }) => {
           const isEnabled = response.data.preferencias?.autoLogout !== false;
           setAutoLogoutEnabled(isEnabled);
         } catch (error) {
-          localStorage.removeItem('token');
-          setToken(null);
-          setUser(null);
+          // El interceptor global manejará el 401, así que solo limpiamos estado localmente
+          if (!error.response || error.response.status !== 401) {
+            localStorage.removeItem('token');
+            setToken(null);
+            setUser(null);
+          }
         }
       }
       setLoading(false);

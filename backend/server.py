@@ -312,6 +312,14 @@ async def check_auto_logout(user_data: dict) -> bool:
     if isinstance(last_activity, str):
         last_activity = datetime.fromisoformat(last_activity)
     
+    # Asegurar que ambas fechas tengan timezone
+    if last_activity.tzinfo is None:
+        # Si no tiene timezone, asumir UTC
+        last_activity = last_activity.replace(tzinfo=timezone.utc)
+    else:
+        # Convertir a UTC si tiene otro timezone
+        last_activity = last_activity.astimezone(timezone.utc)
+    
     # Verificar si han pasado más de 1 hora (3600 segundos)
     time_diff = datetime.now(timezone.utc) - last_activity
     return time_diff.total_seconds() > 3600
@@ -393,6 +401,12 @@ async def login(request: Request, input: LoginRequest):
         nombre=user['nombre'],
         rol=user.get('rol', 'comun'),  # Incluir el rol, con valor por defecto
         timestamp=user['timestamp']
+    )
+    
+    # Actualizar última actividad al login
+    await db.usuarios.update_one(
+        {'id': user['id']},
+        {'$set': {'lastActivity': datetime.now(timezone.utc)}}
     )
     
     # Registrar login
