@@ -157,9 +157,6 @@ const StickyNotesContainer = () => {
           <CardTitle className="flex items-center gap-2">
             <StickyNoteIcon className="w-5 h-5" />
             Sticky Notes
-            <span className="text-sm text-muted-foreground ml-2">
-              ({stickyNotes.length} {stickyNotes.length === 1 ? 'nota' : 'notas'})
-            </span>
           </CardTitle>
           <div className="flex gap-2">
             <Button
