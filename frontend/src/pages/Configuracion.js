@@ -96,33 +96,6 @@ const handleFloatingMenuToggle = () => {
                   {formatCurrency(1234.56, localShowCents)}
                 </span>
               </div>
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <span className="text-sm text-muted-foreground">Ejemplo 2:</span>
-                <span className="font-mono font-semibold">
-                  {formatCurrency(999.00, localShowCents)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <span className="text-sm text-muted-foreground">Ejemplo 3:</span>
-                <span className="font-mono font-semibold">
-                  {formatCurrency(50.50, localShowCents)}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Información adicional */}
-          <div className="border-t pt-4">
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-800">
-                <strong>Nota:</strong> Esta configuración se guarda en tu perfil de usuario 
-                y estará disponible en todos los dispositivos donde inicies sesión.
-                {error && (
-                  <span className="block mt-2 text-red-600">
-                    ⚠️ Hay un problema de conexión. Los cambios se guardarán temporalmente.
-                  </span>
-                )}
-              </p>
             </div>
           </div>
 
@@ -174,7 +147,7 @@ const handleFloatingMenuToggle = () => {
                   <Package className="w-4 h-4 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium">Buscar Producto</p>
+                  <p className="text-sm font-medium">Productos</p>
                   <p className="text-xs text-muted-foreground">Buscar, editar y crear productos</p>
                 </div>
               </div>
@@ -183,7 +156,7 @@ const handleFloatingMenuToggle = () => {
                   <Users className="w-4 h-4 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium">Buscar Cliente</p>
+                  <p className="text-sm font-medium">Ctas. Ctes.</p>
                   <p className="text-xs text-muted-foreground">Buscar, editar y crear clientes</p>
                 </div>
               </div>
@@ -192,7 +165,7 @@ const handleFloatingMenuToggle = () => {
                   <Truck className="w-4 h-4 text-purple-600" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium">Buscar Proveedor</p>
+                  <p className="text-sm font-medium">Proveedores</p>
                   <p className="text-xs text-muted-foreground">Buscar, editar y crear proveedores</p>
                 </div>
               </div>
@@ -201,27 +174,13 @@ const handleFloatingMenuToggle = () => {
                   <TrendingDown className="w-4 h-4 text-red-600" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium">Nuevo Egreso</p>
-                  <p className="text-xs text-muted-foreground">Registrar nuevos egresos</p>
+                  <p className="text-sm font-medium">Egresos</p>
+                  <p className="text-xs text-muted-foreground">Buscar, editar y crear egresos</p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Información adicional */}
-          <div className="border-t pt-4">
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-800">
-                <strong>Nota:</strong> Esta configuración se guarda en tu perfil de usuario 
-                y estará disponible en todos los dispositivos donde inicies sesión.
-                {error && (
-                  <span className="block mt-2 text-red-600">
-                    ⚠️ Hay un problema de conexión. Los cambios se guardarán temporalmente.
-                  </span>
-                )}
-              </p>
-            </div>
-          </div>
 </CardContent>
       </Card>
 
@@ -252,46 +211,6 @@ const handleFloatingMenuToggle = () => {
             />
           </div>
 
-          {/* Información sobre la funcionalidad */}
-          <div className="border-t pt-4">
-            <p className="text-sm font-medium mb-3">¿Cómo funciona?</p>
-            <div className="space-y-3">
-              <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mt-0.5">
-                  <span className="text-xs font-bold text-blue-600">1</span>
-                </div>
-                <div>
-                  <p className="text-sm font-medium">Seguimiento de actividad</p>
-                  <p className="text-xs text-muted-foreground">
-                    El sistema detecta tu actividad (clics, movimientos del mouse, teclado)
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mt-0.5">
-                  <span className="text-xs font-bold text-blue-600">2</span>
-                </div>
-                <div>
-                  <p className="text-sm font-medium">Verificación periódica</p>
-                  <p className="text-xs text-muted-foreground">
-                    Cada 5 minutos se verifica tu actividad reciente
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mt-0.5">
-                  <span className="text-xs font-bold text-blue-600">3</span>
-                </div>
-                <div>
-                  <p className="text-sm font-medium">Cierre automático</p>
-                  <p className="text-xs text-muted-foreground">
-                    Si no hay actividad por 1 hora, la sesión se cierra automáticamente
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* Advertencia de seguridad */}
           <div className="border-t pt-4">
             <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
@@ -303,22 +222,21 @@ const handleFloatingMenuToggle = () => {
             </div>
           </div>
 
-          {/* Información adicional */}
-          <div className="border-t pt-4">
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-800">
-                <strong>Nota:</strong> Esta configuración se guarda en tu perfil de usuario 
-                y estará disponible en todos los dispositivos donde inicies sesión.
-                {error && (
-                  <span className="block mt-2 text-red-600">
-                    ⚠️ Hay un problema de conexión. Los cambios se guardarán temporalmente.
-                  </span>
-                )}
-              </p>
-            </div>
-          </div>
         </CardContent>
       </Card>
+
+      {/* Nota general de configuración */}
+      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <p className="text-sm text-blue-800">
+          <strong>Nota:</strong> Esta configuración se guarda en tu perfil de usuario 
+          y estará disponible en todos los dispositivos donde inicies sesión.
+          {error && (
+            <span className="block mt-2 text-red-600">
+              ⚠️ Hay un problema de conexión. Los cambios se guardarán temporalmente.
+            </span>
+          )}
+        </p>
+      </div>
     </div>
   );
 };
