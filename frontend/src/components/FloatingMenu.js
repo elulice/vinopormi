@@ -4,8 +4,7 @@ import {
   Users, 
   Truck, 
   TrendingDown,
-  Plus,
-  Edit
+  Plus
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,12 +24,6 @@ const FloatingMenu = () => {
   const [customerModalOpen, setCustomerModalOpen] = useState(false);
   const [providerModalOpen, setProviderModalOpen] = useState(false);
   const [egressModalOpen, setEgressModalOpen] = useState(false);
-
-
-
-
-
-
 
   const quickActions = [
     {
@@ -121,13 +114,5 @@ const FloatingMenu = () => {
     </>
   );
 };
-
-
-
-
-
-
-
-
 
 export default FloatingMenu;
