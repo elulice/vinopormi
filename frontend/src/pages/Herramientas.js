@@ -13,6 +13,8 @@ import {
 } from '@/components/ui/dialog';
 import { AlertTriangle, Trash2, Shield } from 'lucide-react';
 import { toast } from 'sonner';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -23,6 +25,31 @@ const Herramientas = () => {
   const [auditoriaDialogOpen, setAuditoriaDialogOpen] = useState(false);
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [entidadesSeleccionadas, setEntidadesSeleccionadas] = useState([]);
+
+  const entidadesOptions = [
+    { id: 'producto', label: 'Productos' },
+    { id: 'cliente', label: 'Cuentas Corrientes' },
+    { id: 'egreso', label: 'Egresos' },
+    { id: 'usuario', label: 'Usuarios' },
+    { id: 'sticky_note', label: 'Sticky Notes' }
+  ];
+
+  const toggleEntidad = (id) => {
+    setEntidadesSeleccionadas(prev => 
+      prev.includes(id) 
+        ? prev.filter(e => e !== id)
+        : [...prev, id]
+    );
+  };
+
+  const toggleTodos = () => {
+    if (entidadesSeleccionadas.length === entidadesOptions.length) {
+      setEntidadesSeleccionadas([]);
+    } else {
+      setEntidadesSeleccionadas(entidadesOptions.map(e => e.id));
+    }
+  };
 
   const handleLimpiarBaseDatos = async () => {
     setLoading(true);
@@ -71,18 +98,27 @@ const Herramientas = () => {
   };
 
   const handleLimpiarAuditoria = async () => {
+    if (entidadesSeleccionadas.length === 0) {
+      toast.error('Selecciona al menos un tipo de registro a eliminar');
+      return;
+    }
+    
     setLoading(true);
     
     try {
-      const response = await axios.post(`${BACKEND_URL}/limpiar-auditoria-direct`, {}, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeader()
-        },
-      });
+      const response = await axios.post(`${BACKEND_URL}/limpiar-auditoria-direct`, 
+        { entidades: entidadesSeleccionadas },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            ...getAuthHeader()
+          },
+        }
+      );
       
       toast.success(`${response.data.message} (${response.data.eliminados} registros)`);
       setAuditoriaDialogOpen(false);
+      setEntidadesSeleccionadas([]);
     } catch (error) {
       console.error("Error al limpiar auditoría:", error);
       
@@ -263,13 +299,14 @@ const Herramientas = () => {
               <div>
                 <h3 className="font-semibold text-lg mb-2">Limpiar Auditoría</h3>
                 <p className="text-gray-600 mb-4">
-                  Esta acción eliminará permanentemente todos los registros de auditoría del sistema:
+                  Esta acción eliminará permanentemente los registros de auditoría del sistema:
                 </p>
                 <ul className="list-disc list-inside text-sm text-gray-600 space-y-1 ml-4">
                   <li>🗑️ Historial de cambios en productos</li>
-                  <li>🗑️ Historial de cambios en clientes</li>
+                  <li>🗑️ Historial de cambios en cuentas corrientes</li>
                   <li>🗑️ Historial de cambios en egresos</li>
                   <li>🗑️ Historial de cambios en usuarios</li>
+                  <li>🗑️ Historial de sticky notes</li>
                 </ul>
               </div>
 
@@ -278,6 +315,7 @@ const Herramientas = () => {
                 onOpenChange={(open) => {
                   if (!open || !loading) {
                     setAuditoriaDialogOpen(open);
+                    if (!open) setEntidadesSeleccionadas([]);
                   }
                 }}
               >
@@ -289,13 +327,47 @@ const Herramientas = () => {
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>⚠️ Confirmación Requerida</DialogTitle>
+                    <DialogTitle>⚠️ Limpiar Registros de Auditoría</DialogTitle>
                     <DialogDescription>
-                      Esta acción eliminará permanentemente todos los registros de auditoría del sistema.
-                      <br /><br />
-                      <strong>¿Estás seguro de continuar?</strong>
+                      Selecciona los tipos de registros que deseas eliminar:
                     </DialogDescription>
                   </DialogHeader>
+                  
+                  <div className="space-y-3 py-4">
+                    <div className="flex items-center space-x-3 pb-2 border-b">
+                      <Checkbox 
+                        id="select-all"
+                        checked={entidadesSeleccionadas.length === entidadesOptions.length && entidadesOptions.length > 0}
+                        onCheckedChange={toggleTodos}
+                      />
+                      <Label 
+                        htmlFor="select-all" 
+                        className="text-sm font-bold leading-none"
+                      >
+                        Seleccionar todos
+                      </Label>
+                    </div>
+                    {entidadesOptions.map((entidad) => (
+                      <div key={entidad.id} className="flex items-center space-x-3">
+                        <Checkbox 
+                          id={entidad.id}
+                          checked={entidadesSeleccionadas.includes(entidad.id)}
+                          onCheckedChange={() => toggleEntidad(entidad.id)}
+                        />
+                        <Label 
+                          htmlFor={entidad.id} 
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        >
+                          {entidad.label}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+
+                  <p className="text-xs text-muted-foreground">
+                    Selecciona al menos una opción.
+                  </p>
+
                   <div className="flex gap-2 pt-4">
                     <Button
                       variant="destructive"
@@ -303,11 +375,14 @@ const Herramientas = () => {
                       disabled={loading}
                       className="flex-1"
                     >
-                      Sí, eliminar auditoría
+                      {loading ? "Eliminando..." : "Eliminar"}
                     </Button>
                     <Button
                       variant="outline"
-                      onClick={() => setAuditoriaDialogOpen(false)}
+                      onClick={() => {
+                        setAuditoriaDialogOpen(false);
+                        setEntidadesSeleccionadas([]);
+                      }}
                       disabled={loading}
                       className="flex-1"
                     >

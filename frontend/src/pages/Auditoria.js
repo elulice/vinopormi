@@ -19,7 +19,8 @@ import {
   Plus,
   Edit,
   Trash2,
-  X
+  X,
+  StickyNote
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -35,7 +36,7 @@ const Auditoria = () => {
   const [loading, setLoading] = useState(true);
   const [selectedRegistro, setSelectedRegistro] = useState(null);
   const [filters, setFilters] = useState({
-    entidad: 'todos', // 'todos', 'producto', 'cliente', 'egreso', 'usuario'
+    entidad: 'todos', // 'todos', 'producto', 'cliente', 'egreso', 'usuario', 'sticky_note'
     accion: 'todos', // 'todos', 'creado', 'modificado', 'eliminado'
     fechaDesde: '',
     fechaHasta: '',
@@ -77,6 +78,7 @@ const Auditoria = () => {
       case 'cliente': return <Users className="w-4 h-4 text-green-600" />;
       case 'egreso': return <TrendingDown className="w-4 h-4 text-red-600" />;
       case 'usuario': return <UserIcon className="w-4 h-4 text-purple-600" />;
+      case 'sticky_note': return <StickyNote className="w-4 h-4 text-yellow-600" />;
       default: return <History className="w-4 h-4 text-gray-600" />;
     }
   };
@@ -95,7 +97,8 @@ const Auditoria = () => {
       'producto': { label: 'Producto', color: 'bg-blue-100 text-blue-800' },
       'cliente': { label: 'Cliente', color: 'bg-green-100 text-green-800' },
       'egreso': { label: 'Egreso', color: 'bg-red-100 text-red-800' },
-      'usuario': { label: 'Usuario', color: 'bg-purple-100 text-purple-800' }
+      'usuario': { label: 'Usuario', color: 'bg-purple-100 text-purple-800' },
+      'sticky_note': { label: 'Sticky Note', color: 'bg-yellow-100 text-yellow-800' }
     };
     return badges[entidad] || { label: entidad, color: 'bg-gray-100 text-gray-800' };
   };
@@ -113,7 +116,7 @@ const Auditoria = () => {
     if (!valores) return '-';
     return JSON.stringify(valores, null, 2).substring(0, 100) + (JSON.stringify(valores).length > 100 ? '...' : '');
   };
-
+ 
   if (loading) {
     return <div className="text-center py-8">Cargando registros de auditoría...</div>;
   }
@@ -149,9 +152,10 @@ const Auditoria = () => {
                 <SelectContent>
                   <SelectItem value="todos">Todas</SelectItem>
                   <SelectItem value="producto">Productos</SelectItem>
-                  <SelectItem value="cliente">Clientes</SelectItem>
+                  <SelectItem value="cliente">Cuentas Corrientes</SelectItem>
                   <SelectItem value="egreso">Egresos</SelectItem>
                   <SelectItem value="usuario">Usuarios</SelectItem>
+                  <SelectItem value="sticky_note">Sticky Notes</SelectItem>
                 </SelectContent>
               </Select>
             </div>

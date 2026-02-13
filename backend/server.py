@@ -1897,8 +1897,19 @@ async def limpiar_auditoria_direct(request: Request):
         except:
             return {"error": "Token inválido o expirado"}
         
+        # Obtener entidades a eliminar del body
+        body = await request.json()
+        entidades = body.get('entidades', [])
+        
+        # Si no se selecciona ninguna entidad, no eliminar nada
+        if not entidades or len(entidades) == 0:
+            return {"error": "Selecciona al menos un tipo de registro a eliminar"}
+        
+        # Construir filtro
+        filtro = {"entidad": {"$in": entidades}}
+        
         # Limpiar auditoría
-        resultado = await db.auditoria.delete_many({})
+        resultado = await db.auditoria.delete_many(filtro)
         return {
             "message": "Registros de auditoría eliminados exitosamente",
             "eliminados": resultado.deleted_count
