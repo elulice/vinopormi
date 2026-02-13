@@ -1182,6 +1182,39 @@ async def get_cuenta_corriente_cliente(cliente_id: str, current_user: Usuario = 
         movimientos=[MovimientoCuentaCorriente(**m) for m in movimientos]
     )
 
+@api_router.get("/movimientos-todos")
+async def get_todos_movimientos_cta_cte(current_user: Usuario = Depends(get_current_user)):
+    """Obtiene todos los movimientos de todas las cuentas corrientes"""
+    
+    clientes = await db.clientes.find({}, {'_id': 0, 'id': 1, 'nombre': 1}).to_list(1000)
+    
+    movimientosTodos = []
+    saldos_clientes = {}
+    
+    for cliente in clientes:
+        movimientos = await db.movimientos.find(
+            {'cliente_id': cliente['id']}, 
+            {'_id': 0}
+        ).sort('fecha', 1).to_list(1000)
+        
+        saldo_acumulado = 0
+        for mov in movimientos:
+            saldo_acumulado += mov.get('monto', 0)
+            mov['saldo_hasta_movimiento'] = saldo_acumulado
+        
+        movimientos_ordenados = sorted(movimientos, key=lambda x: x.get('fecha', datetime.min), reverse=True)
+        
+        for mov in movimientos_ordenados:
+            mov['cliente_nombre'] = cliente['nombre']
+            if isinstance(mov.get('fecha'), str):
+                mov['fecha'] = datetime.fromisoformat(mov['fecha'])
+        
+        movimientosTodos.extend(movimientos_ordenados)
+    
+    movimientosTodos.sort(key=lambda x: x.get('fecha', datetime.min), reverse=True)
+    
+    return movimientosTodos[:500]
+
 @api_router.get("/proveedores/{proveedor_id}/cuenta-corriente", response_model=CuentaCorrienteInfo)
 async def get_cuenta_corriente_proveedor(proveedor_id: str, current_user: Usuario = Depends(get_current_user)):
     proveedor = await db.proveedores.find_one({'id': proveedor_id}, {'_id': 0})

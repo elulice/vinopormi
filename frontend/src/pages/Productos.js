@@ -14,10 +14,11 @@ import {
   DialogDescription,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash2, Package, Search, Info, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Package, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import ResponsiveTable from '@/components/ResponsiveTable';
 import { formatCurrency, formatNumber } from '@/lib/currency';
+import { SearchInput } from '@/components/ui/search-input';
 import { capitalizeWords } from '@/lib/utils';
 import Pagination from '@/components/Pagination';
 import { Loader2 } from 'lucide-react';
@@ -100,9 +101,14 @@ useEffect(() => {
   }, []);
 
   // Función de búsqueda - solo se ejecuta con ENTER
-const handleSearchSubmit = useCallback((e) => {
+  const handleSearchSubmit = useCallback((e) => {
     e.preventDefault();
     fetchProductosRef.current?.(1, searchTerm);
+    setTimeout(() => {
+      if (searchInputRef.current) {
+        searchInputRef.current.focus();
+      }
+    }, 100);
   }, [searchTerm]);
 
   // Función para limpiar búsqueda
@@ -240,22 +246,13 @@ const handleClearSearch = useCallback(() => {
       {/* BUSCADOR + MODAL */}
       <div className="flex flex-col gap-3">
         <form onSubmit={handleSearchSubmit} className="w-64">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground z-10" />
-            <Input
-              ref={searchInputRef}
-              placeholder="Buscar productos..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-10 w-full"
-            />
-            {searchTerm && (
-              <X 
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground hover:text-foreground cursor-pointer z-10"
-                onClick={handleClearSearch}
-              />
-            )}
-          </div>
+          <SearchInput
+            ref={searchInputRef}
+            value={searchTerm}
+            onChange={setSearchTerm}
+            onClear={handleClearSearch}
+            placeholder="Buscar productos..."
+          />
         </form>
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

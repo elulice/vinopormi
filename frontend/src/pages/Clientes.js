@@ -8,13 +8,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash2, Users, CreditCard, TrendingUp, TrendingDown, ArrowLeft, Search, ShoppingCart } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Plus, Pencil, Trash2, Users, CreditCard, TrendingUp, TrendingDown, ArrowLeft, ShoppingCart, List } from 'lucide-react';
 import { formatCurrency, formatNumber } from '@/lib/currency';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { capitalizeWords } from '@/lib/utils';
 import ResponsiveTable from '@/components/ResponsiveTable';
+import { SearchInput } from '@/components/ui/search-input';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -45,6 +47,9 @@ const Clientes = () => {
     concepto: '',
     monto: ''
   });
+  const [movimientosTodos, setMovimientosTodos] = useState([]);
+  const [loadingMovimientos, setLoadingMovimientos] = useState(false);
+  const [activeTab, setActiveTab] = useState('clientes');
 
   const fetchClientes = useCallback(async () => {
     try {
@@ -59,9 +64,29 @@ const Clientes = () => {
     }
   }, [getAuthHeader]);
 
+  const fetchMovimientosTodos = useCallback(async () => {
+    setLoadingMovimientos(true);
+    try {
+      const response = await axios.get(`${API}/movimientos-todos`, {
+        headers: getAuthHeader()
+      });
+      setMovimientosTodos(response.data);
+    } catch (error) {
+      toast.error('Error al cargar movimientos');
+    } finally {
+      setLoadingMovimientos(false);
+    }
+  }, [getAuthHeader]);
+
   useEffect(() => {
     fetchClientes();
   }, [fetchClientes]);
+
+  useEffect(() => {
+    if (activeTab === 'movimientos' && movimientosTodos.length === 0) {
+      fetchMovimientosTodos();
+    }
+  }, [activeTab, fetchMovimientosTodos, movimientosTodos.length]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -218,6 +243,11 @@ const Clientes = () => {
     (c.email && c.email.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
+  const filteredMovimientos = movimientosTodos.filter((m) =>
+    m.cliente_nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    m.concepto.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   if (loading) {
     return <div className="text-center py-8">Cargando...</div>;
   }
@@ -234,13 +264,12 @@ const Clientes = () => {
 
       {/* BUSCADOR + BOTÓN AGREGAR */}
       <div className="flex gap-3 items-center">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar clientes..."
+        <div className="w-64">
+          <SearchInput
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 w-64"
+            onChange={setSearchTerm}
+            onClear={() => setSearchTerm('')}
+            placeholder="Buscar ..."
           />
         </div>
 
@@ -308,7 +337,20 @@ const Clientes = () => {
         </Dialog>
       </div>
 
-      <ResponsiveTable
+      <Tabs defaultValue="clientes" className="w-full" value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="mb-4">
+          <TabsTrigger value="clientes" className="flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            Clientes
+          </TabsTrigger>
+          <TabsTrigger value="movimientos" className="flex items-center gap-2">
+            <List className="w-4 h-4" />
+            Movimientos
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="clientes">
+          <ResponsiveTable
         headers={[
           { title: 'Cliente', width: '40%' },
           { title: 'Saldo', width: '35%' },
@@ -448,6 +490,79 @@ const Clientes = () => {
           </CardContent>
         </Card>
       )}
+        </TabsContent>
+
+        <TabsContent value="movimientos">
+          {loadingMovimientos ? (
+            <div className="text-center py-8">Cargando movimientos...</div>
+          ) : filteredMovimientos.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <CreditCard className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">
+                  {movimientosTodos.length === 0 
+                    ? 'No hay movimientos registrados' 
+                    : 'No hay movimientos que coincidan con la búsqueda'}
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Todos los Movimientos</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 max-h-[70vh] overflow-y-auto">
+                  {filteredMovimientos.map((mov) => {
+                    const esVenta = mov.venta_id;
+                    
+                    return (
+                      <div
+                        key={mov.id}
+                        className="flex justify-between items-center p-3 bg-muted rounded-md"
+                      >
+                        <div className="flex items-center gap-3">
+                          {esVenta ? (
+                            <ShoppingCart className="w-4 h-4 text-primary" />
+                          ) : mov.monto > 0 ? (
+                            <TrendingUp className="w-4 h-4 text-green-600" />
+                          ) : (
+                            <TrendingDown className="w-4 h-4 text-red-600" />
+                          )}
+                          <div>
+                            <p className="font-medium text-sm">{mov.concepto}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {mov.cliente_nombre} - {format(new Date(mov.fecha), 'PPP HH:mm', { locale: es })}
+                            </p>
+                            {mov.usuario_nombre && (
+                              <p className="text-xs text-blue-600 font-medium">
+                                Por: {mov.usuario_nombre}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className={`text-sm font-semibold ${
+                            mov.monto > 0 ? 'text-green-600' : 'text-red-600'
+                          }`}>
+                            {mov.monto > 0 ? '+' : ''}
+                            {formatCurrency(mov.monto, showCents)}
+                          </div>
+                          <div className={`text-xs ${
+                            mov.saldo_hasta_movimiento < 0 ? 'text-red-600' : 'text-green-600'
+                          }`}>
+                            Saldo: {formatCurrency(mov.saldo_hasta_movimiento, showCents)}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
 
       {/* Modal de Cuenta Corriente */}
       <Dialog open={cuentaDialogOpen} onOpenChange={handleCuentaDialogClose}>
