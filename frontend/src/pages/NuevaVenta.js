@@ -321,9 +321,9 @@ const NuevaVenta = () => {
   }, [getProductosDisponibles, debouncedProductoSearchTerm]);
 
   useEffect(() => {
-    setSelectedResultIndex(0); // Reset selected index when search changes
-    resultRefs.current = []; // Limpiar referencias cuando cambian los resultados
-  }, [filteredProductos]);
+    setSelectedResultIndex(0);
+    resultRefs.current = [];
+  }, [debouncedProductoSearchTerm]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
