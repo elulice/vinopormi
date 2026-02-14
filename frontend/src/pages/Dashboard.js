@@ -24,7 +24,7 @@ const Dashboard = () => {
     total_saldo_cuenta_corriente: 0,
     total_egresos_hoy: 0,
     ingresos_cta_cte_hoy: 0,
-    ultimos_movimientos_cta_cte: []
+    ultimos_clientes_cta_cte: []
   });
   const [loading, setLoading] = useState(true);
 
@@ -64,7 +64,7 @@ const Dashboard = () => {
           className="cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-[1.02] relative"
           onClick={() => navigate('/ventas?filter=today')}
         >
-          <CardHeader className="flex flex-row items-center justify-between pb-2 p-4">
+          <CardHeader className="flex flex-row items-center justify-between p-4 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Total Vendido Hoy
             </CardTitle>
@@ -92,7 +92,7 @@ const Dashboard = () => {
           className="cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-[1.02] relative"
           onClick={() => navigate('/egresos?filter=today')}
         >
-          <CardHeader className="flex flex-row items-center justify-between pb-2 p-4">
+          <CardHeader className="flex flex-row items-center justify-between p-4 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Total Egresos Hoy
             </CardTitle>
@@ -113,7 +113,7 @@ const Dashboard = () => {
           className="cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-[1.02] relative"
           onClick={() => navigate('/dashboard')}
         >
-          <CardHeader className="flex flex-row items-center justify-between pb-2 p-4">
+          <CardHeader className="flex flex-row items-center justify-between p-4 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Balance del Día
             </CardTitle>
@@ -134,7 +134,7 @@ const Dashboard = () => {
           className="cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-[1.02] relative"
           onClick={() => navigate('/ventas?filter=today')}
         >
-          <CardHeader className="flex flex-row items-center justify-between pb-2 p-4">
+          <CardHeader className="flex flex-row items-center justify-between p-4 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Ventas Realizadas
             </CardTitle>
@@ -155,7 +155,7 @@ const Dashboard = () => {
           className="cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-[1.02] relative"
           onClick={() => navigate('/clientes')}
         >
-          <CardHeader className="flex flex-row items-center justify-between pb-2 p-4">
+          <CardHeader className="flex flex-row items-center justify-between p-4 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground leading-none">
               Saldo Cta. Cte.
             </CardTitle>
@@ -165,13 +165,13 @@ const Dashboard = () => {
             <div className="text-xl sm:text-2xl font-bold text-orange-600 break-words overflow-wrap-anywhere pb-1">
               {formatCurrency(stats.total_saldo_cuenta_corriente, showCents)}
             </div>
-            {stats.ultimos_movimientos_cta_cte && stats.ultimos_movimientos_cta_cte.length > 0 && (
+            {stats.ultimos_clientes_cta_cte && stats.ultimos_clientes_cta_cte.length > 0 && (
               <div className="space-y-1 pt-1">
-                {stats.ultimos_movimientos_cta_cte.map((mov, idx) => (
+                {stats.ultimos_clientes_cta_cte.map((cliente, idx) => (
                   <div key={idx} className="flex justify-between text-xs text-muted-foreground">
-                    <span className="truncate max-w-[120px]">{mov.cliente_nombre}</span>
-                    <span className={mov.monto >= 0 ? 'text-green-600' : 'text-red-600'}>
-                      {mov.monto >= 0 ? '+' : ''}{formatCurrency(mov.monto, showCents)}
+                    <span className="truncate max-w-[120px]">{cliente.cliente_nombre}</span>
+                    <span className={cliente.saldo >= 0 ? 'text-green-600' : 'text-red-600'}>
+                      {formatCurrency(cliente.saldo, showCents)}
                     </span>
                   </div>
                 ))}

@@ -176,7 +176,7 @@ const Layout = () => {
           </div>
         </div>
 
-        <nav className="flex-1 p-4 overflow-y-auto">
+        <nav className="flex-1 p-2 overflow-y-auto">
           <ul className="space-y-2">
             {menuItems.map((item) => {
               const Icon = item.icon;
@@ -186,7 +186,7 @@ const Layout = () => {
                 <li key={item.path}>
                   <Link
                     to={item.path}
-                    className={`flex items-center ${sidebarWidth === 'compact' ? 'justify-center' : 'gap-3'} px-4 py-3 rounded-md transition-colors ${
+                    className={`flex items-center ${sidebarWidth === 'compact' ? 'justify-center' : 'gap-3'} px-3 py-2 rounded-md transition-colors ${
                       isActive
                         ? 'bg-primary text-primary-foreground'
                         : 'text-gray-700 hover:bg-gray-100'

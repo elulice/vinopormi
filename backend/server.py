@@ -187,7 +187,7 @@ class DashboardStats(BaseModel):
     total_saldo_cuenta_corriente: float
     total_egresos_hoy: float
     ingresos_cta_cte_hoy: float = 0
-    ultimos_movimientos_cta_cte: list = []
+    ultimos_clientes_cta_cte: list = []
 
 class CuentaCorrienteInfo(BaseModel):
     cliente: Optional[Cliente] = None
@@ -1003,24 +1003,43 @@ async def get_dashboard_stats(current_user: Usuario = Depends(get_current_user))
     }, {'_id': 0}).to_list(1000)
     ingresos_cta_cte_hoy = sum(m['monto'] for m in movimientos_cta_cte_hoy)
     
-    # Obtener últimos 3 movimientos de cuenta corriente
+    # Obtener últimos 4 clientes modificados (basado en fecha del último movimiento)
     clientes = await db.clientes.find({}, {'_id': 0, 'id': 1, 'nombre': 1}).to_list(1000)
-    ultimos_movimientos = []
+    ultimos_clientes = []
     for cliente in clientes:
-        movs = await db.movimientos.find(
+        # Obtener el último movimiento de cada cliente usando find con sort y limit
+        ultimo_mov_cursor = await db.movimientos.find(
             {'cliente_id': cliente['id']},
-            {'_id': 0, 'concepto': 1, 'monto': 1, 'fecha': 1}
-        ).sort('fecha', -1).limit(3).to_list(10)
-        for m in movs:
-            m['cliente_nombre'] = cliente['nombre']
-        ultimos_movimientos.extend(movs)
+            {'_id': 0, 'fecha': 1}
+        ).sort('fecha', -1).limit(1).to_list(1)
+        
+        if ultimo_mov_cursor:
+            ultimo_mov = ultimo_mov_cursor[0]
+            # Calcular saldo del cliente
+            movimientos = await db.movimientos.find(
+                {'cliente_id': cliente['id']},
+                {'_id': 0, 'monto': 1}
+            ).to_list(1000)
+            saldo = sum(m['monto'] for m in movimientos)
+            
+            ultimos_clientes.append({
+                'cliente_nombre': cliente['nombre'],
+                'cliente_id': cliente['id'],
+                'ultima_fecha': ultimo_mov.get('fecha'),
+                'saldo': saldo
+            })
     
-    ultimos_movimientos = sorted(ultimos_movimientos, key=lambda x: x.get('fecha', datetime.min), reverse=True)[:4]
+    # Ordenar por fecha del último movimiento (más reciente primero)
+    ultimos_clientes = sorted(
+        ultimos_clientes, 
+        key=lambda x: x.get('ultima_fecha', datetime.min), 
+        reverse=True
+    )[:4]
     
     # Convertir fechas a strings para JSON
-    for m in ultimos_movimientos:
-        if isinstance(m.get('fecha'), datetime):
-            m['fecha'] = m['fecha'].isoformat()
+    for c in ultimos_clientes:
+        if isinstance(c.get('ultima_fecha'), datetime):
+            c['ultima_fecha'] = c['ultima_fecha'].isoformat()
     
     # Verificar productos con bajo stock para notificaciones
     productos = await db.productos.find({}, {'_id': 0}).to_list(1000)
@@ -1045,7 +1064,7 @@ async def get_dashboard_stats(current_user: Usuario = Depends(get_current_user))
         total_saldo_cuenta_corriente=total_saldo_cuenta_corriente,
         total_egresos_hoy=total_egresos_hoy,
         ingresos_cta_cte_hoy=ingresos_cta_cte_hoy,
-        ultimos_movimientos_cta_cte=ultimos_movimientos
+        ultimos_clientes_cta_cte=ultimos_clientes
     )
 
 # ===== PROVEEDORES ROUTES =====
