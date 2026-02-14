@@ -186,6 +186,8 @@ class DashboardStats(BaseModel):
     ventas_por_medio_pago: dict
     total_saldo_cuenta_corriente: float
     total_egresos_hoy: float
+    ingresos_cta_cte_hoy: float = 0
+    ultimos_movimientos_cta_cte: list = []
 
 class CuentaCorrienteInfo(BaseModel):
     cliente: Optional[Cliente] = None
@@ -994,6 +996,32 @@ async def get_dashboard_stats(current_user: Usuario = Depends(get_current_user))
     }, {'_id': 0}).to_list(1000)
     total_egresos_hoy = sum(e['monto'] for e in egresos_hoy)
     
+    # Obtener ingresos de cuenta corriente del día (movimientos positivos)
+    movimientos_cta_cte_hoy = await db.movimientos.find({
+        'fecha': {'$gte': hoy_inicio_str, '$lte': hoy_fin_str},
+        'monto': {'$gt': 0}
+    }, {'_id': 0}).to_list(1000)
+    ingresos_cta_cte_hoy = sum(m['monto'] for m in movimientos_cta_cte_hoy)
+    
+    # Obtener últimos 3 movimientos de cuenta corriente
+    clientes = await db.clientes.find({}, {'_id': 0, 'id': 1, 'nombre': 1}).to_list(1000)
+    ultimos_movimientos = []
+    for cliente in clientes:
+        movs = await db.movimientos.find(
+            {'cliente_id': cliente['id']},
+            {'_id': 0, 'concepto': 1, 'monto': 1, 'fecha': 1}
+        ).sort('fecha', -1).limit(3).to_list(10)
+        for m in movs:
+            m['cliente_nombre'] = cliente['nombre']
+        ultimos_movimientos.extend(movs)
+    
+    ultimos_movimientos = sorted(ultimos_movimientos, key=lambda x: x.get('fecha', datetime.min), reverse=True)[:3]
+    
+    # Convertir fechas a strings para JSON
+    for m in ultimos_movimientos:
+        if isinstance(m.get('fecha'), datetime):
+            m['fecha'] = m['fecha'].isoformat()
+    
     # Verificar productos con bajo stock para notificaciones
     productos = await db.productos.find({}, {'_id': 0}).to_list(1000)
     productos_bajo_stock = [p for p in productos if p.get('stock', 0) < 10]
@@ -1015,7 +1043,9 @@ async def get_dashboard_stats(current_user: Usuario = Depends(get_current_user))
         cantidad_ventas_hoy=cantidad_ventas,
         ventas_por_medio_pago=ventas_por_medio,
         total_saldo_cuenta_corriente=total_saldo_cuenta_corriente,
-        total_egresos_hoy=total_egresos_hoy
+        total_egresos_hoy=total_egresos_hoy,
+        ingresos_cta_cte_hoy=ingresos_cta_cte_hoy,
+        ultimos_movimientos_cta_cte=ultimos_movimientos
     )
 
 # ===== PROVEEDORES ROUTES =====

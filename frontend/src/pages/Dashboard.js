@@ -4,7 +4,7 @@ import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { useConfig } from '@/context/ConfigContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, ShoppingCart, CreditCard, Users, TrendingDown, ArrowRight } from 'lucide-react';
+import { DollarSign, ShoppingCart, CreditCard, Users, TrendingDown, TrendingUp, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import '@/components/Dashboard.css';
 import { formatCurrency, formatNumber } from '@/lib/currency';
@@ -22,7 +22,9 @@ const Dashboard = () => {
     cantidad_ventas_hoy: 0,
     ventas_por_medio_pago: {},
     total_saldo_cuenta_corriente: 0,
-    total_egresos_hoy: 0
+    total_egresos_hoy: 0,
+    ingresos_cta_cte_hoy: 0,
+    ultimos_movimientos_cta_cte: []
   });
   const [loading, setLoading] = useState(true);
 
@@ -69,13 +71,20 @@ const Dashboard = () => {
             <DollarSign className="w-5 h-5 text-primary !mt-0" />
           </CardHeader>
           <CardContent className="p-4 pt-0">
-            <div className="text-xl sm:text-2xl font-bold text-foreground break-words overflow-wrap-anywhere pb-8">
+            <div className="text-xl sm:text-2xl font-bold text-foreground break-words overflow-wrap-anywhere pb-1">
               {formatCurrency(stats.total_vendido_hoy, showCents)}
             </div>
+            {stats.ventas_por_medio_pago && Object.keys(stats.ventas_por_medio_pago).length > 0 && (
+              <div className="space-y-1 pt-1">
+                {Object.entries(stats.ventas_por_medio_pago).map(([medio, total]) => (
+                  <div key={medio} className="flex justify-between text-xs text-muted-foreground">
+                    <span className="capitalize">{medio.replace('_', ' ')}</span>
+                    <span>{formatCurrency(total, showCents)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
-          <div className="absolute bottom-3 right-3 bg-blue-100 rounded-full p-2 hover:bg-blue-200 transition-colors duration-200">
-            <ArrowRight className="w-4 h-4 text-blue-600" />
-          </div>
         </Card>
 
         <Card 
@@ -99,7 +108,7 @@ const Dashboard = () => {
           </div>
         </Card>
 
-        <Card 
+        <Card
           data-testid="card-balance-del-dia"
           className="cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-[1.02] relative"
           onClick={() => navigate('/dashboard')}
@@ -153,18 +162,29 @@ const Dashboard = () => {
             <Users className="w-5 h-5 text-orange-600 flex-shrink-0 !mt-0" />
           </CardHeader>
           <CardContent className="p-4 pt-0">
-            <div className="text-xl sm:text-2xl font-bold text-orange-600 break-words overflow-wrap-anywhere pb-8">
+            <div className="text-xl sm:text-2xl font-bold text-orange-600 break-words overflow-wrap-anywhere pb-1">
               {formatCurrency(stats.total_saldo_cuenta_corriente, showCents)}
             </div>
+            {stats.ultimos_movimientos_cta_cte && stats.ultimos_movimientos_cta_cte.length > 0 && (
+              <div className="space-y-1 pt-1">
+                {stats.ultimos_movimientos_cta_cte.map((mov, idx) => (
+                  <div key={idx} className="flex justify-between text-xs text-muted-foreground">
+                    <span className="truncate max-w-[120px]">{mov.cliente_nombre}</span>
+                    <span className={mov.monto >= 0 ? 'text-green-600' : 'text-red-600'}>
+                      {mov.monto >= 0 ? '+' : ''}{formatCurrency(mov.monto, showCents)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
-          <div className="absolute bottom-3 right-3 bg-orange-100 rounded-full p-2 hover:bg-orange-200 transition-colors duration-200">
-            <ArrowRight className="w-4 h-4 text-orange-600" />
-          </div>
         </Card>
       </div>
 
       {mediosPago.length > 0 && (
-        <Card data-testid="card-ventas-por-medio">
+        // Oculto el card, pero no lo elimino por si vuelvo a utilizarlo.
+        // Los datos que estaban en ésta card ahora serán veisibles en el card de "Total Vendido Hoy"
+        <Card data-testid="card-ventas-por-medio" className="hidden">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CreditCard className="w-5 h-5 text-primary" />
