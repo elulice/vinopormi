@@ -1003,7 +1003,7 @@ async def get_dashboard_stats(current_user: Usuario = Depends(get_current_user))
     }, {'_id': 0}).to_list(1000)
     ingresos_cta_cte_hoy = sum(m['monto'] for m in movimientos_cta_cte_hoy)
     
-    # Obtener últimos 4 clientes modificados (basado en fecha del último movimiento)
+    # Obtener clientes con saldo (todos los que tienen movimientos)
     clientes = await db.clientes.find({}, {'_id': 0, 'id': 1, 'nombre': 1}).to_list(1000)
     ultimos_clientes = []
     for cliente in clientes:
@@ -1022,6 +1022,7 @@ async def get_dashboard_stats(current_user: Usuario = Depends(get_current_user))
             ).to_list(1000)
             saldo = sum(m['monto'] for m in movimientos)
             
+            # Incluir todos los clientes con movimientos
             ultimos_clientes.append({
                 'cliente_nombre': cliente['nombre'],
                 'cliente_id': cliente['id'],
@@ -1029,11 +1030,10 @@ async def get_dashboard_stats(current_user: Usuario = Depends(get_current_user))
                 'saldo': saldo
             })
     
-    # Ordenar por fecha del último movimiento (más reciente primero)
+    # Ordenar por saldo (menor a mayor: los que más deben primero)
     ultimos_clientes = sorted(
         ultimos_clientes, 
-        key=lambda x: x.get('ultima_fecha', datetime.min), 
-        reverse=True
+        key=lambda x: x.get('saldo', 0)
     )[:4]
     
     # Convertir fechas a strings para JSON
