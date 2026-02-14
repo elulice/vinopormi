@@ -391,7 +391,7 @@ const NuevaVenta = () => {
         <p className="text-muted-foreground">Registra una nueva venta</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form className="space-y-6">
         <Card>
           <CardHeader>
             <CardTitle>Información de la Venta</CardTitle>
@@ -682,8 +682,9 @@ const NuevaVenta = () => {
             </div>
             <div className="flex gap-4">
               <Button
-                type="submit"
+                type="button"
                 className="flex-1"
+                onClick={handleSubmit}
                 disabled={loading || detalles.length === 0}
                 data-testid="submit-venta-button"
               >

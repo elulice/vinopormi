@@ -1015,7 +1015,7 @@ async def get_dashboard_stats(current_user: Usuario = Depends(get_current_user))
             m['cliente_nombre'] = cliente['nombre']
         ultimos_movimientos.extend(movs)
     
-    ultimos_movimientos = sorted(ultimos_movimientos, key=lambda x: x.get('fecha', datetime.min), reverse=True)[:3]
+    ultimos_movimientos = sorted(ultimos_movimientos, key=lambda x: x.get('fecha', datetime.min), reverse=True)[:4]
     
     # Convertir fechas a strings para JSON
     for m in ultimos_movimientos:
