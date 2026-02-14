@@ -40,10 +40,10 @@ const VirtualTable = ({ items, itemHeight, containerHeight, renderItem, headers 
   const totalHeight = items.length * itemHeight;
   
   return (
-    <div className="border rounded-lg">
+    <div className="border rounded-md overflow-hidden">
       {/* Header fijo */}
       <div className="bg-muted sticky top-0 z-10">
-        <div className="grid grid-cols-6 gap-4 p-4 text-sm font-semibold">
+        <div className="grid grid-cols-6 gap-2 p-2 text-xs font-semibold">
           {headers.map((header, index) => (
             <div key={index} className={`${header.width}`}>
               {header.title}
@@ -343,40 +343,34 @@ const fetchVentas = useCallback(async () => {
     };
 
     return (
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 p-4 bg-muted/50 rounded-lg">
-        <div className="flex items-center gap-4">
-          <div className="text-sm text-muted-foreground">
-            Mostrando {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, totalItems)} de {totalItems} {viewMode === 'individual' ? 'ventas' : 'días'}
-          </div>
-          <div className="flex items-center gap-2">
-            <Label htmlFor="items-per-page" className="text-sm">Items por página:</Label>
-            <Select
-              value={itemsPerPage.toString()}
-              onValueChange={(value) => onItemsPerPageChange(parseInt(value))}
-            >
-              <SelectTrigger className="w-20">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="25">25</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-                <SelectItem value="100">100</SelectItem>
-                <SelectItem value="200">200</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-2 mt-3 p-2 bg-muted/50 rounded-md">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>{(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, totalItems)} de {totalItems}</span>
+          <Select
+            value={itemsPerPage.toString()}
+            onValueChange={(value) => onItemsPerPageChange(parseInt(value))}
+          >
+            <SelectTrigger className="w-14 h-6 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="25">25</SelectItem>
+              <SelectItem value="50">50</SelectItem>
+              <SelectItem value="100">100</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <Button
             variant="outline"
             size="sm"
             onClick={() => onPageChange(1)}
             disabled={currentPage === 1}
-            className="px-3"
+            className="h-6 w-6 p-0"
           >
-            <ChevronLeft className="w-4 h-4" />
-            <ChevronLeft className="w-4 h-4 -ml-3" />
+            <ChevronLeft className="w-3 h-3" />
+            <ChevronLeft className="w-3 h-3 -ml-2" />
           </Button>
           
           <Button
@@ -384,24 +378,24 @@ const fetchVentas = useCallback(async () => {
             size="sm"
             onClick={() => onPageChange(currentPage - 1)}
             disabled={currentPage === 1}
-            className="px-3"
+            className="h-6 w-6 p-0"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-3 h-3" />
           </Button>
           
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5 text-xs">
             {getVisiblePages().map((page, index) => (
               page === '...' ? (
-                <span key={`dots-${index}`} className="px-2 py-1 text-muted-foreground">
+                <span key={`dots-${index}`} className="px-1 text-muted-foreground">
                   ...
                 </span>
               ) : (
                 <Button
                   key={page}
-                  variant={currentPage === page ? "default" : "outline"}
+                  variant={currentPage === page ? "default" : "ghost"}
                   size="sm"
                   onClick={() => onPageChange(page)}
-                  className="px-3 py-1"
+                  className="h-6 w-6 p-0 text-xs"
                 >
                   {page}
                 </Button>
@@ -414,9 +408,9 @@ const fetchVentas = useCallback(async () => {
             size="sm"
             onClick={() => onPageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
-            className="px-3"
+            className="h-6 w-6 p-0"
           >
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-3 h-3" />
           </Button>
           
           <Button
@@ -424,10 +418,10 @@ const fetchVentas = useCallback(async () => {
             size="sm"
             onClick={() => onPageChange(totalPages)}
             disabled={currentPage === totalPages}
-            className="px-3"
+            className="h-6 w-6 p-0"
           >
-            <ChevronRight className="w-4 h-4" />
-            <ChevronRight className="w-4 h-4 -ml-3" />
+            <ChevronRight className="w-3 h-3" />
+            <ChevronRight className="w-3 h-3 -ml-2" />
           </Button>
         </div>
       </div>
@@ -472,6 +466,13 @@ const clearFilters = () => {
       : <ArrowDown className="w-4 h-4" />;
   };
 
+  const handleSort = (key) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+
   // Configuración de headers con ordenamiento
   const headers = [
     { 
@@ -506,43 +507,44 @@ const clearFilters = () => {
   // Renderizado de filas individuales
   const renderRow = (venta, index) => (
     <div
-      className={`grid grid-cols-6 gap-4 p-4 cursor-pointer hover:bg-muted/50 transition-colors border-b ${
+      className={`grid grid-cols-6 gap-2 px-2 py-1 cursor-pointer hover:bg-muted/50 transition-colors border-b text-sm items-center ${
         index % 2 === 0 ? 'bg-background' : 'bg-muted/20'
       }`}
       onClick={() => handleViewDetails(venta)}
       data-testid={`venta-row-${venta.id}`}
     >
-      <div className="col-span-2">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
-            <ShoppingCart className="w-4 h-4 text-primary" />
+      <div className="col-span-2 flex items-center">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 bg-primary/10 rounded flex items-center justify-center">
+            <ShoppingCart className="w-3 h-3 text-primary" />
           </div>
           <div>
-            <div className="font-medium">#{venta.id.slice(0, 8)}</div>
+            <div className="font-medium text-xs">#{venta.id.slice(0, 8)}</div>
             <div className="text-xs text-muted-foreground">
-              {format(safeParseDate(venta.fecha), 'PPP HH:mm', { locale: es })}
+              {format(safeParseDate(venta.fecha), 'dd/MM HH:mm')}
             </div>
             {venta.cliente_nombre && (
-              <div className="text-xs text-muted-foreground">{venta.cliente_nombre}</div>
+              <div className="text-xs text-muted-foreground truncate max-w-[120px]">{venta.cliente_nombre}</div>
             )}
           </div>
         </div>
       </div>
-      <div className="col-span-1">
-        <div className="font-semibold text-primary">
+      <div className="col-span-1 flex items-center justify-end">
+        <div className="font-semibold text-primary text-xs">
           {formatCurrency(venta.total, showCents)}
         </div>
       </div>
-      <div className="col-span-1 text-sm text-muted-foreground">
+      <div className="col-span-1 flex items-center text-xs text-muted-foreground truncate">
         {venta.usuario_nombre || 'Usuario desconocido'}
       </div>
-      <div className="col-span-1">
-        <span className="text-sm capitalize">{venta.medio_pago.replace('_', ' ')}</span>
+      <div className="col-span-1 flex items-center">
+        <span className="text-xs capitalize">{venta.medio_pago.replace('_', ' ')}</span>
       </div>
-      <div className="col-span-1">
+      <div className="col-span-1 flex items-center justify-center">
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
+          className="h-6 text-xs"
           onClick={(e) => {
             e.stopPropagation();
             handleViewDetails(venta);
@@ -563,34 +565,34 @@ const clearFilters = () => {
       <div key={group.date} className="border-b">
         {/* Fila del grupo */}
         <div
-          className={`grid grid-cols-6 gap-4 p-4 cursor-pointer hover:bg-muted/50 transition-colors ${
+          className={`grid grid-cols-6 gap-2 px-2 py-1 cursor-pointer hover:bg-muted/50 transition-colors text-sm items-center ${
             index % 2 === 0 ? 'bg-background' : 'bg-muted/20'
           }`}
           onClick={() => toggleGroup(group.date)}
         >
           <div className="col-span-2">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
-                {isExpanded ? <ChevronDown className="w-4 h-4 text-primary" /> : <ChevronRight className="w-4 h-4 text-primary" />}
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 bg-primary/10 rounded flex items-center justify-center">
+                {isExpanded ? <ChevronDown className="w-3 h-3 text-primary" /> : <ChevronRight className="w-3 h-3 text-primary" />}
               </div>
               <div>
-                <div className="font-medium text-lg">{group.dateLabel}</div>
+                <div className="font-medium text-xs">{group.dateLabel}</div>
                 <div className="text-xs text-muted-foreground">
-                  {format(group.fullDate, 'PPP', { locale: es })}
+                  {format(group.fullDate, 'dd/MM/yyyy')}
                 </div>
               </div>
             </div>
           </div>
           <div className="col-span-1">
-            <div className="font-semibold text-primary text-lg">
+            <div className="font-semibold text-primary text-xs">
               {formatCurrency(group.total, showCents)}
             </div>
             <div className="text-xs text-muted-foreground">
-              Total del día
+              Total día
             </div>
           </div>
           <div className="col-span-1">
-            <div className="font-medium text-lg">
+            <div className="font-medium text-xs">
               {group.count}
             </div>
             <div className="text-xs text-muted-foreground">
@@ -598,20 +600,21 @@ const clearFilters = () => {
             </div>
           </div>
           <div className="col-span-1">
-            <div className="text-sm text-muted-foreground">
-              Promedio: {formatCurrency(group.count > 0 ? group.total / group.count : 0, showCents)}
+            <div className="text-xs text-muted-foreground">
+              {formatCurrency(group.count > 0 ? group.total / group.count : 0, showCents)}
             </div>
           </div>
           <div className="col-span-1">
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
+              className="h-6 text-xs"
               onClick={(e) => {
                 e.stopPropagation();
                 toggleGroup(group.date);
               }}
             >
-              {isExpanded ? 'Ocultar' : 'Ver'} Detalles
+              {isExpanded ? 'Ocultar' : 'Ver'}
             </Button>
           </div>
         </div>
@@ -622,17 +625,17 @@ const clearFilters = () => {
             {group.ventas.map((venta, ventaIndex) => (
               <div
                 key={venta.id}
-                className="grid grid-cols-6 gap-4 p-4 cursor-pointer hover:bg-muted/50 transition-colors border-b border-border/50"
+                className="grid grid-cols-6 gap-2 p-2 cursor-pointer hover:bg-muted/50 transition-colors border-b border-border/50"
                 onClick={() => handleViewDetails(venta)}
-                style={{ paddingLeft: '2rem' }}
+                style={{ paddingLeft: '1.5rem' }}
               >
                 <div className="col-span-2">
-                  <div className="flex items-center gap-3">
-                    <div className="w-6 h-6 bg-primary/5 rounded flex items-center justify-center">
-                      <ShoppingCart className="w-3 h-3 text-primary" />
+                  <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 bg-primary/5 rounded flex items-center justify-center">
+                      <ShoppingCart className="w-2 h-2 text-primary" />
                     </div>
                     <div>
-                      <div className="font-medium text-sm">#{venta.id.slice(0, 8)}</div>
+                      <div className="font-medium text-xs">#{venta.id.slice(0, 8)}</div>
                       <div className="text-xs text-muted-foreground">
                         {format(safeParseDate(venta.fecha), 'HH:mm')}
                       </div>
@@ -678,90 +681,90 @@ const clearFilters = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       <div>
-        <h1 className="text-4xl font-bold text-foreground mb-2">Ventas</h1>
-        <p className="text-muted-foreground">Historial de ventas realizadas</p>
+        <h1 className="text-2xl font-bold text-foreground">Ventas</h1>
+        <p className="text-sm text-muted-foreground">Historial de ventas realizadas</p>
       </div>
 
       {/* Filtros y Vista */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Filter className="w-5 h-5" />
+      <Card className="py-3">
+        <CardHeader className="py-2 pb-2">
+          <div className="flex items-center justify-between py-1">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Filter className="w-4 h-4" />
               Filtros
             </CardTitle>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Vista:</span>
-              <div className="flex bg-muted rounded-lg p-1">
+              <span className="text-xs text-muted-foreground">Vista:</span>
+              <div className="flex bg-muted rounded-md p-0.5">
                 <Button
                   variant={viewMode === 'individual' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setViewMode('individual')}
-                  className="flex items-center gap-2"
+                  className="h-6 text-xs px-2"
+                  title="Vista Individual"
                 >
-                  <List className="w-4 h-4" />
-                  Individual
+                  <List className="w-3 h-3" />
                 </Button>
                 <Button
                   variant={viewMode === 'grouped' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setViewMode('grouped')}
-                  className="flex items-center gap-2"
+                  className="h-6 text-xs px-2"
+                  title="Vista Agrupada"
                 >
-                  <Layers className="w-4 h-4" />
-                  Agrupada
+                  <Layers className="w-3 h-3" />
                 </Button>
               </div>
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-<div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-            <div className="space-y-2">
-              <Label>Tipo de filtro</Label>
+        <CardContent className="py-2 space-y-3">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Tipo</Label>
               <Select 
                 value={filters.dateType} 
                 onValueChange={(value) => setFilters(prev => ({ ...prev, dateType: value }))}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-7 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todas las ventas</SelectItem>
+                  <SelectItem value="all">Todas</SelectItem>
                   <SelectItem value="specific">Fecha específica</SelectItem>
-                  <SelectItem value="range">Rango de fechas</SelectItem>
+                  <SelectItem value="range">Rango</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             
-            <div className="space-y-2">
-              <Label>Medio de Pago</Label>
+            <div className="space-y-1">
+              <Label className="text-xs">Medio</Label>
               <Select 
                 value={filters.medioPago} 
                 onValueChange={(value) => setFilters(prev => ({ ...prev, medioPago: value }))}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-7 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="cuenta_corriente">Cuenta Corriente</SelectItem>
+                  <SelectItem value="cuenta_corriente">Cta. Cte.</SelectItem>
                   <SelectItem value="efectivo">Efectivo</SelectItem>
                   <SelectItem value="posnet">PosNet</SelectItem>
-                  <SelectItem value="transferencia">Transferencia</SelectItem>
+                  <SelectItem value="transferencia">Transf.</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             
-            <div className="space-y-2">
-              <Label>Usuario</Label>
+            <div className="space-y-1">
+              <Label className="text-xs">Usuario</Label>
               <Select 
                 value={filters.usuario} 
                 onValueChange={(value) => setFilters(prev => ({ ...prev, usuario: value }))}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-7 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -776,11 +779,12 @@ const clearFilters = () => {
             </div>
             
             {filters.dateType === 'specific' && (
-              <div className="space-y-2">
-                <Label>Fecha</Label>
+              <div className="space-y-1">
+                <Label className="text-xs">Fecha</Label>
                 <Input
                   type="date"
                   value={filters.specificDate}
+                  className="h-7 text-xs"
                   onChange={(e) => setFilters(prev => ({ ...prev, specificDate: e.target.value }))}
                 />
               </div>
@@ -788,19 +792,21 @@ const clearFilters = () => {
             
             {filters.dateType === 'range' && (
               <>
-                <div className="space-y-2">
-                  <Label>Desde</Label>
+                <div className="space-y-1">
+                  <Label className="text-xs">Desde</Label>
                   <Input
                     type="date"
                     value={filters.startDate}
+                    className="h-7 text-xs"
                     onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>Hasta</Label>
+                <div className="space-y-1">
+                  <Label className="text-xs">Hasta</Label>
                   <Input
                     type="date"
                     value={filters.endDate}
+                    className="h-7 text-xs"
                     onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
                   />
                 </div>
@@ -808,29 +814,30 @@ const clearFilters = () => {
             )}
           </div>
           
-{(filters.dateType !== 'all' || (filters.dateType === 'specific' && filters.specificDate) || 
+          {(filters.dateType !== 'all' || (filters.dateType === 'specific' && filters.specificDate) || 
             (filters.dateType === 'range' && (filters.startDate || filters.endDate)) ||
             filters.medioPago !== 'all' || filters.usuario !== 'all') && (
             <Button 
               variant="outline" 
+              size="sm"
               onClick={clearFilters}
-              className="flex items-center gap-2"
+              className="h-6 text-xs"
             >
-              <X className="w-4 h-4" />
-              Limpiar filtros
+              <X className="w-3 h-3 mr-1" />
+              Limpiar
             </Button>
           )}
         </CardContent>
       </Card>
 
       {/* Estadísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold text-primary">
+      <div className="grid grid-cols-3 gap-2">
+        <Card className="py-2">
+          <CardContent className="py-2">
+            <div className="text-lg font-bold text-primary">
               {viewMode === 'individual' ? sortedVentas.length : groupedVentas.length}
             </div>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               {viewMode === 'individual' 
                 ? `Ventas ${filters.dateType === 'all' ? 'totales' : 'filtradas'}`
                 : `Días ${filters.dateType === 'all' ? 'totales' : 'filtrados'}`
@@ -838,26 +845,26 @@ const clearFilters = () => {
             </p>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold text-green-600">
+        <Card className="py-2">
+          <CardContent className="py-2">
+            <div className="text-lg font-bold text-green-600">
               {formatCurrency(sortedVentas.reduce((sum, v) => sum + v.total, 0), showCents)}
             </div>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Total {filters.dateType === 'all' ? 'general' : 'filtrado'}
             </p>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold text-blue-600">
+        <Card className="py-2">
+          <CardContent className="py-2">
+            <div className="text-lg font-bold text-blue-600">
               {viewMode === 'individual' 
                 ? formatCurrency(sortedVentas.length > 0 ? sortedVentas.reduce((sum, v) => sum + v.total, 0) / sortedVentas.length : 0, showCents)
                 : formatCurrency(groupedVentas.length > 0 ? groupedVentas.reduce((sum, g) => sum + g.total, 0) / groupedVentas.length : 0, showCents)
               }
             </div>
-            <p className="text-sm text-muted-foreground">
-              {viewMode === 'individual' ? 'Promedio por venta' : 'Promedio por día'}
+            <p className="text-xs text-muted-foreground">
+              {viewMode === 'individual' ? 'Promedio' : 'Promedio día'}
             </p>
           </CardContent>
         </Card>
@@ -886,15 +893,15 @@ const clearFilters = () => {
               <div className="hidden lg:block">
                 <VirtualTable
                   items={paginatedData}
-                  itemHeight={100}
-                  containerHeight={600}
+                  itemHeight={44}
+                  containerHeight={400}
                   renderItem={renderRow}
                   headers={headers}
                 />
               </div>
               
               {/* Versión móvil - Cards */}
-              <div className="lg:hidden space-y-4">
+              <div className="lg:hidden space-y-2">
                 {paginatedData.map((venta, index) => (
                   <div
                     key={venta.id}
@@ -969,15 +976,15 @@ const clearFilters = () => {
           {viewMode === 'grouped' && (
             <>
               {/* Versión desktop - Grupos con expansión */}
-              <div className="hidden lg:block border rounded-lg">
+              <div className="hidden lg:block border rounded-md">
                 {/* Header fijo para vista agrupada */}
                 <div className="bg-muted sticky top-0 z-10">
-                  <div className="grid grid-cols-6 gap-4 p-4 text-sm font-semibold">
+                  <div className="grid grid-cols-6 gap-2 p-2 text-xs font-semibold">
                     <div className="col-span-2">Fecha</div>
-                    <div className="col-span-1">Total del Día</div>
-                    <div className="col-span-1">Cantidad</div>
+                    <div className="col-span-1">Total Día</div>
+                    <div className="col-span-1">Cant.</div>
                     <div className="col-span-1">Promedio</div>
-                    <div className="col-span-1">Acciones</div>
+                    <div className="col-span-1">Acción</div>
                   </div>
                 </div>
                 
@@ -1111,58 +1118,55 @@ const clearFilters = () => {
 
       {/* Diálogo de detalles */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
-          <DialogHeader className="flex-shrink-0">
-            <DialogTitle>Detalle de Venta</DialogTitle>
-            <DialogDescription>
-              Información completa de la venta seleccionada
-            </DialogDescription>
+        <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+          <DialogHeader className="py-3 px-4 flex-shrink-0">
+            <DialogTitle className="text-base">Detalle de Venta</DialogTitle>
           </DialogHeader>
           {selectedVenta && (
-            <div className="flex flex-col flex-1 min-h-0 space-y-4">
-              <div className="grid grid-cols-2 gap-4 p-4 bg-muted rounded-lg flex-shrink-0">
+            <div className="flex flex-col flex-1 min-h-0 px-4 pb-4 space-y-3">
+              <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded-md flex-shrink-0 text-xs">
                 <div>
-                  <p className="text-sm text-muted-foreground">Fecha y Hora</p>
-                  <p className="font-medium">
-                    {format(safeParseDate(selectedVenta.fecha), 'PPP HH:mm:ss', { locale: es })}
+                  <p className="text-muted-foreground">Fecha</p>
+                  <p className="font-medium text-xs">
+                    {format(safeParseDate(selectedVenta.fecha), 'dd/MM/yyyy HH:mm', { locale: es })}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Usuario</p>
-                  <p className="font-medium">
+                  <p className="text-muted-foreground">Usuario</p>
+                  <p className="font-medium text-xs">
                     {selectedVenta.usuario_nombre || 'Usuario desconocido'}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Medio de Pago</p>
-                  <p className="font-medium capitalize">
+                  <p className="text-muted-foreground">Medio</p>
+                  <p className="font-medium capitalize text-xs">
                     {selectedVenta.medio_pago?.replace('_', ' ') ?? '—'}
                   </p>
                 </div>
                 {selectedVenta.cliente_nombre && (
                   <div className="col-span-2">
-                    <p className="text-sm text-muted-foreground">Cliente</p>
-                    <p className="font-medium">{selectedVenta.cliente_nombre}</p>
+                    <p className="text-muted-foreground">Cliente</p>
+                    <p className="font-medium text-xs">{selectedVenta.cliente_nombre}</p>
                   </div>
                 )}
               </div>
 
               <div className="flex flex-col flex-1 min-h-0">
-                <h3 className="font-semibold mb-3 flex-shrink-0">Productos</h3>
-                <div className="flex-1 overflow-y-auto space-y-2 max-h-[50vh]">
+                <h3 className="font-semibold text-sm py-1 flex-shrink-0">Productos</h3>
+                <div className="flex-1 overflow-y-auto space-y-1 max-h-[40vh]">
                   {selectedVenta.detalles.map((detalle, index) => (
                     <div
                       key={index}
-                      className="flex justify-between items-center p-3 bg-muted rounded-md"
+                      className="flex justify-between items-center p-2 bg-muted rounded-md text-xs"
                     >
                       <div>
-                        <p className="font-medium">{capitalizeWords(detalle.producto_nombre)}</p>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="font-medium text-xs">{capitalizeWords(detalle.producto_nombre)}</p>
+                        <p className="text-muted-foreground text-xs">
                           {detalle.cantidad} x {formatCurrency(detalle.precio_unitario, showCents)}
                         </p>
                       </div>
                       <div className="text-right">
-                        <div className="font-semibold">
+                        <div className="font-semibold text-xs">
                           {formatCurrency(detalle.subtotal, showCents)}
                         </div>
                       </div>
@@ -1171,9 +1175,9 @@ const clearFilters = () => {
                 </div>
               </div>
 
-              <div className="flex justify-between items-center p-4 bg-primary/10 rounded-lg flex-shrink-0">
-                <span className="text-xl font-bold">Total</span>
-                <span className="text-2xl font-bold text-primary">
+              <div className="flex justify-between items-center p-2 bg-primary/10 rounded-md flex-shrink-0">
+                <span className="font-bold text-sm">Total</span>
+                <span className="text-lg font-bold text-primary">
                   {formatCurrency(selectedVenta.total, showCents)}
                 </span>
               </div>
