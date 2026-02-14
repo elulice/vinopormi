@@ -35,6 +35,12 @@ const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [configMenuOpen, setConfigMenuOpen] = useState(false);
   const configMenuRef = useRef(null);
+  const [sidebarVisible, setSidebarVisible] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setSidebarVisible(true), 200);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -135,8 +141,8 @@ const Layout = () => {
         </div>
       </div>
 
-      {/* SIDEBAR - Responsv */}
-      <div className={getSidebarClasses()}>
+      {/* SIDEBAR - Responsive */}
+      <div className={`${!sidebarVisible ? 'hidden' : ''} ${getSidebarClasses()}`}>
         {/* Close button for mobile */}
         <div className="lg:hidden p-4 border-b border-gray-200 flex justify-end">
           <Button
@@ -323,6 +329,7 @@ const Layout = () => {
 
       {/* CONTENT */}
       <main className={`min-h-screen p-4 lg:p-8 overflow-x-auto pt-14 lg:pt-8 transition-all duration-300 ${
+        !sidebarVisible ? 'lg:ml-0' :
         sidebarWidth === 'compact' ? 'lg:ml-24' : 
         sidebarWidth === 'normal' ? 'lg:ml-56' : 
         'lg:ml-72'
