@@ -26,11 +26,16 @@ db = client[os.environ['DB_NAME']]
 
 # Rate limiting setup
 limiter = Limiter(key_func=get_remote_address)
-app = FastAPI()
+app = FastAPI(
+    root_path="/api",
+    openapi_url="/openapi.json",
+    docs_url="/docs",
+    redoc_url="/redoc"
+)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-api_router = APIRouter(prefix="/api")
+api_router = APIRouter()
 security = HTTPBearer()
 
 JWT_SECRET = os.environ.get('JWT_SECRET', 'vinoteca-secret-key-2024')
