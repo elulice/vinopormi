@@ -58,7 +58,7 @@ const Dashboard = () => {
         <p className="text-muted-foreground">Resumen de ventas del día</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 dashboard-stats-grid">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3 mt-3 !mt-3 dashboard-stats-grid">
         <Card 
           data-testid="card-total-vendido"
           className="cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-[1.02] relative"
@@ -209,7 +209,9 @@ const Dashboard = () => {
       )}
 
       {/* Sticky Notes Container */}
-      <StickyNotesContainer />
+      <div className="!mt-3">
+        <StickyNotesContainer />
+      </div>
     </div>
   );
 };

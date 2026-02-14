@@ -174,7 +174,7 @@ const Layout = () => {
               variant="ghost"
               size="sm"
               onClick={toggleSidebarWidth}
-              className="p-1 lg:block hidden"
+              className="p-1"
               title={`${sidebarWidth === 'compact' ? 'Expandir' : 'Comprimir'} sidebar`}
             >
               <ChevronRight className={`w-4 h-4 transition-transform ${sidebarWidth === 'expanded' ? 'rotate-180' : ''}`} />
