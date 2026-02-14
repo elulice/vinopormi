@@ -202,54 +202,55 @@ const Egresos = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {/* HEADER */}
-      <div className="flex flex-col md:flex-row justify-between gap-4">
+      <div className="flex flex-col md:flex-row justify-between gap-2">
         <div>
-          <h1 className="text-4xl font-bold mb-2">Egresos</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl font-bold">Egresos</h1>
+          <p className="text-sm text-muted-foreground">
             Gestiona los gastos y pagos de tu vinoteca
           </p>
         </div>
       </div>
 
       {/* FILTROS */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Filter className="w-5 h-5" />
+      <Card className="py-3">
+        <CardHeader className="py-2 pb-1">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Filter className="w-4 h-4" />
             Filtros
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <CardContent className="py-2 space-y-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {/* Tipo de filtro de fecha */}
-            <div className="space-y-2">
-              <Label>Período</Label>
+            <div className="space-y-1">
+              <Label className="text-xs">Período</Label>
               <Select
                 value={filters.dateType}
                 onValueChange={(value) =>
                   setFilters((prev) => ({ ...prev, dateType: value }))
                 }
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar período" />
+                <SelectTrigger className="h-7 text-xs">
+                  <SelectValue placeholder="Seleccionar" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos</SelectItem>
                   <SelectItem value="specific">Fecha específica</SelectItem>
-                  <SelectItem value="range">Rango de fechas</SelectItem>
+                  <SelectItem value="range">Rango</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             {/* Fecha específica */}
             {filters.dateType === 'specific' && (
-              <div className="space-y-2">
-                <Label>Fecha</Label>
+              <div className="space-y-1">
+                <Label className="text-xs">Fecha</Label>
                 <Input
                   type="date"
                   value={filters.specificDate}
+                  className="h-7 text-xs"
                   onChange={(e) =>
                     setFilters((prev) => ({ ...prev, specificDate: e.target.value }))
                   }
@@ -260,21 +261,23 @@ const Egresos = () => {
             {/* Rango de fechas */}
             {filters.dateType === 'range' && (
               <>
-                <div className="space-y-2">
-                  <Label>Fecha desde</Label>
+                <div className="space-y-1">
+                  <Label className="text-xs">Desde</Label>
                   <Input
                     type="date"
                     value={filters.startDate}
+                    className="h-7 text-xs"
                     onChange={(e) =>
                       setFilters((prev) => ({ ...prev, startDate: e.target.value }))
                     }
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>Fecha hasta</Label>
+                <div className="space-y-1">
+                  <Label className="text-xs">Hasta</Label>
                   <Input
                     type="date"
                     value={filters.endDate}
+                    className="h-7 text-xs"
                     onChange={(e) =>
                       setFilters((prev) => ({ ...prev, endDate: e.target.value }))
                   }
@@ -285,26 +288,26 @@ const Egresos = () => {
 
             {/* Botón limpiar filtros */}
             {(filters.dateType !== 'all' || filters.specificDate || filters.startDate || filters.endDate) && (
-              <div className="space-y-2">
-                <Label>&nbsp;</Label>
+              <div className="flex items-end">
                 <Button
                   variant="outline"
+                  size="sm"
                   onClick={clearFilters}
-                  className="w-full"
+                  className="h-7 text-xs w-full"
                 >
-                  <X className="w-4 h-4 mr-2" />
-                  Limpiar filtros
+                  <X className="w-3 h-3 mr-1" />
+                  Limpiar
                 </Button>
               </div>
             )}
           </div>
 
           {/* Estadísticas */}
-          <div className="flex items-center justify-between pt-4 border-t">
-            <div className="text-sm text-muted-foreground">
-              {filteredEgresos.length} egresos encontrados
+          <div className="flex items-center justify-between pt-2 border-t text-xs">
+            <div className="text-muted-foreground">
+              {filteredEgresos.length} egresos
             </div>
-            <div className="text-lg font-bold text-destructive">
+            <div className="font-bold text-destructive">
               Total: {formatCurrency(totalEgresos, showCents)}
             </div>
           </div>
@@ -312,14 +315,14 @@ const Egresos = () => {
       </Card>
 
       {/* BUSCADOR + BOTÓN AGREGAR */}
-      <div className="flex gap-3 items-center">
+      <div className="flex gap-2 items-center">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
           <Input
-            placeholder="Buscar egresos..."
+            placeholder="Buscar..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 w-64"
+            className="pl-7 h-7 text-sm w-40"
           />
         </div>
 
@@ -331,27 +334,22 @@ const Egresos = () => {
           }}
         >
           <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Nuevo Egreso
+            <Button size="sm" className="h-7 text-xs">
+              <Plus className="w-3 h-3 mr-1" />
+              Nuevo
             </Button>
           </DialogTrigger>
 
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
+          <DialogContent className="max-w-sm">
+            <DialogHeader className="py-3 px-4 border-b">
+              <DialogTitle className="text-lg">
                 {editingEgreso ? 'Editar Egreso' : 'Nuevo Egreso'}
               </DialogTitle>
-              <DialogDescription>
-                {editingEgreso
-                  ? 'Modifica los datos del egreso seleccionado'
-                  : 'Registra un nuevo egreso o gasto'}
-              </DialogDescription>
             </DialogHeader>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label>Descripción</Label>
+            <form onSubmit={handleSubmit} className="p-4 space-y-3">
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">Descripción</Label>
                 <Input
                   value={formData.descripcion}
                   onChange={(e) =>
@@ -359,34 +357,40 @@ const Egresos = () => {
                   }
                   required
                   placeholder="Ej: Pago a proveedor de vinos"
+                  className="h-8"
                 />
               </div>
 
-              <div>
-                <Label>Monto</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={formData.monto}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      monto: e.target.value,
-                    })
-                  }
-                  required
-                  placeholder="0.00"
-                />
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">Monto</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={formData.monto}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        monto: e.target.value,
+                      })
+                    }
+                    required
+                    placeholder="0.00"
+                    className="h-8 pl-6"
+                  />
+                </div>
               </div>
 
-              <div className="flex gap-2 pt-4">
-                <Button type="submit" className="flex-1">
-                  {editingEgreso ? 'Actualizar' : 'Crear'}
+              <div className="flex gap-2 pt-1">
+                <Button type="submit" className="flex-1 h-8">
+                  {editingEgreso ? 'Actualizar' : 'Crear Egreso'}
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setDialogOpen(false)}
+                  className="h-8"
                 >
                   Cancelar
                 </Button>
@@ -402,83 +406,80 @@ const Egresos = () => {
           { title: 'Descripción', width: '40%' },
           { title: 'Fecha', width: '20%' },
           { title: 'Monto', width: '20%' },
-          { title: 'Acciones', width: '20%' }
+          { title: 'Acción', width: '20%' }
         ]}
         rows={filteredEgresos}
         renderDesktopRow={(egreso, index) => (
           <tr key={egreso.id} className="border-b">
-            <td className="p-4">
-              <div className="flex items-center gap-3">
-                <TrendingDown className="w-4 h-4 text-destructive" />
-                {egreso.descripcion}
+            <td className="p-2">
+              <div className="flex items-center gap-2 text-sm">
+                <TrendingDown className="w-3 h-3 text-destructive" />
+                <span className="truncate">{egreso.descripcion}</span>
               </div>
             </td>
-            <td className="p-4 text-muted-foreground">
-              {format(new Date(egreso.fecha), 'dd/MM/yyyy', { locale: es })}
+            <td className="p-2 text-muted-foreground text-xs">
+              {format(new Date(egreso.fecha), 'dd/MM/yyyy')}
             </td>
-            <td className="p-4 font-semibold text-destructive">
+            <td className="p-2 font-semibold text-destructive text-xs">
                   {formatCurrency(egreso.monto, showCents)}
             </td>
-            <td className="p-4 text-right">
-              <div className="flex justify-end gap-2">
+            <td className="p-2 text-right">
+              <div className="flex justify-end gap-1">
                 <Button
                   size="sm"
-                  variant="outline"
+                  variant="ghost"
+                  className="h-6 text-xs px-1"
                   onClick={() => handleEdit(egreso)}
                 >
-                  <Pencil className="w-4 h-4 mr-1" />
-                  Editar
+                  <Pencil className="w-3 h-3" />
                 </Button>
                 <Button
                   size="sm"
-                  variant="outline"
-                  className="text-destructive"
+                  variant="ghost"
+                  className="h-6 text-xs px-1 text-destructive"
                   onClick={() => handleDelete(egreso.id)}
                 >
-                  <Trash2 className="w-4 h-4 mr-1" />
-                  Eliminar
+                  <Trash2 className="w-3 h-3" />
                 </Button>
               </div>
             </td>
           </tr>
         )}
         renderMobileCard={(egreso, index) => (
-          <div className="p-4">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 bg-destructive/10 rounded-lg flex items-center justify-center">
-                <TrendingDown className="w-5 h-5 text-destructive" />
+          <div className="p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 bg-destructive/10 rounded flex items-center justify-center">
+                <TrendingDown className="w-4 h-4 text-destructive" />
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold text-foreground">{egreso.descripcion}</h3>
-                <div className="text-lg font-bold text-destructive">
+                <h3 className="font-medium text-sm truncate">{egreso.descripcion}</h3>
+                <div className="font-bold text-destructive text-sm">
               {formatCurrency(egreso.monto, showCents)}
                 </div>
               </div>
             </div>
             
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-              <span>{format(new Date(egreso.fecha), 'dd/MM/yyyy', { locale: es })}</span>
-              <span>•</span>
-              <span>Egreso registrado</span>
+            <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+              <span>{format(new Date(egreso.fecha), 'dd/MM/yyyy')}</span>
             </div>
             
-            <div className="flex gap-2 pt-3 border-t">
+            <div className="flex gap-2 pt-2 border-t">
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => handleEdit(egreso)}
-                className="flex-1"
+                className="flex-1 h-7 text-xs"
               >
-                <Pencil className="w-4 h-4 mr-1" />
+                <Pencil className="w-3 h-3 mr-1" />
                 Editar
               </Button>
               <Button
                 size="sm"
                 variant="outline"
-                className="text-destructive flex-1"
+                className="text-destructive flex-1 h-7 text-xs"
                 onClick={() => handleDelete(egreso.id)}
               >
-                <Trash2 className="w-4 h-4 mr-1" />
+                <Trash2 className="w-3 h-3 mr-1" />
                 Eliminar
               </Button>
             </div>
@@ -488,13 +489,13 @@ const Egresos = () => {
 
       {/* ESTADO VACÍO */}
       {filteredEgresos.length === 0 && (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <TrendingDown className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">
+        <Card className="py-6">
+          <CardContent className="py-6 text-center">
+            <TrendingDown className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+            <p className="text-sm text-muted-foreground">
               {searchTerm
                 ? `No se encontraron egresos con "${searchTerm}"`
-                : 'No hay egresos registrados aún. Registra uno para empezar.'}
+                : 'No hay egresos registrados aún.'}
             </p>
           </CardContent>
         </Card>
