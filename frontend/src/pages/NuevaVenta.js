@@ -385,35 +385,35 @@ const NuevaVenta = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
-        <h1 className="text-4xl font-bold text-foreground mb-2">Nueva Venta</h1>
-        <p className="text-muted-foreground">Registra una nueva venta</p>
+        <h1 className="text-2xl font-bold text-foreground">Nueva Venta</h1>
+        <p className="text-sm text-muted-foreground">Registra una nueva venta</p>
       </div>
 
-      <form className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Información de la Venta</CardTitle>
+      <form className="space-y-4">
+        <Card className="py-3">
+          <CardHeader className="py-3 pb-2">
+            <CardTitle className="text-base">Información de la Venta</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-<div className="space-y-2">
-                <Label>Medio de Pago</Label>
-                <div className="grid grid-cols-2 gap-2">
+          <CardContent className="space-y-3 py-0">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label className="text-xs">Medio de Pago</Label>
+                <div className="grid grid-cols-4 gap-1">
                   <Button
                     type="button"
                     variant={medioPago === 'cuenta_corriente' ? 'default' : 'outline'}
                     onClick={() => setMedioPago('cuenta_corriente')}
-                    className="w-full"
+                    className="text-xs h-8"
                   >
-                    Cuenta Corriente
+                    Cta. Cte.
                   </Button>
                   <Button
                     type="button"
                     variant={medioPago === 'efectivo' ? 'default' : 'outline'}
                     onClick={() => setMedioPago('efectivo')}
-                    className="w-full"
+                    className="text-xs h-8"
                   >
                     Efectivo
                   </Button>
@@ -421,7 +421,7 @@ const NuevaVenta = () => {
                     type="button"
                     variant={medioPago === 'posnet' ? 'default' : 'outline'}
                     onClick={() => setMedioPago('posnet')}
-                    className="w-full"
+                    className="text-xs h-8"
                   >
                     PosNet
                   </Button>
@@ -429,18 +429,18 @@ const NuevaVenta = () => {
                     type="button"
                     variant={medioPago === 'transferencia' ? 'default' : 'outline'}
                     onClick={() => setMedioPago('transferencia')}
-                    className="w-full"
+                    className="text-xs h-8"
                   >
-                    Transferencia
+                    Transf.
                   </Button>
                 </div>
               </div>
 
               {medioPago === 'cuenta_corriente' && (
                 <div className="space-y-2">
-                  <Label htmlFor="cliente">Cliente</Label>
+                  <Label htmlFor="cliente" className="text-xs">Cliente</Label>
                   <Select value={clienteId} onValueChange={setClienteId}>
-                    <SelectTrigger id="cliente" data-testid="cliente-select">
+                    <SelectTrigger id="cliente" data-testid="cliente-select" className="h-8">
                       <SelectValue placeholder="Selecciona un cliente" />
                     </SelectTrigger>
                     <SelectContent>
@@ -457,61 +457,58 @@ const NuevaVenta = () => {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <CardTitle>Productos</CardTitle>
+        <Card className="py-3">
+          <CardHeader className="py-2 pb-1">
+            <div className="flex justify-between items-center py-1">
+              <CardTitle className="text-base">Productos</CardTitle>
               <div className="flex gap-2">
                 <Button 
                   type="button" 
                   onClick={refreshProductos} 
                   size="sm" 
                   variant="outline"
+                  className="h-7 text-xs"
                   disabled={refreshingProductos}
                 >
-                  <RefreshCw className={`w-4 h-4 mr-2 ${refreshingProductos ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`w-3 h-3 mr-1 ${refreshingProductos ? 'animate-spin' : ''}`} />
                   {refreshingProductos ? 'Actualizando...' : 'Actualizar'}
                 </Button>
-                <Button type="button" onClick={agregarDetalle} size="sm" data-testid="add-detalle-button">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Agregar Producto
+                <Button type="button" onClick={agregarDetalle} size="sm" className="h-7 text-xs" data-testid="add-detalle-button">
+                  <Plus className="w-3 h-3 mr-1" />
+                  Agregar
                 </Button>
               </div>
             </div>
           </CardHeader>
-<CardContent>
+          <CardContent className="py-2">
             {detalles.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">
+              <p className="text-center text-muted-foreground py-4 text-sm">
                 No hay productos. Agrega uno para empezar.
               </p>
             ) : (
               <div>
-                 {/* Encabezado fijo con títulos */}
-                <div className="flex gap-4 items-end pb-3 mb-4 border-b">
-                  <div className="flex-1">
-                    <Label className="font-semibold">Producto</Label>
+                <div className="flex gap-2 items-end pb-2 mb-2 border-b">
+                  <div className="flex-[2]">
+                    <Label className="text-xs font-semibold">Producto</Label>
                   </div>
-                  <div className="w-24 text-left">
-                    <Label className="font-semibold">Cantidad</Label>
+                  <div className="w-16">
+                    <Label className="text-xs font-semibold">Cant.</Label>
                   </div>
-                  <div className="w-32 text-left">
-                    <Label className="font-semibold">Subtotal</Label>
+                  <div className="w-24 text-right">
+                    <Label className="text-xs font-semibold">Subtotal</Label>
                   </div>
-                  <div className="w-12">
-                    {/* Espacio para alinear con el botón de eliminar */}
+                  <div className="w-8">
                   </div>
                 </div>
-                {/* Lista de productos */}
                 <div className="space-y-1">
                   {detalles.map((detalle, index) => (
-                      <div key={index} className="flex gap-4 items-center p-4 bg-muted rounded-lg" data-testid={`detalle-${index}`}>
-                        <div className="flex-1">
+                      <div key={index} className="flex gap-2 items-center p-2 bg-muted rounded-md" data-testid={`detalle-${index}`}>
+                        <div className="flex-[2]">
                           <div className="relative">
                           {detalle.producto_id ? (
-                            // Si el producto ya está seleccionado, mostrarlo como campo de solo lectura
-                             <div className="h-9 px-3 py-2 bg-muted border rounded-md flex items-center font-medium">
+                             <div className="h-7 px-2 py-1 bg-muted border rounded-md flex items-center font-medium text-sm">
                               {capitalizeWords(detalle.producto_nombre)}
-                              <div className="ml-auto text-right">
+                              <div className="ml-auto text-right text-xs">
                                 {(() => {
                                   const producto = productos.find(p => p.id === detalle.producto_id);
                                   const tieneDescuento = producto && producto.descuento_cantidad_minima && producto.descuento_precio_unitario && detalle.cantidad >= producto.descuento_cantidad_minima;
@@ -520,11 +517,11 @@ const NuevaVenta = () => {
                                     return (
                                       <>
                                         <span className="text-muted-foreground text-xs line-through">
-                                          ${detalle.precio_unitario} c/u
+                                          ${detalle.precio_unitario}
                                         </span>
-                                         <div className="text-xs text-green-500 font-bold pb-1">
-                                           ¡Descuento! ${producto.descuento_precio_unitario} c/u
-                                         </div>
+                                          <div className="text-green-500 font-bold">
+                                            ${producto.descuento_precio_unitario}
+                                          </div>
                                       </>
                                     );
                                   } else {
@@ -538,12 +535,11 @@ const NuevaVenta = () => {
                               </div>
                             </div>
                           ) : (
-                            // Si no hay producto seleccionado, mostrar el campo de búsqueda
                             <>
                               <div className="relative">
                                 <Input
                                   ref={el => searchRefs.current[index] = el}
-                                  placeholder="Buscar producto..."
+                                  placeholder="Buscar..."
                                   value={activeDetalleIndex === index ? productoSearchTerm : ''}
                                   onChange={(e) => {
                                     setProductoSearchTerm(e.target.value);
@@ -554,81 +550,78 @@ const NuevaVenta = () => {
                                     setProductoSearchTerm('');
                                   }}
                                   onKeyDown={(e) => handleKeyDown(e, index)}
-                                  className="pr-4"
+                                  className="h-7 text-sm pr-8"
                                 />
                                 {activeDetalleIndex === index && (
-                                  <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 pointer-events-none" />
+                                  <Search className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground w-3 h-3 pointer-events-none" />
                                 )}
                                 {activeDetalleIndex === index && productoSearchTerm && (
-                                  <div className="absolute z-10 left-0 right-0 mt-1 bg-background border rounded-md shadow-lg max-h-48 overflow-auto">
-                           {filteredProductos.length > 0 ? (
-                              filteredProductos.map((producto, resultIndex) => (
-                               <div
-                                 key={producto.id}
-                                 ref={el => resultRefs.current[resultIndex] = el}
-                                  className={`px-3 py-2 hover:bg-blue-50 cursor-pointer flex justify-between items-center transition-colors ${
-                                    resultIndex === selectedResultIndex ? 'bg-blue-100 border-l-4 border-blue-500' : ''
-                                  }`}
-                                 onClick={() => {
-                                   actualizarDetalle(index, 'producto_id', producto.id);
-                                   setProductoSearchTerm('');
-                                   setActiveDetalleIndex(null);
-                                   setSelectedResultIndex(0);
-                                   resultRefs.current = []; // Limpiar referencias
-                                   // Focus on quantity field after product selection
-                                   setTimeout(() => {
-                                     if (cantidadRefs.current[index]) {
-                                       cantidadRefs.current[index].focus();
-                                       cantidadRefs.current[index].select();
-                                     }
-                                   }, 100);
-                                 }}
-                               >
-                                 <div>
-                                   <span>{capitalizeWords(producto.nombre)} - ${producto.precio_unitario}</span>
-                                   <div className="text-sm text-muted-foreground">
-                                     {producto.descuento_cantidad_minima && producto.descuento_precio_unitario && (
-                                       <div className="text-xs text-green-600 font-medium">
-                                         ≥{producto.descuento_cantidad_minima}: ${producto.descuento_precio_unitario} c/u
-                                       </div>
-                                     )}
-                                   </div>
-                                 </div>
-                               </div>
-                             ))
-                           ) : (
-                             <div className="px-3 py-2 text-sm text-muted-foreground">
-                               {productos.length === 0 
-                                 ? 'No hay productos disponibles' 
-                                 : 'Todos los productos ya están agregados o no coinciden con la búsqueda'}
-                             </div>
-                            )}
+                                  <div className="absolute z-10 left-0 right-0 mt-1 bg-background border rounded-md shadow-lg max-h-40 overflow-auto">
+                          {filteredProductos.length > 0 ? (
+                             filteredProductos.map((producto, resultIndex) => (
+                              <div
+                                key={producto.id}
+                                ref={el => resultRefs.current[resultIndex] = el}
+                                className={`px-2 py-1.5 hover:bg-blue-50 cursor-pointer flex justify-between items-center transition-colors text-sm ${
+                                  resultIndex === selectedResultIndex ? 'bg-blue-100 border-l-4 border-blue-500' : ''
+                                }`}
+                                onClick={() => {
+                                  actualizarDetalle(index, 'producto_id', producto.id);
+                                  setProductoSearchTerm('');
+                                  setActiveDetalleIndex(null);
+                                  setSelectedResultIndex(0);
+                                  resultRefs.current = [];
+                                  setTimeout(() => {
+                                    if (cantidadRefs.current[index]) {
+                                      cantidadRefs.current[index].focus();
+                                      cantidadRefs.current[index].select();
+                                    }
+                                  }, 100);
+                                }}
+                              >
+                                <div>
+                                  <span>{capitalizeWords(producto.nombre)} - ${producto.precio_unitario}</span>
+                                  {producto.descuento_cantidad_minima && producto.descuento_precio_unitario && (
+                                    <div className="text-xs text-green-600 font-medium">
+                                      ≥{producto.descuento_cantidad_minima}: ${producto.descuento_precio_unitario}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                              {productos.length === 0 
+                                ? 'No hay productos' 
+                                : 'Todos agregados o no coinciden'}
+                            </div>
+                          )}
                                   </div>
                                 )}
                               </div>
                               </>
-                            )}
+                          )}
                           </div>
 
                         {(!detalle.producto_id && !activeDetalleIndex === index) && (
-                         <Select
-                           value={detalle.producto_id}
-                           onValueChange={(value) => actualizarDetalle(index, 'producto_id', value)}
-                         >
-                           <SelectTrigger className="w-full" data-testid={`producto-select-${index}`}>
-                             <SelectValue placeholder="Selecciona un producto" />
-                           </SelectTrigger>
-                           <SelectContent>
-                             {getProductosDisponibles().map(producto => (
-                               <SelectItem key={producto.id} value={producto.id}>
-                                 {capitalizeWords(producto.nombre)} - ${producto.precio_unitario}
-                               </SelectItem>
-                             ))}
-                           </SelectContent>
-                         </Select>
-                       )}
+                        <Select
+                          value={detalle.producto_id}
+                          onValueChange={(value) => actualizarDetalle(index, 'producto_id', value)}
+                        >
+                          <SelectTrigger className="h-7 text-sm" data-testid={`producto-select-${index}`}>
+                            <SelectValue placeholder="Selecciona" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {getProductosDisponibles().map(producto => (
+                              <SelectItem key={producto.id} value={producto.id}>
+                                {capitalizeWords(producto.nombre)} - ${producto.precio_unitario}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                         </div>
-                        <div className="w-24">
+                        <div className="w-16">
                           <Input
                             ref={el => cantidadRefs.current[index] = el}
                             type="number"
@@ -638,33 +631,33 @@ const NuevaVenta = () => {
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') {
                                 e.preventDefault();
-                                // Add new product row and focus on search field
                                 setTimeout(() => {
                                   agregarDetalle();
                                 }, 100);
                               }
                             }}
+                            className="h-7 text-sm"
                             data-testid={`cantidad-input-${index}`}
                           />
-
                         </div>
-                        <div className="w-32 text-right">
-                          <div className="h-9 px-3 py-2 bg-background border rounded-md flex items-center justify-end font-semibold">
+                        <div className="w-24 text-right">
+                          <div className="h-7 px-2 py-1 bg-background border rounded-md flex items-center justify-end font-semibold text-sm">
                             {formatCurrency(detalle.subtotal, showCents)}
                           </div>
                         </div>
-                        <div className="w-10 flex justify-center">
+                        <div className="w-8 flex justify-center">
                           <Button
                             type="button"
                             variant="destructive"
                             size="icon"
+                            className="h-6 w-6"
                             onClick={() => eliminarDetalle(index)}
                             data-testid={`remove-detalle-${index}`}
                           >
-                            <Trash2 className="w-4 h-4" />
-                           </Button>
-                         </div>
-                       </div>
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </div>
                   ))}
                 </div>
               </div>
@@ -672,18 +665,18 @@ const NuevaVenta = () => {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex justify-between items-center mb-6">
-              <span className="text-2xl font-bold">Total:</span>
-              <span className="text-3xl font-bold text-primary" data-testid="total-venta">
+        <Card className="py-3">
+          <CardContent className="py-2">
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-lg font-bold">Total:</span>
+              <span className="text-2xl font-bold text-primary" data-testid="total-venta">
                 {formatCurrency(calcularTotal(), showCents)}
               </span>
             </div>
-            <div className="flex gap-4">
+            <div className="flex gap-2">
               <Button
                 type="button"
-                className="flex-1"
+                className="flex-1 h-9"
                 onClick={handleSubmit}
                 disabled={loading || detalles.length === 0}
                 data-testid="submit-venta-button"
@@ -695,6 +688,7 @@ const NuevaVenta = () => {
                 type="button"
                 variant="outline"
                 onClick={resetForm}
+                className="h-9"
               >
                 Cancelar
               </Button>
