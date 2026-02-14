@@ -79,3 +79,5 @@ agenthub/agents/youtube/db
 # Mobile development
 android-sdk/ 
 frontend/frontend.rar
+backend/run_backend.bat
+backend/backend_log.txt
