@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, ShoppingCart, Search, RefreshCw, X } from 'lucide-react';
+import { Plus, Trash2, ShoppingCart, Search, RefreshCw, X, Split } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency, formatNumber } from '@/lib/currency';
 import { capitalizeWords } from '@/lib/utils';
@@ -43,6 +43,7 @@ const NuevaVenta = () => {
     { medio: 'efectivo', monto: '' },
     { medio: 'transferencia', monto: '' }
   ]);
+  const [multiplesPagos, setMultiplesPagos] = useState(false);
   
   // Aplicar debouncing al término de búsqueda de productos (300ms)
   const debouncedProductoSearchTerm = useDebounce(productoSearchTerm, 300);
@@ -110,34 +111,41 @@ const NuevaVenta = () => {
     return detalles.reduce((sum, d) => sum + d.subtotal, 0);
   }, [detalles]);
 
-  // Efecto para actualizar los montos cuando cambian los productos
+  // Efecto para actualizar los montos cuando cambian los productos (solo si hay múltiples pagos activo)
   useEffect(() => {
     const total = calcularTotal();
     if (total <= 0) return;
     
     setPagos(prev => {
       const nuevosPagos = [...prev];
-      const monto0 = nuevosPagos[0].monto === '' || nuevosPagos[0].monto === null ? 0 : nuevosPagos[0].monto;
-      const monto1 = nuevosPagos[1].monto === '' || nuevosPagos[1].monto === null ? 0 : nuevosPagos[1].monto;
       
-      // Si hay monto en el segundo campo, mantenerlo y recalcular el primero
-      if (monto1 > 0) {
-        if (total >= monto1) {
-          nuevosPagos[0].monto = parseFloat((total - monto1).toFixed(2));
+      // Solo auto-calcular si múltiples pagos está activo
+      if (multiplesPagos) {
+        const monto0 = nuevosPagos[0].monto === '' || nuevosPagos[0].monto === null ? 0 : nuevosPagos[0].monto;
+        const monto1 = nuevosPagos[1].monto === '' || nuevosPagos[1].monto === null ? 0 : nuevosPagos[1].monto;
+        
+        // Si hay monto en el segundo campo, mantenerlo y recalcular el primero
+        if (monto1 > 0) {
+          if (total >= monto1) {
+            nuevosPagos[0].monto = parseFloat((total - monto1).toFixed(2));
+          }
+        } 
+        // Si solo hay monto en el primero, actualizar al nuevo total
+        else if (monto0 > 0) {
+          nuevosPagos[0].monto = total;
         }
-      } 
-      // Si solo hay monto en el primero, actualizar al nuevo total
-      else if (monto0 > 0) {
-        nuevosPagos[0].monto = total;
-      }
-      // Si no hay montos, poner el total en efectivo
-      else {
+        // Si no hay montos, poner el total en efectivo
+        else {
+          nuevosPagos[0].monto = total;
+        }
+      } else {
+        // Modo simple: solo el primer pago
         nuevosPagos[0].monto = total;
       }
       
       return nuevosPagos;
     });
-  }, [detalles]);
+  }, [detalles, multiplesPagos]);
 
   // Actualizar monto de un pago específico con auto-cálculo del otro campo
   const actualizarPagoMonto = (index, value) => {
@@ -148,20 +156,22 @@ const NuevaVenta = () => {
       const nuevosPagos = [...prev];
       const otroIndex = index === 0 ? 1 : 0;
       
-      // Si se borra el monto (vacío), poner el total en el otro campo
+      // Si se borra el monto (vacío), poner el total en el otro campo (solo si múltiples pagos activo)
       if (montoIngresado === '') {
         nuevosPagos[index] = { ...nuevosPagos[index], monto: '' };
-        // Si el otro campo tiene un medio de pago, poner el total ahí
-        if (nuevosPagos[otroIndex].medio) {
+        if (multiplesPagos && nuevosPagos[otroIndex].medio) {
           nuevosPagos[otroIndex].monto = total;
         }
       } else if (!isNaN(montoIngresado)) {
-        // Si hay un monto válido, actualizar y calcular el otro
+        // Si hay un monto válido, actualizar
         nuevosPagos[index] = { ...nuevosPagos[index], monto: montoIngresado };
-        const remanente = total - montoIngresado;
         
-        if (remanente >= 0) {
-          nuevosPagos[otroIndex].monto = parseFloat(remanente.toFixed(2));
+        // Solo auto-calcular el otro campo si múltiples pagos está activo
+        if (multiplesPagos) {
+          const remanente = total - montoIngresado;
+          if (remanente >= 0) {
+            nuevosPagos[otroIndex].monto = parseFloat(remanente.toFixed(2));
+          }
         }
       }
       
@@ -340,6 +350,7 @@ const NuevaVenta = () => {
       { medio: 'efectivo', monto: '' },
       { medio: 'transferencia', monto: '' }
     ]);
+    setMultiplesPagos(false);
     // Auto-focus on first product search field
     setTimeout(() => {
       if (searchRefs.current[0]) {
@@ -451,14 +462,15 @@ const NuevaVenta = () => {
     }
 
     // Validar que haya al menos un medio de pago seleccionado
-    const pagosValidos = pagos.filter(p => p.medio && p.monto > 0);
+    const pagosAMostrar = multiplesPagos ? pagos : [pagos[0]];
+    const pagosValidos = pagosAMostrar.filter(p => p.medio && p.monto > 0);
     if (pagosValidos.length === 0) {
       toast.error('Ingresa al menos un medio de pago');
       return;
     }
 
     // Validar cliente si hay cuenta corriente
-    const tieneCuentaCorriente = pagos.some(p => p.medio === 'cuenta_corriente');
+    const tieneCuentaCorriente = pagosAMostrar.some(p => p.medio === 'cuenta_corriente');
     if (tieneCuentaCorriente && !clienteId) {
       toast.error('Selecciona un cliente para cuenta corriente');
       return;
@@ -468,7 +480,7 @@ const NuevaVenta = () => {
 
     try {
       const data = {
-        pagos: pagosValidos.map(p => ({
+        pagos: pagosAMostrar.filter(p => p.medio && p.monto > 0).map(p => ({
           medio_pago: p.medio,
           monto: parseFloat(p.monto)
         })),
@@ -522,19 +534,84 @@ const NuevaVenta = () => {
           <CardContent className="space-y-3 py-0">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label className="text-xs">Medios de Pago</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Medios de Pago</Label>
+                  <div className="flex bg-muted rounded-md p-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setMultiplesPagos(false)}
+                      className={`text-xs px-2 py-1 rounded transition-colors ${
+                        !multiplesPagos ? 'bg-background shadow-sm' : 'text-muted-foreground'
+                      }`}
+                    >
+                      Simple
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMultiplesPagos(true)}
+                      className={`text-xs px-2 py-1 rounded transition-colors ${
+                        multiplesPagos ? 'bg-background shadow-sm' : 'text-muted-foreground'
+                      }`}
+                    >
+                      Múltiple
+                    </button>
+                  </div>
+                </div>
                 <div className="space-y-2">
-                  {pagos.map((pago, index) => (
-                    <div key={index} className="flex gap-2 items-center">
+                  {/* Primer pago - siempre visible */}
+                  <div className="flex gap-2 items-center">
+                    <Select 
+                      value={pagos[0].medio} 
+                      onValueChange={(value) => actualizarPagoMedio(0, value)}
+                    >
+                      <SelectTrigger className="h-8 w-32 text-xs">
+                        <SelectValue placeholder="Medio" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getMediosDisponibles(0).map(medio => (
+                          <SelectItem key={medio} value={medio}>
+                            {medio === 'efectivo' ? 'Efectivo' : 
+                             medio === 'posnet' ? 'PosNet' : 
+                             medio === 'transferencia' ? 'Transferencia' : 'Cta. Cte.'}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="relative flex-1">
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">$</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0"
+                        value={pagos[0].monto}
+                        onChange={(e) => actualizarPagoMonto(0, e.target.value)}
+                        className="h-8 pl-5 pr-7 text-xs [-moz-appearance:_textfield] [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                      {pagos[0].monto !== '' && (
+                        <button
+                          type="button"
+                          onClick={() => actualizarPagoMonto(0, '')}
+                          className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Segundo pago - solo visible cuando múltiples pagos está activo */}
+                  {multiplesPagos && (
+                    <div className="flex gap-2 items-center">
                       <Select 
-                        value={pago.medio} 
-                        onValueChange={(value) => actualizarPagoMedio(index, value)}
+                        value={pagos[1].medio} 
+                        onValueChange={(value) => actualizarPagoMedio(1, value)}
                       >
                         <SelectTrigger className="h-8 w-32 text-xs">
                           <SelectValue placeholder="Medio" />
                         </SelectTrigger>
                         <SelectContent>
-                          {getMediosDisponibles(index).map(medio => (
+                          {getMediosDisponibles(1).map(medio => (
                             <SelectItem key={medio} value={medio}>
                               {medio === 'efectivo' ? 'Efectivo' : 
                                medio === 'posnet' ? 'PosNet' : 
@@ -550,14 +627,14 @@ const NuevaVenta = () => {
                           step="0.01"
                           min="0"
                           placeholder="0"
-                          value={pago.monto}
-                          onChange={(e) => actualizarPagoMonto(index, e.target.value)}
+                          value={pagos[1].monto}
+                          onChange={(e) => actualizarPagoMonto(1, e.target.value)}
                           className="h-8 pl-5 pr-7 text-xs [-moz-appearance:_textfield] [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none"
                         />
-                        {pago.monto !== '' && (
+                        {pagos[1].monto !== '' && (
                           <button
                             type="button"
-                            onClick={() => actualizarPagoMonto(index, '')}
+                            onClick={() => actualizarPagoMonto(1, '')}
                             className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                           >
                             <X className="w-3 h-3" />
@@ -565,7 +642,7 @@ const NuevaVenta = () => {
                         )}
                       </div>
                     </div>
-                  ))}
+                  )}
                   
                   {/* Totales */}
                   <div className="flex justify-between items-center pt-2 border-t text-xs">
