@@ -186,7 +186,14 @@ const fetchVentas = useCallback(async () => {
     
     // Filtrar por medio de pago
     if (filters.medioPago !== 'all') {
-      filtered = filtered.filter(venta => venta.medio_pago === filters.medioPago);
+      filtered = filtered.filter(venta => {
+        // Si tiene pagos múltiples, verificar si alguno coincide
+        if (venta.pagos && venta.pagos.length > 0) {
+          return venta.pagos.some(p => p.medio_pago === filters.medioPago);
+        }
+        // Si no, usar el medio_pago tradicional
+        return venta.medio_pago === filters.medioPago;
+      });
     }
     
     // Filtrar por usuario
@@ -538,7 +545,17 @@ const clearFilters = () => {
         {venta.usuario_nombre || 'Usuario desconocido'}
       </div>
       <div className="col-span-1 flex items-center">
-        <span className="text-xs capitalize">{venta.medio_pago.replace('_', ' ')}</span>
+        {venta.pagos && venta.pagos.length > 0 ? (
+          <div className="text-xs">
+            {venta.pagos.map((pago, idx) => (
+              <div key={idx} className="capitalize">
+                {pago.medio_pago?.replace('_', ' ')}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <span className="text-xs capitalize">{venta.medio_pago.replace('_', ' ')}</span>
+        )}
       </div>
       <div className="col-span-1 flex items-center justify-center">
         <Button
@@ -654,7 +671,17 @@ const clearFilters = () => {
                   {venta.usuario_nombre || 'Usuario desconocido'}
                 </div>
                 <div className="col-span-1">
-                  <span className="text-sm capitalize">{venta.medio_pago.replace('_', ' ')}</span>
+                  {venta.pagos && venta.pagos.length > 0 ? (
+                    <div className="text-sm">
+                      {venta.pagos.map((pago, idx) => (
+                        <div key={idx} className="capitalize">
+                          {pago.medio_pago?.replace('_', ' ')}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-sm capitalize">{venta.medio_pago.replace('_', ' ')}</span>
+                  )}
                 </div>
                 <div className="col-span-1">
                   <Button
@@ -1138,10 +1165,20 @@ const clearFilters = () => {
                   </p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Medio</p>
-                  <p className="font-medium capitalize text-xs">
-                    {selectedVenta.medio_pago?.replace('_', ' ') ?? '—'}
-                  </p>
+                  <p className="text-muted-foreground">Medio de Pago</p>
+                  {selectedVenta.pagos && selectedVenta.pagos.length > 0 ? (
+                    <div className="font-medium text-xs">
+                      {selectedVenta.pagos.map((pago, idx) => (
+                        <div key={idx} className="capitalize">
+                          {pago.medio_pago?.replace('_', ' ')}: {formatCurrency(pago.monto, showCents)}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="font-medium capitalize text-xs">
+                      {selectedVenta.medio_pago?.replace('_', ' ') ?? '—'}
+                    </p>
+                  )}
                 </div>
                 {selectedVenta.cliente_nombre && (
                   <div className="col-span-2">

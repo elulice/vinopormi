@@ -37,6 +37,12 @@ const NuevaVenta = () => {
   const [productoSearchTerm, setProductoSearchTerm] = useState('');
   const [refreshingProductos, setRefreshingProductos] = useState(false);
   const [activeDetalleIndex, setActiveDetalleIndex] = useState(null);
+
+  // Estado para múltiples pagos
+  const [pagos, setPagos] = useState([
+    { medio: 'efectivo', monto: '' },
+    { medio: 'transferencia', monto: '' }
+  ]);
   
   // Aplicar debouncing al término de búsqueda de productos (300ms)
   const debouncedProductoSearchTerm = useDebounce(productoSearchTerm, 300);
@@ -98,6 +104,102 @@ const NuevaVenta = () => {
     fetchProductos();
     fetchClientes();
   }, [fetchClientes, fetchProductos]);
+
+  // Calcular total de la venta
+  const calcularTotal = useCallback(() => {
+    return detalles.reduce((sum, d) => sum + d.subtotal, 0);
+  }, [detalles]);
+
+  // Efecto para actualizar los montos cuando cambian los productos
+  useEffect(() => {
+    const total = calcularTotal();
+    if (total <= 0) return;
+    
+    setPagos(prev => {
+      const nuevosPagos = [...prev];
+      const monto0 = nuevosPagos[0].monto === '' || nuevosPagos[0].monto === null ? 0 : nuevosPagos[0].monto;
+      const monto1 = nuevosPagos[1].monto === '' || nuevosPagos[1].monto === null ? 0 : nuevosPagos[1].monto;
+      
+      // Si hay monto en el segundo campo, mantenerlo y recalcular el primero
+      if (monto1 > 0) {
+        if (total >= monto1) {
+          nuevosPagos[0].monto = parseFloat((total - monto1).toFixed(2));
+        }
+      } 
+      // Si solo hay monto en el primero, actualizar al nuevo total
+      else if (monto0 > 0) {
+        nuevosPagos[0].monto = total;
+      }
+      // Si no hay montos, poner el total en efectivo
+      else {
+        nuevosPagos[0].monto = total;
+      }
+      
+      return nuevosPagos;
+    });
+  }, [detalles]);
+
+  // Actualizar monto de un pago específico con auto-cálculo del otro campo
+  const actualizarPagoMonto = (index, value) => {
+    const montoIngresado = value === '' ? '' : parseFloat(value);
+    const total = calcularTotal();
+    
+    setPagos(prev => {
+      const nuevosPagos = [...prev];
+      nuevosPagos[index] = { ...nuevosPagos[index], monto: montoIngresado };
+      
+      // Auto-calcular el otro campo
+      if (montoIngresado !== '' && !isNaN(montoIngresado)) {
+        const otroIndex = index === 0 ? 1 : 0;
+        const montoOtro = montoIngresado;
+        const remanente = total - montoOtro;
+        
+        if (remanente >= 0) {
+          nuevosPagos[otroIndex].monto = parseFloat(remanente.toFixed(2));
+        }
+      }
+      
+      return nuevosPagos;
+    });
+  };
+
+  // Actualizar medio de pago (no permitir duplicados)
+  const actualizarPagoMedio = (index, medio) => {
+    setPagos(prev => {
+      const nuevosPagos = [...prev];
+      const otroIndex = index === 0 ? 1 : 0;
+      
+      // Si el otro tiene el mismo medio, limpiarlo
+      if (prev[otroIndex].medio === medio) {
+        nuevosPagos[otroIndex] = { ...nuevosPagos[otroIndex], medio: '' };
+      }
+      
+      nuevosPagos[index] = { ...nuevosPagos[index], medio };
+      return nuevosPagos;
+    });
+  };
+
+  // Obtener medios de pago disponibles para un select
+  const getMediosDisponibles = (index) => {
+    const medios = ['efectivo', 'posnet', 'transferencia', 'cuenta_corriente'];
+    const otroMedio = index === 0 ? pagos[1].medio : pagos[0].medio;
+    return medios.filter(m => m !== otroMedio);
+  };
+
+  // Obtener monto total de pagos
+  const getTotalPagos = () => {
+    return pagos.reduce((sum, p) => sum + (p.monto === '' || p.monto === null ? 0 : p.monto), 0);
+  };
+
+  // Obtener diferencia (pendiente)
+  const getDiferencia = () => {
+    return calcularTotal() - getTotalPagos();
+  };
+
+  // Verificar si los pagos cuadran
+  const pagosCuadran = () => {
+    return Math.abs(getDiferencia()) < 0.01;
+  };
 
   const handleKeyDown = (e, index) => {
     if (!activeDetalleIndex === index || !productoSearchTerm) return;
@@ -228,6 +330,10 @@ const NuevaVenta = () => {
     setProductoSearchTerm('');
     setActiveDetalleIndex(0); // Set focus on first product search field
     setSelectedResultIndex(0);
+    setPagos([
+      { medio: 'efectivo', monto: '' },
+      { medio: 'transferencia', monto: '' }
+    ]);
     // Auto-focus on first product search field
     setTimeout(() => {
       if (searchRefs.current[0]) {
@@ -283,10 +389,6 @@ const NuevaVenta = () => {
     setDetalles(nuevosDetalles);
   };
 
-  const calcularTotal = useCallback(() => {
-    return detalles.reduce((sum, d) => sum + d.subtotal, 0);
-  }, [detalles]);
-
   const isProductoYaAgregado = useCallback((productoId) => {
     return detalles.some(detalle => detalle.producto_id === productoId);
   }, [detalles]);
@@ -336,10 +438,22 @@ const NuevaVenta = () => {
       return;
     }
 
+    // Validar que los pagos cuadren
+    if (!pagosCuadran()) {
+      toast.error('Los montos de pago no cuadran con el total');
+      return;
+    }
 
+    // Validar que haya al menos un medio de pago seleccionado
+    const pagosValidos = pagos.filter(p => p.medio && p.monto > 0);
+    if (pagosValidos.length === 0) {
+      toast.error('Ingresa al menos un medio de pago');
+      return;
+    }
 
-    // Validación de medio de pago y cliente
-    if (medioPago === 'cuenta_corriente' && !clienteId) {
+    // Validar cliente si hay cuenta corriente
+    const tieneCuentaCorriente = pagos.some(p => p.medio === 'cuenta_corriente');
+    if (tieneCuentaCorriente && !clienteId) {
       toast.error('Selecciona un cliente para cuenta corriente');
       return;
     }
@@ -348,8 +462,11 @@ const NuevaVenta = () => {
 
     try {
       const data = {
-        medio_pago: medioPago,
-        cliente_id: medioPago === 'cuenta_corriente' ? clienteId : null,
+        pagos: pagosValidos.map(p => ({
+          medio_pago: p.medio,
+          monto: parseFloat(p.monto)
+        })),
+        cliente_id: tieneCuentaCorriente ? clienteId : null,
         detalles: productosValidos.map(d => {
           const producto = productos.find(p => p.id === d.producto_id);
           let precioUnitarioAplicado = d.precio_unitario;
@@ -399,44 +516,56 @@ const NuevaVenta = () => {
           <CardContent className="space-y-3 py-0">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label className="text-xs">Medio de Pago</Label>
-                <div className="grid grid-cols-4 gap-1">
-                  <Button
-                    type="button"
-                    variant={medioPago === 'cuenta_corriente' ? 'default' : 'outline'}
-                    onClick={() => setMedioPago('cuenta_corriente')}
-                    className="text-xs h-8"
-                  >
-                    Cta. Cte.
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={medioPago === 'efectivo' ? 'default' : 'outline'}
-                    onClick={() => setMedioPago('efectivo')}
-                    className="text-xs h-8"
-                  >
-                    Efectivo
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={medioPago === 'posnet' ? 'default' : 'outline'}
-                    onClick={() => setMedioPago('posnet')}
-                    className="text-xs h-8"
-                  >
-                    PosNet
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={medioPago === 'transferencia' ? 'default' : 'outline'}
-                    onClick={() => setMedioPago('transferencia')}
-                    className="text-xs h-8"
-                  >
-                    Transf.
-                  </Button>
+                <Label className="text-xs">Medios de Pago</Label>
+                <div className="space-y-2">
+                  {pagos.map((pago, index) => (
+                    <div key={index} className="flex gap-2 items-center">
+                      <Select 
+                        value={pago.medio} 
+                        onValueChange={(value) => actualizarPagoMedio(index, value)}
+                      >
+                        <SelectTrigger className="h-8 w-32 text-xs">
+                          <SelectValue placeholder="Medio" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {getMediosDisponibles(index).map(medio => (
+                            <SelectItem key={medio} value={medio}>
+                              {medio === 'efectivo' ? 'Efectivo' : 
+                               medio === 'posnet' ? 'PosNet' : 
+                               medio === 'transferencia' ? 'Transferencia' : 'Cta. Cte.'}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <div className="relative flex-1">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">$</span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="0"
+                          value={pago.monto}
+                          onChange={(e) => actualizarPagoMonto(index, e.target.value)}
+                          className="h-8 pl-5 text-xs"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {/* Totales */}
+                  <div className="flex justify-between items-center pt-2 border-t text-xs">
+                    <div>
+                      <span className="text-muted-foreground">Total: </span>
+                      <span className="font-semibold">{formatCurrency(calcularTotal(), showCents)}</span>
+                    </div>
+                    <div className={pagosCuadran() ? 'text-green-600' : 'text-red-500'}>
+                      {pagosCuadran() ? '✓ Cuadrado' : `Pendiente: ${formatCurrency(getDiferencia(), showCents)}`}
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {medioPago === 'cuenta_corriente' && (
+              {(pagos[0].medio === 'cuenta_corriente' || pagos[1].medio === 'cuenta_corriente') && (
                 <div className="space-y-2">
                   <Label htmlFor="cliente" className="text-xs">Cliente</Label>
                   <Select value={clienteId} onValueChange={setClienteId}>

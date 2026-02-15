@@ -143,9 +143,14 @@ class Venta(BaseModel):
     usuario_id: Optional[str] = None
     usuario_nombre: Optional[str] = None
     detalles: List[DetalleVenta]
+    pagos: Optional[List[dict]] = None
+
+class PagoVenta(BaseModel):
+    medio_pago: str
+    monto: float
 
 class VentaCreate(BaseModel):
-    medio_pago: str
+    pagos: Optional[List[PagoVenta]] = None
     cliente_id: Optional[str] = None
     detalles: List[DetalleVenta]
 
@@ -891,20 +896,40 @@ async def create_venta(input: VentaCreate, current_user: Usuario = Depends(get_c
     detalles_finales = list(detalles_unificados.values())
     total = sum(d['subtotal'] for d in detalles_finales)
     
+    # Determinar medio_pago y pagos
+    if input.pagos and len(input.pagos) > 0:
+        # Usar el primer pago como medio_pago principal para compatibilidad
+        medio_pago = input.pagos[0].medio_pago
+        # Verificar si hay cuenta corriente en los pagos
+        tiene_cuenta_corriente = any(p.medio_pago == 'cuenta_corriente' for p in input.pagos)
+        # Sumar los montos de todos los pagos
+        total_pagos = sum(p.monto for p in input.pagos)
+    else:
+        # Fallback para compatibilidad hacia atrás
+        medio_pago = 'efectivo'
+        tiene_cuenta_corriente = False
+        total_pagos = total
+    
     cliente_nombre = None
     if input.cliente_id:
         cliente = await db.clientes.find_one({'id': input.cliente_id}, {'_id': 0})
         if cliente:
             cliente_nombre = cliente['nombre']
     
+    # Guardar los pagos en la venta
+    pagos_guardar = None
+    if input.pagos:
+        pagos_guardar = [{"medio_pago": p.medio_pago, "monto": p.monto} for p in input.pagos]
+    
     venta_obj = Venta(
         total=total,
-        medio_pago=input.medio_pago,
+        medio_pago=medio_pago,
         cliente_id=input.cliente_id,
         cliente_nombre=cliente_nombre,
         usuario_id=current_user.id,
         usuario_nombre=current_user.nombre,
-        detalles=[DetalleVenta(**d) for d in detalles_finales]
+        detalles=[DetalleVenta(**d) for d in detalles_finales],
+        pagos=pagos_guardar
     )
     
     doc = venta_obj.model_dump()
@@ -921,12 +946,28 @@ async def create_venta(input: VentaCreate, current_user: Usuario = Depends(get_c
                 {'$set': {'stock': nuevo_stock}}
             )
     
-    if input.medio_pago == 'cuenta_corriente' and input.cliente_id:
+    # Procesar pagos a cuenta corriente
+    if input.pagos:
+        for pago in input.pagos:
+            if pago.medio_pago == 'cuenta_corriente' and input.cliente_id:
+                movimiento = MovimientoCuentaCorriente(
+                    cliente_id=input.cliente_id,
+                    concepto=f"Venta #{venta_obj.id[:8]} - {pago.medio_pago}",
+                    monto=-pago.monto,
+                    venta_id=venta_obj.id,
+                    usuario_id=current_user.id,
+                    usuario_nombre=current_user.nombre
+                )
+                mov_doc = movimiento.model_dump()
+                mov_doc['fecha'] = mov_doc['fecha'].isoformat()
+                await db.movimientos.insert_one(mov_doc)
+    elif input.cliente_id and medio_pago == 'cuenta_corriente':
+        # Fallback para compatibilidad
         movimiento = MovimientoCuentaCorriente(
             cliente_id=input.cliente_id,
             concepto=f"Venta #{venta_obj.id[:8]}",
             monto=-total,
-            venta_id=venta_obj.id,  # Guardar el ID completo
+            venta_id=venta_obj.id,
             usuario_id=current_user.id,
             usuario_nombre=current_user.nombre
         )
@@ -983,8 +1024,15 @@ async def get_dashboard_stats(current_user: Usuario = Depends(get_current_user))
     
     ventas_por_medio = {}
     for venta in ventas_hoy:
-        medio = venta['medio_pago']
-        ventas_por_medio[medio] = ventas_por_medio.get(medio, 0) + venta['total']
+        # Si tiene pagos múltiples, usarlos; si no, usar medio_pago
+        if 'pagos' in venta and venta['pagos']:
+            for pago in venta['pagos']:
+                medio = pago.get('medio_pago', 'desconocido')
+                monto = pago.get('monto', 0)
+                ventas_por_medio[medio] = ventas_por_medio.get(medio, 0) + monto
+        else:
+            medio = venta['medio_pago']
+            ventas_por_medio[medio] = ventas_por_medio.get(medio, 0) + venta['total']
     
     # Obtener saldo total de cuenta corriente
     clientes = await db.clientes.find({}, {'_id': 0}).to_list(1000)
