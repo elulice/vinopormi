@@ -190,7 +190,7 @@ const NuevaVenta = () => {
       
       return nuevosPagos;
     });
-  }, [detalles, multiplesPagos]);
+  }, [detalles, multiplesPagos, calcularTotal]);
 
   // Actualizar monto de un pago específico con auto-cálculo del otro campo
   const actualizarPagoMonto = (index, value) => {
