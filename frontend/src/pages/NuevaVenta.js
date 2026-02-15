@@ -65,6 +65,36 @@ const NuevaVenta = () => {
     return () => clearTimeout(timer);
   }, [productos]);
 
+  // Cerrar dropdown de búsqueda al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Si no hay dropdown activo, no hacer nada
+      if (activeDetalleIndex === null) return;
+      
+      const target = event.target;
+      
+      // Verificar si el click fue dentro del input de búsqueda activo
+      const activeInput = searchRefs.current[activeDetalleIndex];
+      if (activeInput && activeInput.contains(target)) return;
+      
+      // Verificar si el click fue dentro de algún dropdown de resultados
+      const dropdowns = document.querySelectorAll('.search-dropdown');
+      for (const dropdown of dropdowns) {
+        if (dropdown.contains(target)) return;
+      }
+      
+      // Si llegamos aquí, el click fue fuera, cerrar el dropdown
+      // NO limpiar el término de búsqueda para que el usuario pueda retomar
+      setActiveDetalleIndex(null);
+      setSelectedResultIndex(0);
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [activeDetalleIndex, productoSearchTerm]);
+
   const fetchProductos = useCallback(async () => {
     try {
       const res = await axios.get(`${API}/productos-paginados?limit=1000`, {
@@ -807,15 +837,17 @@ const NuevaVenta = () => {
                               <div className="relative">
                                 <Input
                                   ref={el => searchRefs.current[index] = el}
+                                  id={`producto-search-${index}`}
+                                  name={`producto-search-${index}`}
                                   placeholder="Buscar..."
-                                  value={activeDetalleIndex === index ? productoSearchTerm : ''}
+                                  value={productoSearchTerm ? productoSearchTerm : (activeDetalleIndex === index ? productoSearchTerm : '')}
                                   onChange={(e) => {
                                     setProductoSearchTerm(e.target.value);
                                     setActiveDetalleIndex(index);
                                   }}
                                   onFocus={() => {
                                     setActiveDetalleIndex(index);
-                                    setProductoSearchTerm('');
+                                      setProductoSearchTerm(productoSearchTerm ? productoSearchTerm : '');
                                   }}
                                   onKeyDown={(e) => handleKeyDown(e, index)}
                                   className="h-7 text-sm pr-8"
@@ -824,7 +856,7 @@ const NuevaVenta = () => {
                                   <Search className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground w-3 h-3 pointer-events-none" />
                                 )}
                                 {activeDetalleIndex === index && productoSearchTerm && (
-                                  <div className="absolute z-10 left-0 right-0 mt-1 bg-background border rounded-md shadow-lg max-h-40 overflow-auto">
+                                  <div className="search-dropdown absolute z-10 left-0 right-0 mt-1 bg-background border rounded-md shadow-lg max-h-40 overflow-auto">
                           {filteredProductos.length > 0 ? (
                              filteredProductos.map((producto, resultIndex) => (
                               <div
