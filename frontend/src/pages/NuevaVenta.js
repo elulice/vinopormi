@@ -52,11 +52,14 @@ const NuevaVenta = () => {
   const cantidadRefs = useRef([]);
   const resultRefs = useRef([]); // Para hacer scroll a los elementos de resultados
 
-  // Set initial focus on first product search field after component loads
+  // Set initial focus on first product search field after component loads (solo una vez)
+  const initialFocusSet = useRef(false);
   useEffect(() => {
+    if (initialFocusSet.current) return;
     const timer = setTimeout(() => {
       if (searchRefs.current[0] && productos.length > 0) {
         searchRefs.current[0].focus();
+        initialFocusSet.current = true;
       }
     }, 500);
     return () => clearTimeout(timer);
@@ -111,36 +114,48 @@ const NuevaVenta = () => {
     return detalles.reduce((sum, d) => sum + d.subtotal, 0);
   }, [detalles]);
 
-  // Efecto para actualizar los montos cuando cambian los productos (solo si hay múltiples pagos activo)
+  // Efecto para actualizar los montos cuando cambian los productos
   useEffect(() => {
     const total = calcularTotal();
-    if (total <= 0) return;
     
     setPagos(prev => {
       const nuevosPagos = [...prev];
       
+      // Si no hay productos, reiniciar los montos
+      if (total <= 0) {
+        nuevosPagos[0].monto = '';
+        nuevosPagos[1].monto = '';
+        return nuevosPagos;
+      }
+      
+      // Verificar si hay campos vacíos (recién limpiados manualmente)
+      const campo0Vacio = nuevosPagos[0].monto === '' || nuevosPagos[0].monto === null;
+      const campo1Vacio = nuevosPagos[1].monto === '' || nuevosPagos[1].monto === null;
+      
       // Solo auto-calcular si múltiples pagos está activo
       if (multiplesPagos) {
-        const monto0 = nuevosPagos[0].monto === '' || nuevosPagos[0].monto === null ? 0 : nuevosPagos[0].monto;
-        const monto1 = nuevosPagos[1].monto === '' || nuevosPagos[1].monto === null ? 0 : nuevosPagos[1].monto;
+        const monto0 = campo0Vacio ? 0 : nuevosPagos[0].monto;
+        const monto1 = campo1Vacio ? 0 : nuevosPagos[1].monto;
         
-        // Si hay monto en el segundo campo, mantenerlo y recalcular el primero
-        if (monto1 > 0) {
+        // Si hay monto en el segundo campo y el primero no está vacío, recalcular el primero
+        if (monto1 > 0 && !campo0Vacio) {
           if (total >= monto1) {
             nuevosPagos[0].monto = parseFloat((total - monto1).toFixed(2));
           }
         } 
-        // Si solo hay monto en el primero, actualizar al nuevo total
-        else if (monto0 > 0) {
-          nuevosPagos[0].monto = total;
+        // Si solo hay monto en el primero y el segundo no está vacío, recalcular
+        else if (monto0 > 0 && !campo1Vacio) {
+          nuevosPagos[1].monto = parseFloat((total - monto0).toFixed(2));
         }
-        // Si no hay montos, poner el total en efectivo
-        else {
+        // Si ambos están vacíos, poner el total en el primero
+        else if (campo0Vacio && campo1Vacio) {
           nuevosPagos[0].monto = total;
         }
       } else {
-        // Modo simple: solo el primer pago
+        // Modo simple: siempre poner el total en el primer campo
         nuevosPagos[0].monto = total;
+        // Limpiar el segundo campo en modo simple
+        nuevosPagos[1].monto = '';
       }
       
       return nuevosPagos;
@@ -149,7 +164,14 @@ const NuevaVenta = () => {
 
   // Actualizar monto de un pago específico con auto-cálculo del otro campo
   const actualizarPagoMonto = (index, value) => {
-    const montoIngresado = value === '' ? '' : parseFloat(value);
+    // Limpiar ceros a la izquierda
+    let valorLimpio = value;
+    if (value && value.length > 1 && value.startsWith('0') && value[1] !== '.') {
+      valorLimpio = value.replace(/^0+/, '');
+      if (valorLimpio === '') valorLimpio = '0';
+    }
+    
+    const montoIngresado = valorLimpio === '' ? '' : parseFloat(valorLimpio);
     const total = calcularTotal();
     
     setPagos(prev => {
@@ -163,14 +185,23 @@ const NuevaVenta = () => {
           nuevosPagos[otroIndex].monto = total;
         }
       } else if (!isNaN(montoIngresado)) {
+        // Validar que el monto no supere el total
+        let montoValidado = montoIngresado;
+        if (montoIngresado > total) {
+          montoValidado = total;
+          toast.error(`El monto no puede superar el total de $${total.toFixed(2)}`);
+        }
+        
         // Si hay un monto válido, actualizar
-        nuevosPagos[index] = { ...nuevosPagos[index], monto: montoIngresado };
+        nuevosPagos[index] = { ...nuevosPagos[index], monto: montoValidado };
         
         // Solo auto-calcular el otro campo si múltiples pagos está activo
         if (multiplesPagos) {
-          const remanente = total - montoIngresado;
+          const remanente = total - montoValidado;
           if (remanente >= 0) {
             nuevosPagos[otroIndex].monto = parseFloat(remanente.toFixed(2));
+          } else {
+            nuevosPagos[otroIndex].monto = 0;
           }
         }
       }
@@ -202,9 +233,10 @@ const NuevaVenta = () => {
     return medios.filter(m => m !== otroMedio);
   };
 
-  // Obtener monto total de pagos
+  // Obtener monto total de pagos (solo los visibles)
   const getTotalPagos = () => {
-    return pagos.reduce((sum, p) => sum + (p.monto === '' || p.monto === null ? 0 : p.monto), 0);
+    const pagosAConsiderar = multiplesPagos ? pagos : [pagos[0]];
+    return pagosAConsiderar.reduce((sum, p) => sum + (p.monto === '' || p.monto === null ? 0 : p.monto), 0);
   };
 
   // Obtener diferencia (pendiente)
@@ -577,27 +609,35 @@ const NuevaVenta = () => {
                         ))}
                       </SelectContent>
                     </Select>
-                    <div className="relative flex-1">
-                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">$</span>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        placeholder="0"
-                        value={pagos[0].monto}
-                        onChange={(e) => actualizarPagoMonto(0, e.target.value)}
-                        className="h-8 pl-5 pr-7 text-xs [-moz-appearance:_textfield] [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none"
-                      />
-                      {pagos[0].monto !== '' && (
-                        <button
-                          type="button"
-                          onClick={() => actualizarPagoMonto(0, '')}
-                          className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      )}
-                    </div>
+                      <div className="relative flex-1">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">$</span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="0"
+                          value={pagos[0].monto}
+                          onChange={(e) => actualizarPagoMonto(0, e.target.value)}
+                          onKeyDown={(e) => {
+                            // Permitir: teclas de control, números, punto decimal
+                            const permitidas = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'];
+                            if (permitidas.includes(e.key)) return;
+                            if (/^[0-9.]$/.test(e.key)) return;
+                            e.preventDefault();
+                          }}
+                          readOnly={!multiplesPagos}
+                          className={`h-8 pl-5 pr-7 text-xs [-moz-appearance:_textfield] [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none ${!multiplesPagos ? 'bg-muted/30' : 'bg-background border-input'}`}
+                        />
+                        {multiplesPagos && (pagos[0].monto || pagos[0].monto === 0) && pagos[0].monto !== '' && (
+                          <button
+                            type="button"
+                            onClick={() => actualizarPagoMonto(0, '')}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
                   </div>
                   
                   {/* Segundo pago - solo visible cuando múltiples pagos está activo */}
@@ -629,13 +669,20 @@ const NuevaVenta = () => {
                           placeholder="0"
                           value={pagos[1].monto}
                           onChange={(e) => actualizarPagoMonto(1, e.target.value)}
+                          onKeyDown={(e) => {
+                            // Permitir: teclas de control, números, punto decimal
+                            const permitidas = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'];
+                            if (permitidas.includes(e.key)) return;
+                            if (/^[0-9.]$/.test(e.key)) return;
+                            e.preventDefault();
+                          }}
                           className="h-8 pl-5 pr-7 text-xs [-moz-appearance:_textfield] [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none"
                         />
-                        {pagos[1].monto !== '' && (
+                        {(pagos[1].monto || pagos[1].monto === 0) && pagos[1].monto !== '' && (
                           <button
                             type="button"
                             onClick={() => actualizarPagoMonto(1, '')}
-                            className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                           >
                             <X className="w-3 h-3" />
                           </button>
