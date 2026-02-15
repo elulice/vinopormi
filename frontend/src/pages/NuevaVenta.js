@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, ShoppingCart, Search, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, ShoppingCart, Search, RefreshCw, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency, formatNumber } from '@/lib/currency';
 import { capitalizeWords } from '@/lib/utils';
@@ -146,13 +146,19 @@ const NuevaVenta = () => {
     
     setPagos(prev => {
       const nuevosPagos = [...prev];
-      nuevosPagos[index] = { ...nuevosPagos[index], monto: montoIngresado };
+      const otroIndex = index === 0 ? 1 : 0;
       
-      // Auto-calcular el otro campo
-      if (montoIngresado !== '' && !isNaN(montoIngresado)) {
-        const otroIndex = index === 0 ? 1 : 0;
-        const montoOtro = montoIngresado;
-        const remanente = total - montoOtro;
+      // Si se borra el monto (vacío), poner el total en el otro campo
+      if (montoIngresado === '') {
+        nuevosPagos[index] = { ...nuevosPagos[index], monto: '' };
+        // Si el otro campo tiene un medio de pago, poner el total ahí
+        if (nuevosPagos[otroIndex].medio) {
+          nuevosPagos[otroIndex].monto = total;
+        }
+      } else if (!isNaN(montoIngresado)) {
+        // Si hay un monto válido, actualizar y calcular el otro
+        nuevosPagos[index] = { ...nuevosPagos[index], monto: montoIngresado };
+        const remanente = total - montoIngresado;
         
         if (remanente >= 0) {
           nuevosPagos[otroIndex].monto = parseFloat(remanente.toFixed(2));
@@ -546,8 +552,17 @@ const NuevaVenta = () => {
                           placeholder="0"
                           value={pago.monto}
                           onChange={(e) => actualizarPagoMonto(index, e.target.value)}
-                          className="h-8 pl-5 text-xs"
+                          className="h-8 pl-5 pr-7 text-xs [-moz-appearance:_textfield] [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none"
                         />
+                        {pago.monto !== '' && (
+                          <button
+                            type="button"
+                            onClick={() => actualizarPagoMonto(index, '')}
+                            className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
