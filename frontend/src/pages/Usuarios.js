@@ -26,9 +26,7 @@ import { toast } from 'sonner';
 import ResponsiveTable from '@/components/ResponsiveTable';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { API } from '@/lib/config';
 
 const Usuarios = () => {
   const { getAuthHeader, user } = useAuth();

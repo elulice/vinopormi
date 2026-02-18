@@ -4,8 +4,7 @@ import { toast } from 'sonner';
 
 const AuthContext = createContext(null);
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { API } from '@/lib/config';
 
 // Configurar interceptor global para manejar 401
 axios.interceptors.response.use(

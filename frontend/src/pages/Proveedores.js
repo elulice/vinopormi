@@ -14,9 +14,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { capitalizeWords } from '@/lib/utils';
 import ResponsiveTable from '@/components/ResponsiveTable';
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { API } from '@/lib/config';
 
 const Proveedores = () => {
   const { getAuthHeader } = useAuth();

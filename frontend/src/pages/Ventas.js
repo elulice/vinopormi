@@ -16,9 +16,7 @@ import { es } from 'date-fns/locale';
 import { formatCurrency, formatNumber } from '@/lib/currency';
 import { capitalizeWords } from '@/lib/utils';
 import ResponsiveTable from '@/components/ResponsiveTable';
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { API } from '@/lib/config';
 
 // Componente de virtual scrolling manual
 const VirtualTable = ({ items, itemHeight, containerHeight, renderItem, headers }) => {

@@ -12,10 +12,8 @@ import { Plus, Trash2, ShoppingCart, Search, RefreshCw, X, Split } from 'lucide-
 import { toast } from 'sonner';
 import { formatCurrency, formatNumber } from '@/lib/currency';
 import { capitalizeWords } from '@/lib/utils';
+import { API } from '@/lib/config';
 import { useDebounce } from '@/hooks/useDebounce';
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
 
 const NuevaVenta = () => {
   const { getAuthHeader } = useAuth();
