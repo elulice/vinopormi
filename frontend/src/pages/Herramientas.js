@@ -15,9 +15,7 @@ import { AlertTriangle, Trash2, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { API } from '@/lib/config';
 
 const Herramientas = () => {
   const { user, getAuthHeader } = useAuth();

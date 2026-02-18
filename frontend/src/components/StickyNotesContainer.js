@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import axios from 'axios';
+import { API } from '@/lib/config';
 
 const StickyNotesContainer = () => {
   const { user } = useAuth();
@@ -44,11 +45,7 @@ const StickyNotesContainer = () => {
         return;
       }
 
-      const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-      console.log('Making request to:', `${BACKEND_URL}/api/sticky-notes`);
-      console.log('Token exists:', !!token);
-      
-      const response = await axios.get(`${BACKEND_URL}/api/sticky-notes`, {
+      const response = await axios.get(`${API}/sticky-notes`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -94,9 +91,8 @@ const StickyNotesContainer = () => {
 
     setCreating(true);
     try {
-      const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
       const response = await axios.post(
-        `${BACKEND_URL}/api/sticky-notes`,
+        `${API}/sticky-notes`,
         {
           texto: newNoteText.trim(),
           color: newNoteColor,

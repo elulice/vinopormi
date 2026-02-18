@@ -22,9 +22,7 @@ import { SearchInput } from '@/components/ui/search-input';
 import { capitalizeWords } from '@/lib/utils';
 import Pagination from '@/components/Pagination';
 import { Loader2 } from 'lucide-react';
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { API } from '@/lib/config';
 
 const Productos = () => {
   const { getAuthHeader } = useAuth();

@@ -31,9 +31,7 @@ import { toast } from 'sonner';
 import { format, isWithinInterval, parseISO, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import ResponsiveTable from '@/components/ResponsiveTable';
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { API } from '@/lib/config';
 
 
 

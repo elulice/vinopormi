@@ -9,9 +9,7 @@ import { toast } from 'sonner';
 import '@/components/Dashboard.css';
 import { formatCurrency, formatNumber } from '@/lib/currency';
 import StickyNotesContainer from '@/components/StickyNotesContainer';
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { API } from '@/lib/config';
 
 const Dashboard = () => {
   const { getAuthHeader } = useAuth();

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import axios from 'axios';
+import { API } from '@/lib/config';
 
 const StickyNote = ({ note, onUpdate, onDelete }) => {
   const { user } = useAuth();
@@ -55,9 +56,8 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
 
     setLoading(true);
     try {
-      const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
       const response = await axios.put(
-        `${BACKEND_URL}/api/sticky-notes/${note.id}`,
+        `${API}/sticky-notes/${note.id}`,
         {
           texto: editText.trim(),
           color: editColor,
@@ -109,9 +109,8 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
 
     setLoading(true);
     try {
-      const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
       await axios.delete(
-        `${BACKEND_URL}/api/sticky-notes/${note.id}`,
+        `${API}/sticky-notes/${note.id}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,

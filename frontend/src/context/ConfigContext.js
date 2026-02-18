@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import axios from 'axios';
+import { API } from '@/lib/config';
 
 const ConfigContext = createContext(undefined);
 
@@ -29,8 +30,7 @@ export const ConfigProvider = ({ children }) => {
     }
 
     try {
-      const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-      const response = await axios.get(`${BACKEND_URL}/api/auth/preferencias`, {
+      const response = await axios.get(`${API}/auth/preferencias`, {
         headers: getAuthHeader()
       });
       
@@ -53,8 +53,7 @@ export const ConfigProvider = ({ children }) => {
     if (!user) return;
 
     try {
-      const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-      await axios.put(`${BACKEND_URL}/api/auth/preferencias`, 
+      await axios.put(`${API}/auth/preferencias`,
         { showCents: show },
         { headers: getAuthHeader() }
       );
@@ -74,8 +73,7 @@ export const ConfigProvider = ({ children }) => {
     if (!user) return;
 
     try {
-      const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-      await axios.put(`${BACKEND_URL}/api/auth/preferencias`, 
+      await axios.put(`${API}/auth/preferencias`,
         { sidebarWidth: width },
         { headers: getAuthHeader() }
       );
@@ -95,8 +93,7 @@ export const ConfigProvider = ({ children }) => {
     if (!user) return;
 
     try {
-      const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-      await axios.put(`${BACKEND_URL}/api/auth/preferencias`, 
+      await axios.put(`${API}/auth/preferencias`,
         { floatingMenu: enabled },
         { headers: getAuthHeader() }
       );
@@ -116,8 +113,7 @@ export const ConfigProvider = ({ children }) => {
     if (!user) return;
 
     try {
-      const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-      await axios.put(`${BACKEND_URL}/api/auth/preferencias`, 
+      await axios.put(`${API}/auth/preferencias`,
         { autoLogout: enabled },
         { headers: getAuthHeader() }
       );
