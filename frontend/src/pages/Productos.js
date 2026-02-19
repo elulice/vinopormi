@@ -14,11 +14,10 @@ import {
   DialogDescription,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash2, Package, Info } from 'lucide-react';
+import { Plus, Pencil, Trash2, Package, Info, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 import ResponsiveTable from '@/components/ResponsiveTable';
 import { formatCurrency, formatNumber } from '@/lib/currency';
-import { SearchInput } from '@/components/ui/search-input';
 import { capitalizeWords } from '@/lib/utils';
 import Pagination from '@/components/Pagination';
 import { Loader2 } from 'lucide-react';
@@ -42,7 +41,6 @@ const Productos = () => {
   const [editingProducto, setEditingProducto] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [loadingPage, setLoadingPage] = useState(false);
-  const searchInputRef = useRef(null); // Para mantener el foco
 
   const [formData, setFormData] = useState({
     nombre: '',
@@ -96,29 +94,6 @@ const Productos = () => {
 
 useEffect(() => {
     fetchProductosRef.current?.(1);
-  }, []);
-
-  // Función de búsqueda - solo se ejecuta con ENTER
-  const handleSearchSubmit = useCallback((e) => {
-    e.preventDefault();
-    fetchProductosRef.current?.(1, searchTerm);
-    setTimeout(() => {
-      if (searchInputRef.current) {
-        searchInputRef.current.focus();
-      }
-    }, 100);
-  }, [searchTerm]);
-
-  // Función para limpiar búsqueda
-const handleClearSearch = useCallback(() => {
-    setSearchTerm('');
-    fetchProductosRef.current?.(1, '');
-    // Enfocar el input inmediatamente después de limpiar
-    setTimeout(() => {
-      if (searchInputRef.current) {
-        searchInputRef.current.focus();
-      }
-    }, 0);
   }, []);
 
   /* ==============================
@@ -232,31 +207,45 @@ const handleClearSearch = useCallback(() => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* HEADER */}
       <div>
-        <h1 className="text-4xl font-bold mb-2">Productos</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-2xl font-bold text-foreground">Productos</h1>
+        <p className="text-sm text-muted-foreground">
           Gestiona el inventario de tu vinoteca
         </p>
       </div>
 
-      {/* BUSCADOR + MODAL */}
-      <div className="flex flex-col gap-3">
-        <form onSubmit={handleSearchSubmit} className="w-64">
-          <SearchInput
-            ref={searchInputRef}
+      {/* BUSCADOR + BOTÓN AGREGAR */}
+      <div className="flex gap-2 items-center">
+        <div className="relative">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+          <Input
+            placeholder="Buscar..."
             value={searchTerm}
-            onChange={setSearchTerm}
-            onClear={handleClearSearch}
-            placeholder="Buscar productos..."
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                fetchProductosRef.current?.(1, searchTerm);
+              }
+            }}
+            className="pl-7 pr-7 h-7 text-sm w-40"
           />
-        </form>
+          {searchTerm && (
+            <X 
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground hover:text-foreground cursor-pointer"
+              onClick={() => {
+                setSearchTerm('');
+                fetchProductosRef.current?.(1, '');
+              }}
+            />
+          )}
+        </div>
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="w-64">
-              <Plus className="w-4 h-4 mr-2" />
+            <Button size="sm" className="h-7 text-xs">
+              <Plus className="w-3 h-3 mr-1" />
               Nuevo Producto
             </Button>
           </DialogTrigger>
@@ -271,46 +260,51 @@ const handleClearSearch = useCallback(() => {
               </DialogDescription>
             </DialogHeader>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label>Nombre</Label>
-                <Input
-                  value={formData.nombre}
-                  onChange={(e) =>
-                    setFormData({ ...formData, nombre: e.target.value })
-                  }
-                  required
-                />
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Nombre</Label>
+                  <Input
+                    value={formData.nombre}
+                    onChange={(e) =>
+                      setFormData({ ...formData, nombre: e.target.value })
+                    }
+                    required
+                    className="h-8"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs">Precio Unitario</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={formData.precio_unitario}
+                    onChange={(e) =>
+                      setFormData({ ...formData, precio_unitario: e.target.value })
+                    }
+                    required
+                    className="h-8"
+                  />
+                </div>
               </div>
 
               <div>
-                <Label>Precio Unitario</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={formData.precio_unitario}
-                  onChange={(e) =>
-                    setFormData({ ...formData, precio_unitario: e.target.value })
-                  }
-                  required
-                />
-              </div>
-
-              <div>
-                <Label>Stock (opcional)</Label>
+                <Label className="text-xs">Stock (opcional)</Label>
                 <Input
                   type="number"
                   value={formData.stock}
                   onChange={(e) =>
                     setFormData({ ...formData, stock: e.target.value })
                   }
+                  className="h-8"
                 />
               </div>
 
               {/* Descuento por Cantidad (Opcional) */}
-              <div className="border-t pt-4">
-                <Label className="text-sm font-medium mb-2 block">
-                  <Info className="w-4 h-4 mr-2 inline" />
+              <div className="border-t pt-3">
+                <Label className="text-xs font-medium mb-2 block">
+                  <Info className="w-3 h-3 mr-1 inline" />
                   Descuento por Cantidad (Opcional)
                 </Label>
                 <div className="grid grid-cols-2 gap-2">
@@ -324,6 +318,7 @@ const handleClearSearch = useCallback(() => {
                         setFormData({ ...formData, descuento_cantidad_minima: e.target.value })
                       }
                       placeholder="Ej: 6"
+                      className="h-7 text-xs"
                     />
                   </div>
                   <div>
@@ -337,6 +332,7 @@ const handleClearSearch = useCallback(() => {
                         setFormData({ ...formData, descuento_precio_unitario: e.target.value })
                       }
                       placeholder="Ej: 150"
+                      className="h-7 text-xs"
                     />
                   </div>
                 </div>
@@ -345,14 +341,15 @@ const handleClearSearch = useCallback(() => {
                 </p>
               </div>
 
-              <div className="flex gap-2 pt-4">
-                <Button type="submit" className="flex-1">
+              <div className="flex gap-2 pt-2">
+                <Button type="submit" className="flex-1 h-8">
                   {editingProducto ? 'Actualizar' : 'Crear'}
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setDialogOpen(false)}
+                  className="h-8"
                 >
                   Cancelar
                 </Button>
@@ -374,73 +371,72 @@ const handleClearSearch = useCallback(() => {
         rows={productos}
         renderDesktopRow={(p, index) => (
           <tr key={p.id} className="border-b">
-            <td className="p-4 flex gap-2 items-center">
-              <Package className="w-4 h-4 text-primary" />
-              {capitalizeWords(p.nombre)}
+            <td className="p-2">
+              <div className="flex items-center gap-2 text-sm">
+                <Package className="w-3 h-3 text-primary" />
+                <span className="truncate">{capitalizeWords(p.nombre)}</span>
+              </div>
             </td>
-            <td className="p-4">
+            <td className="p-2 text-muted-foreground text-xs">
               {Number(p.stock) || 0} unid.
             </td>
-            <td className="p-4 font-semibold text-primary">
+            <td className="p-2 font-semibold text-primary text-xs">
               {formatCurrency(p.precio_unitario, showCents)}
             </td>
-            <td className="p-4">
+            <td className="p-2">
               {p.descuento_cantidad_minima && p.descuento_precio_unitario ? (
                 <div className="text-xs">
                   <div className="text-green-600 font-medium">
-                    ≥{p.descuento_cantidad_minima} u.
+                    ≥{p.descuento_cantidad_minima} unid.
                   </div>
                   <div>{formatCurrency(p.descuento_precio_unitario, showCents)} c/u</div>
                 </div>
               ) : (
-                <span className="text-gray-400 text-xs">Sin descuento</span>
+                <span className="text-muted-foreground text-xs">-</span>
               )}
             </td>
-            <td className="p-4">
-              <div className="flex justify-end gap-2">
-                <Button size="sm" variant="outline" onClick={() => handleEdit(p)}>
-                  <Pencil className="w-4 h-4 mr-1" /> Editar
+            <td className="p-2 text-right">
+              <div className="flex justify-end gap-1">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 text-xs px-1"
+                  onClick={() => handleEdit(p)}
+                >
+                  <Pencil className="w-3 h-3" />
                 </Button>
                 <Button
                   size="sm"
-                  variant="outline"
-                  className="text-destructive"
+                  variant="ghost"
+                  className="h-6 text-xs px-1 text-destructive"
                   onClick={() => handleDelete(p.id)}
                 >
-                  <Trash2 className="w-4 h-4 mr-1" /> Eliminar
+                  <Trash2 className="w-3 h-3" />
                 </Button>
               </div>
             </td>
           </tr>
         )}
         renderMobileCard={(p, index) => (
-          <div className="p-4">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                <Package className="w-5 h-5 text-primary" />
+          <div className="p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 bg-primary/10 rounded flex items-center justify-center">
+                <Package className="w-4 h-4 text-primary" />
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold text-foreground">{capitalizeWords(p.nombre)}</h3>
-                <div className="text-lg font-bold text-primary">
+                <h3 className="font-medium text-sm truncate">{capitalizeWords(p.nombre)}</h3>
+                <div className="font-bold text-primary text-sm">
                   {formatCurrency(p.precio_unitario, showCents)}
                 </div>
               </div>
             </div>
             
-            <div className="grid grid-cols-2 gap-3 mb-3">
-              <div className="text-sm">
-                <span className="text-muted-foreground">Stock: </span>
-                <span className="font-medium">{Number(p.stock) || 0} unid.</span>
-              </div>
+            <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+              <span>Stock: {Number(p.stock) || 0} unid.</span>
               {p.descuento_cantidad_minima && p.descuento_precio_unitario ? (
-                <div className="text-sm">
-                  <div className="text-green-600 font-medium">
-                    Descuento ≥{p.descuento_cantidad_minima}u
-                  </div>
-                  <div className="text-green-600">
-                    {formatCurrency(p.descuento_precio_unitario, showCents)} c/u
-                  </div>
-                </div>
+                <span className="text-green-600 font-medium">
+                  ≥{p.descuento_cantidad_minima} unid: {formatCurrency(p.descuento_precio_unitario, showCents)}
+                </span>
               ) : (
                 <div className="text-sm text-muted-foreground">
                   Sin descuento
@@ -448,17 +444,19 @@ const handleClearSearch = useCallback(() => {
               )}
             </div>
             
-            <div className="flex gap-2 pt-3 border-t">
-              <Button size="sm" variant="outline" onClick={() => handleEdit(p)} className="flex-1">
-                <Pencil className="w-4 h-4 mr-1" /> Editar
+            <div className="flex gap-2 pt-2 border-t">
+              <Button size="sm" variant="outline" onClick={() => handleEdit(p)} className="flex-1 h-7 text-xs">
+                <Pencil className="w-3 h-3 mr-1" />
+                Editar
               </Button>
               <Button
                 size="sm"
                 variant="outline"
-                className="text-destructive flex-1"
+                className="text-destructive flex-1 h-7 text-xs"
                 onClick={() => handleDelete(p.id)}
               >
-                <Trash2 className="w-4 h-4 mr-1" /> Eliminar
+                <Trash2 className="w-3 h-3 mr-1" />
+                Eliminar
               </Button>
             </div>
           </div>
@@ -467,7 +465,7 @@ const handleClearSearch = useCallback(() => {
       
       {/* Componente de Paginación */}
       {!loading && (
-        <Card>
+        <Card className="py-2">
           <CardContent className="p-0">
             <Pagination
               currentPage={pagination.page}
