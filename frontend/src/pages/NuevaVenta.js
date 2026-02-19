@@ -257,6 +257,12 @@ const NuevaVenta = () => {
   // Obtener medios de pago disponibles para un select
   const getMediosDisponibles = (index) => {
     const medios = ['efectivo', 'posnet', 'transferencia', 'cuenta_corriente'];
+    
+    // Solo filtrar cuando está en modo múltiples pagos
+    if (!multiplesPagos) {
+      return medios;
+    }
+    
     const otroMedio = index === 0 ? pagos[1].medio : pagos[0].medio;
     return medios.filter(m => m !== otroMedio);
   };
