@@ -41,6 +41,7 @@ const Productos = () => {
   const [editingProducto, setEditingProducto] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [loadingPage, setLoadingPage] = useState(false);
+  const searchInputRef = useRef(null);
 
   const [formData, setFormData] = useState({
     nombre: '',
@@ -221,12 +222,14 @@ useEffect(() => {
         <div className="relative">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
           <Input
+            ref={searchInputRef}
             placeholder="Buscar..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 fetchProductosRef.current?.(1, searchTerm);
+                setTimeout(() => searchInputRef.current?.focus(), 100);
               }
             }}
             className="pl-7 pr-7 h-7 text-sm w-40"
@@ -237,6 +240,7 @@ useEffect(() => {
               onClick={() => {
                 setSearchTerm('');
                 fetchProductosRef.current?.(1, '');
+                setTimeout(() => searchInputRef.current?.focus(), 100);
               }}
             />
           )}
@@ -464,7 +468,7 @@ useEffect(() => {
       />
       
       {/* Componente de Paginación */}
-      {!loading && (
+      {!loading && pagination.pages > 1 && (
         <Card className="py-2">
           <CardContent className="p-0">
             <Pagination
