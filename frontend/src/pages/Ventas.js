@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ShoppingCart, Calendar, CreditCard, User, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, ChevronDown, ChevronRight, List, Layers, ChevronLeft } from 'lucide-react';
+import { ShoppingCart, Calendar, CreditCard, User, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, ChevronDown, ChevronRight, List, Layers, ChevronLeft, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, isWithinInterval, parseISO, startOfDay, endOfDay, isToday, isYesterday } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -348,88 +348,90 @@ const fetchVentas = useCallback(async () => {
     };
 
     return (
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-2 mt-3 p-2 bg-muted/50 rounded-md">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span>{(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, totalItems)} de {totalItems}</span>
-          <Select
-            value={itemsPerPage.toString()}
-            onValueChange={(value) => onItemsPerPageChange(parseInt(value))}
-          >
-            <SelectTrigger className="w-14 h-6 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="25">25</SelectItem>
-              <SelectItem value="50">50</SelectItem>
-              <SelectItem value="100">100</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+      <Card className="py-2">
+        <CardContent className="p-0">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-4 py-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>{(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, totalItems)} de {totalItems}</span>
+              <Select
+                value={itemsPerPage.toString()}
+                onValueChange={(value) => onItemsPerPageChange(parseInt(value))}
+              >
+                <SelectTrigger className="w-14 h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
         
-        <div className="flex items-center gap-1">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onPageChange(1)}
-            disabled={currentPage === 1}
-            className="h-6 w-6 p-0"
-          >
-            <ChevronLeft className="w-3 h-3" />
-            <ChevronLeft className="w-3 h-3 -ml-2" />
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onPageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-            className="h-6 w-6 p-0"
-          >
-            <ChevronLeft className="w-3 h-3" />
-          </Button>
-          
-          <div className="flex items-center gap-0.5 text-xs">
-            {getVisiblePages().map((page, index) => (
-              page === '...' ? (
-                <span key={`dots-${index}`} className="px-1 text-muted-foreground">
-                  ...
-                </span>
-              ) : (
-                <Button
-                  key={page}
-                  variant={currentPage === page ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => onPageChange(page)}
-                  className="h-6 w-6 p-0 text-xs"
-                >
-                  {page}
-                </Button>
-              )
-            ))}
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onPageChange(1)}
+              disabled={currentPage === 1}
+              className="h-8 rounded-md px-3"
+            >
+              <ChevronsLeft className="w-4 h-4" />
+            </Button>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onPageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="h-8 rounded-md px-3"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            
+            <div className="flex items-center space-x-1">
+              {getVisiblePages().map((page, index) => (
+                page === '...' ? (
+                  <span key={`dots-${index}`} className="px-2 text-muted-foreground">
+                    ...
+                  </span>
+                ) : (
+                  <Button
+                    key={page}
+                    variant={currentPage === page ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => onPageChange(page)}
+                    className="h-8 rounded-md px-3 text-xs"
+                  >
+                    {page}
+                  </Button>
+                )
+              ))}
+            </div>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onPageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="h-8 rounded-md px-3"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onPageChange(totalPages)}
+              disabled={currentPage === totalPages}
+              className="h-8 rounded-md px-3"
+            >
+              <ChevronsRight className="w-4 h-4" />
+            </Button>
           </div>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onPageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className="h-6 w-6 p-0"
-          >
-            <ChevronRight className="w-3 h-3" />
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onPageChange(totalPages)}
-            disabled={currentPage === totalPages}
-            className="h-6 w-6 p-0"
-          >
-            <ChevronRight className="w-3 h-3" />
-            <ChevronRight className="w-3 h-3 -ml-2" />
-          </Button>
-        </div>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
     );
   };
 
