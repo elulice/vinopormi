@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -35,9 +35,6 @@ const Mercadopago = () => {
   const [estadisticas, setEstadisticas] = useState(null);
   const [loadingEstadisticas, setLoadingEstadisticas] = useState(false);
   const [selectedPago, setSelectedPago] = useState(null);
-  
-  const fetchPagosRef = useRef(null);
-  const pollingIntervalRef = useRef(null);
 
   const fetchPagos = useCallback(async (page = 1) => {
     setLoadingPage(true);
@@ -89,62 +86,7 @@ const Mercadopago = () => {
   useEffect(() => {
     fetchPagos(1);
     fetchEstadisticas();
-
-    return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-      }
-    };
   }, [fetchPagos, fetchEstadisticas]);
-
-  useEffect(() => {
-    fetchPagosRef.current = async () => {
-      await fetchPagos(1);
-    };
-  }, [fetchPagos]);
-
-  useEffect(() => {
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-    }
-
-    pollingIntervalRef.current = setInterval(async () => {
-      try {
-        const response = await axios.get(`${API}/mercadopago/no-notificados`, {
-          headers: getAuthHeader(),
-        });
-        
-        if (response.data.cantidad > 0) {
-          toast.success(`${response.data.cantidad} nuevo(s) pago(s) recibido(s)!`, {
-            duration: 5000,
-          });
-          
-          if (fetchPagosRef.current) {
-            await fetchPagosRef.current();
-          }
-          
-          for (const pago of response.data.pagos) {
-            await axios.post(
-              `${API}/mercadopago/pagos/${pago.id}/marcar-notificado`,
-              {},
-              { headers: getAuthHeader() }
-            );
-          }
-          
-          fetchEstadisticas();
-        }
-      } catch (error) {
-        console.error('Polling error:', error);
-      }
-    }, 10000);
-
-    return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getAuthHeader, fetchEstadisticas]);
 
   const handlePageChange = (newPage) => {
     fetchPagos(newPage);
@@ -211,7 +153,7 @@ const Mercadopago = () => {
         </div>
       </div>
 
-      {estadisticas && !loadingEstadisticas && (
+      {estadisticas && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Card>
             <CardContent className="p-3">
@@ -219,9 +161,13 @@ const Mercadopago = () => {
                 <TrendingUp className="w-4 h-4 text-green-600" />
                 <span className="text-xs text-muted-foreground">Total Aprobado (30d)</span>
               </div>
-              <p className="text-lg font-bold text-green-600">
-                {formatCurrency(estadisticas.total_aprobado)}
-              </p>
+              {loadingEstadisticas ? (
+                <div className="h-7 bg-muted animate-pulse rounded"></div>
+              ) : (
+                <p className="text-lg font-bold text-green-600">
+                  {formatCurrency(estadisticas.total_aprobado)}
+                </p>
+              )}
             </CardContent>
           </Card>
           {estadisticas.por_estado.map((item) => (
@@ -234,9 +180,13 @@ const Mercadopago = () => {
                   {item.estado === 'refunded' && <RefreshCw className="w-4 h-4 text-gray-600" />}
                   <span className="text-xs text-muted-foreground capitalize">{item.estado}</span>
                 </div>
-                <p className="text-lg font-bold">
-                  {item.cantidad} <span className="text-xs font-normal">({formatCurrency(item.total)})</span>
-                </p>
+                {loadingEstadisticas ? (
+                  <div className="h-7 bg-muted animate-pulse rounded"></div>
+                ) : (
+                  <p className="text-lg font-bold">
+                    {item.cantidad} <span className="text-xs font-normal">({formatCurrency(item.total)})</span>
+                  </p>
+                )}
               </CardContent>
             </Card>
           ))}
