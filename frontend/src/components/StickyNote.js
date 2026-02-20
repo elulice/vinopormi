@@ -167,7 +167,7 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsEditing(true)}
-                className="h-6 w-6 p-0 text-gray-600 hover:text-blue-600"
+                className="h-4 w-6 p-0 text-gray-600 hover:text-blue-600"
               >
                 <Edit2 className="w-3 h-3" />
               </Button>
@@ -177,7 +177,7 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
                 variant="ghost"
                 size="sm"
                 onClick={handleDelete}
-                className="h-6 w-6 p-0 text-gray-600 hover:text-red-600"
+                className="h-4 w-6 p-0 text-gray-600 hover:text-red-600"
                 disabled={loading}
               >
                 <Trash2 className="w-3 h-3" />
