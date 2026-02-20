@@ -478,19 +478,33 @@ async def update_preferencias(
     
     return {"message": "Preferencias actualizadas exitosamente", "preferencias": preferencias_actuales}
 
-@api_router.get("/auth/login-registros", response_model=List[dict])
-async def get_login_registros(current_user: Usuario = Depends(get_current_user)):
+@api_router.get("/auth/login-registros")
+async def get_login_registros(
+    current_user: Usuario = Depends(get_current_user),
+    page: int = 1,
+    limit: int = 50
+):
     # Solo administradores pueden ver los registros de login
     if current_user.rol != 'admin':
         raise HTTPException(status_code=403, detail="No tienes permisos para ver los registros de login")
     
-    registros = await db.login_registros.find({}, {'_id': 0}).sort('fecha', -1).to_list(1000)
+    skip = (page - 1) * limit
+    total = await db.login_registros.count_documents({})
+    registros = await db.login_registros.find({}, {'_id': 0}).sort('fecha', -1).skip(skip).limit(limit).to_list(limit)
     
     for r in registros:
         if isinstance(r.get('fecha'), str):
             r['fecha'] = datetime.fromisoformat(r['fecha'])
     
-    return registros
+    return {
+        "data": registros,
+        "pagination": {
+            "page": page,
+            "limit": limit,
+            "total": total,
+            "pages": (total + limit - 1) // limit
+        }
+    }
 
 @api_router.get("/auditoria")
 async def get_auditoria(
