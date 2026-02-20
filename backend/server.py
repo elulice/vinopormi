@@ -2066,12 +2066,10 @@ async def set_configuracion_mercadopago(
     try:
         body = await request.json()
         access_token = body.get("access_token", "")
-        webhook_secret = body.get("webhook_secret")
         
         config_data = {
             "tipo": "mercadopago",
             "access_token": access_token,
-            "webhook_secret": webhook_secret,
             "fecha_actualizacion": datetime.now(timezone.utc)
         }
         

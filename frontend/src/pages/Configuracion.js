@@ -18,7 +18,7 @@ const Configuracion = () => {
   const [localShowCents, setLocalShowCents] = useState(showCents);
   const [localFloatingMenu, setLocalFloatingMenu] = useState(floatingMenu);
   const [localAutoLogout, setLocalAutoLogout] = useState(autoLogout);
-  const [mercadopagoConfig, setMercadopagoConfig] = useState({ access_token: '', webhook_secret: '' });
+  const [mercadopagoConfig, setMercadopagoConfig] = useState({ access_token: '' });
   const [savingMercadopago, setSavingMercadopago] = useState(false);
   const [loadingMercadopago, setLoadingMercadopago] = useState(true);
 
@@ -44,8 +44,7 @@ const Configuracion = () => {
         });
         if (response.data.access_token) {
           setMercadopagoConfig({
-            access_token: response.data.access_token,
-            webhook_secret: response.data.webhook_secret || ''
+            access_token: response.data.access_token
           });
         }
       } catch (err) {
@@ -63,8 +62,7 @@ const Configuracion = () => {
       await axios.post(
         `${API}/mercadopago/configuracion`,
         {
-          access_token: mercadopagoConfig.access_token,
-          webhook_secret: mercadopagoConfig.webhook_secret
+          access_token: mercadopagoConfig.access_token
         },
         { headers: getAuthHeader() }
       );
@@ -284,19 +282,6 @@ const handleFloatingMenuToggle = () => {
             <p className="text-xs text-muted-foreground mt-1">
               Obtenelo en Mercadopago Developers → Credenciales
             </p>
-          </div>
-          <div>
-            <Label htmlFor="mp-webhook-secret" className="text-sm font-medium">
-              Webhook Secret (opcional)
-            </Label>
-            <Input
-              id="mp-webhook-secret"
-              type="password"
-              value={mercadopagoConfig.webhook_secret}
-              onChange={(e) => setMercadopagoConfig({ ...mercadopagoConfig, webhook_secret: e.target.value })}
-              placeholder="Token de verificación del webhook"
-              className="mt-1"
-            />
           </div>
           <div className="flex justify-end">
             <Button onClick={handleSaveMercadopago} disabled={savingMercadopago} size="sm">
