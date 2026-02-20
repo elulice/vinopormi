@@ -278,33 +278,6 @@ class StickyNoteUpdate(BaseModel):
     color: Optional[str] = None
     fijada: Optional[bool] = None
 
-class MercadopagoPago(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: str
-    mercadopago_id: str  # ID del pago en Mercadopago
-    orden_mercadopago: Optional[str] = None  # ID de la orden (si aplica)
-    external_reference: Optional[str] = None  # Referencia externa enviada al crear el pago
-    status: str  # pending, approved, rejected, refunded, etc.
-    status_detail: Optional[str] = None
-    payment_type: Optional[str] = None  # account_money, credit_card, debit_card, etc.
-    payment_method_id: Optional[str] = None
-    card_last_four: Optional[str] = None  # Últimos 4 dígitos de tarjeta
-    card_holder_name: Optional[str] = None
-    amount: float
-    currency: str = "ARS"
-    transaction_amount: Optional[float] = None
-    transaction_amount_refunded: Optional[float] = None
-    fecha_pago: Optional[datetime] = None
-    fecha_aprobacion: Optional[datetime] = None
-    fecha_creacion: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    fecha_actualizacion: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    description: Optional[str] = None
-    payer_email: Optional[str] = None
-    payer_identificacion_tipo: Optional[str] = None
-    payer_identificacion_numero: Optional[str] = None
-    notificado: bool = False  # Si ya se envió notificación al frontend
-    datos_raw: Optional[dict] = None  # Datos completos del webhook para debugging
-
 # ===== AUDITORÍA HELPER =====
 
 async def registrar_auditoria(
@@ -2000,319 +1973,67 @@ async def eliminar_sticky_note(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al eliminar sticky note: {str(e)}")
 
-# ===== MERCADOPAGO ENDPOINTS =====
+# ===== MERCADOPAGO - TRANSFERENCIAS =====
 
-import hashlib
-import hmac
-import json
-
-def verify_mercadopago_signature(payload: bytes, signature: str, secret: str) -> bool:
-    """Verifica la firma del webhook de Mercadopago"""
-    if not signature:
-        return False
-    try:
-        signed = hmac.new(
-            secret.encode('utf-8'),
-            payload,
-            hashlib.sha256
-        ).hexdigest()
-        return hmac.compare_digest(signed, signature)
-    except Exception:
-        return False
-
-@app.post("/webhooks/mercadopago")
-async def webhook_mercadopago(request: Request):
-    """Webhook para recibir notificaciones de pagos de Mercadopago"""
-    return await webhook_handler(request)
-
-async def webhook_handler(request: Request):
-    """Handler para procesar notificaciones de pagos de Mercadopago"""
-    try:
-        body = await request.body()
-        payload = json.loads(body)
-        
-        # Obtener headers
-        signature = request.headers.get('x-mp-signature', '')
-        mercadopago_token = os.getenv('MERCADOPAGO_WEBHOOK_SECRET', '')
-        
-        logger.info(f"Webhook Mercadopago recibido desde IP: {request.client.host if request.client else 'unknown'}")
-        
-        # Verificar firma (solo si hay token configurado)
-        if mercadopago_token and not verify_mercadopago_signature(body, signature, mercadopago_token):
-            logger.warning("Firma de webhook Mercadopago inválida")
-            # En desarrollo podemos continuar sin verificación
-            # raise HTTPException(status_code=401, detail="Firma inválida")
-        
-        topic = payload.get('topic')
-        action = payload.get('action')
-        
-        logger.info(f"Webhook Mercadopago recibido: topic={topic}, action={action}, payload={payload}")
-        
-        # Guardar log del webhook
-        webhook_log = {
-            "id": str(uuid.uuid4()),
-            "fecha": datetime.now(timezone.utc),
-            "topic": topic,
-            "action": action,
-            "payload": payload,
-            "ip": request.client.host if request.client else None
-        }
-        await db["mercadopago_webhook_logs"].insert_one(webhook_log)
-        
-        if topic == 'payment':
-            # Mercadopago puede enviar el ID en 'resource' o en 'data.id'
-            payment_id = payload.get('resource') or payload.get('data', {}).get('id')
-            if payment_id:
-                logger.info(f"Procesando pago con ID: {payment_id}")
-                await procesar_pago_mercadopago(payment_id)
-            else:
-                logger.warning(f"No se encontró ID de pago en el payload: {payload}")
-        
-        return {"status": "ok"}
-    except Exception as e:
-        logger.error(f"Error procesando webhook Mercadopago: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/webhooks/mercadopago")
-async def webhook_mercadopago_api(request: Request):
-    """Webhook API para recibir notificaciones de pagos de Mercadopago (con prefijo /api)"""
-    return await webhook_handler(request)
-
-@api_router.get("/mercadopago/webhook-logs")
-async def get_webhook_logs(
-    limit: int = 20,
+@api_router.get("/mercadopago/buscar-transferencias")
+async def buscar_transferencias(
+    minutos: int = 60,
     current_user: Usuario = Depends(get_admin_user)
 ):
-    """Obtiene los logs de los webhooks recibidos"""
+    """Busca transferencias/dinero recibido en los últimos X minutos"""
     try:
-        cursor = db["mercadopago_webhook_logs"].find().sort("fecha", -1).limit(limit)
-        logs = []
-        async for doc in cursor:
-            doc["_id"] = str(doc["_id"])
-            doc["fecha"] = doc["fecha"].isoformat() if doc.get("fecha") else None
-            # No mostrar el payload completo, solo resumido
-            if "payload" in doc:
-                doc["payload_resumen"] = {
-                    "topic": doc["payload"].get("topic"),
-                    "action": doc["payload"].get("action"),
-                    "data_id": doc["payload"].get("data", {}).get("id") or doc["payload"].get("resource"),
-                    "type": doc["payload"].get("type"),
-                    "user_id": doc["payload"].get("user_id")
-                }
-                del doc["payload"]
-            logs.append(doc)
-        return {"logs": logs, "cantidad": len(logs)}
-    except Exception as e:
-        logger.error(f"Error obteniendo logs: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-async def procesar_pago_mercadopago(payment_id: str):
-    """Procesa un pago específico de Mercadopago"""
-    try:
-        # Obtener access_token desde la base de datos
         mp_config = await db["configuracion"].find_one({"tipo": "mercadopago"})
         access_token = mp_config.get("access_token") if mp_config else None
         
         if not access_token:
-            logger.error("MERCADOPAGO_ACCESS_TOKEN no configurado en base de datos")
-            return
+            raise HTTPException(status_code=400, detail="MERCADOPAGO_ACCESS_TOKEN no configurado")
+        
+        from datetime import timedelta
+        end_date = datetime.now(timezone.utc)
+        start_date = end_date - timedelta(minutes=minutos)
+        
+        begin_date = start_date.strftime("%Y-%m-%dT%H:%M:%S.000-03:00")
+        end_date_str = end_date.strftime("%Y-%m-%dT%H:%M:%S.000-03:00")
         
         import httpx
-        url = f"https://api.mercadopago.com/v1/payments/{payment_id}"
-        headers = {"Authorization": f"Bearer {access_token}"}
+        url = "https://api.mercadopago.com/v1/payments/search"
+        headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
+        params = {"sort": "date_created", "criteria": "desc", "range": "date_created", "begin_date": begin_date, "end_date": end_date_str, "limit": 100}
         
         async with httpx.AsyncClient() as client:
-            response = await client.get(url, headers=headers)
+            response = await client.get(url, headers=headers, params=params)
             if response.status_code != 200:
-                logger.error(f"Error consultando pago {payment_id}: {response.status_code}")
-                return
+                raise HTTPException(status_code=response.status_code, detail=f"Error de Mercadopago")
+            data = response.json()
+        
+        transferencias = []
+        for payment in data.get("results", []):
+            payment_type = payment.get("payment_type_id", "")
+            operation_type = payment.get("operation_type", "")
+            status = payment.get("status", "")
             
-            payment_data = response.json()
+            if (payment_type in ["bank_transfer", "account_money"] or operation_type in ["transfer", "account_fund"]) and status == "approved":
+                transferencias.append({
+                    "id": payment.get("id"),
+                    "monto": payment.get("transaction_amount", payment.get("amount", 0)),
+                    "currency": payment.get("currency", "ARS"),
+                    "estado": status,
+                    "tipo_pago": payment_type,
+                    "tipo_operacion": operation_type,
+                    "descripcion": payment.get("description"),
+                    "referencia_externa": payment.get("external_reference"),
+                    "metodo_pago": payment.get("payment_method_id"),
+                    "fecha_creacion": payment.get("date_created"),
+                    "fecha_aprobacion": payment.get("date_approved"),
+                    "payer_email": payment.get("payer", {}).get("email"),
+                    "payer_identificacion": payment.get("payer", {}).get("identification", {}),
+                })
         
-        # Verificar si el pago ya existe
-        existing = await db["mercadopago_pagos"].find_one({"mercadopago_id": str(payment_id)})
-        
-        # Extraer datos del pago
-        pago_data = {
-            "id": str(uuid.uuid4()),
-            "mercadopago_id": str(payment_id),
-            "orden_mercadopago": payment_data.get("order", {}).get("id"),
-            "external_reference": payment_data.get("external_reference"),
-            "status": payment_data.get("status", "unknown"),
-            "status_detail": payment_data.get("status_detail"),
-            "payment_type": payment_data.get("payment_type"),
-            "payment_method_id": payment_data.get("payment_method", {}).get("id"),
-            "card_last_four": payment_data.get("card", {}).get("last_four"),
-            "card_holder_name": payment_data.get("card", {}).get("card_holder_name", {}).get("name"),
-            "amount": payment_data.get("transaction_amount", payment_data.get("amount", 0)),
-            "currency": payment_data.get("currency", "ARS"),
-            "transaction_amount": payment_data.get("transaction_amount"),
-            "transaction_amount_refunded": payment_data.get("transaction_amount_refunded"),
-            "description": payment_data.get("description"),
-            "payer_email": payment_data.get("payer", {}).get("email"),
-            "payer_identificacion_tipo": payment_data.get("payer", {}).get("identification", {}).get("type"),
-            "payer_identificacion_numero": payment_data.get("payer", {}).get("identification", {}).get("number"),
-            "notificado": False,
-            "datos_raw": payment_data,
-            "fecha_actualizacion": datetime.now(timezone.utc)
-        }
-        
-        # Parsear fechas
-        if payment_data.get("date_approved"):
-            try:
-                pago_data["fecha_aprobacion"] = datetime.fromisoformat(
-                    payment_data["date_approved"].replace("Z", "+00:00")
-                )
-            except:
-                pass
-        
-        if payment_data.get("date_created"):
-            try:
-                pago_data["fecha_pago"] = datetime.fromisoformat(
-                    payment_data["date_created"].replace("Z", "+00:00")
-                )
-            except:
-                pass
-        
-        if existing:
-            # Actualizar pago existente
-            pago_data.pop("id", None)
-            pago_data.pop("fecha_creacion", None)
-            await db["mercadopago_pagos"].update_one(
-                {"mercadopago_id": str(payment_id)},
-                {"$set": pago_data}
-            )
-            logger.info(f"Pago Mercadopago actualizado: {payment_id}")
-        else:
-            # Crear nuevo pago
-            pago_data["fecha_creacion"] = datetime.now(timezone.utc)
-            await db["mercadopago_pagos"].insert_one(pago_data)
-            logger.info(f"Nuevo pago Mercadopago registrado: {payment_id}")
-        
-        # Notificar al frontend (se implementará con polling)
-        
-    except Exception as e:
-        logger.error(f"Error procesando pago Mercadopago {payment_id}: {str(e)}")
-
-@api_router.get("/mercadopago/pagos")
-async def listar_pagos_mercadopago(
-    skip: int = 0,
-    limit: int = 50,
-    status: Optional[str] = None,
-    current_user: Usuario = Depends(get_current_user)
-):
-    """Lista los pagos recibidos por Mercadopago"""
-    try:
-        query = {}
-        if status:
-            query["status"] = status
-        
-        cursor = db["mercadopago_pagos"].find(query).sort("fecha_creacion", -1).skip(skip).limit(limit)
-        pagos = []
-        async for doc in cursor:
-            doc["_id"] = str(doc["_id"])
-            pagos.append(doc)
-        
-        # Obtener total
-        total = await db["mercadopago_pagos"].count_documents(query)
-        
-        return {
-            "pagos": pagos,
-            "total": total,
-            "skip": skip,
-            "limit": limit
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al listar pagos: {str(e)}")
-
-@api_router.get("/mercadopago/pagos/{pago_id}")
-async def obtener_pago_mercadopago(
-    pago_id: str,
-    current_user: Usuario = Depends(get_current_user)
-):
-    """Obtiene un pago específico de Mercadopago"""
-    try:
-        pago = await db["mercadopago_pagos"].find_one({"id": pago_id})
-        if not pago:
-            # Buscar por mercadopago_id
-            pago = await db["mercadopago_pagos"].find_one({"mercadopago_id": pago_id})
-        
-        if not pago:
-            raise HTTPException(status_code=404, detail="Pago no encontrado")
-        
-        pago["_id"] = str(pago["_id"])
-        return pago
+        return {"transferencias": transferencias, "cantidad": len(transferencias), "busqueda_minutos": minutos}
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al obtener pago: {str(e)}")
-
-@api_router.get("/mercadopago/estadisticas")
-async def estadisticas_mercadopago(
-    dias: int = 30,
-    current_user: Usuario = Depends(get_current_user)
-):
-    """Obtiene estadísticas de pagos Mercadopago"""
-    try:
-        desde = datetime.now(timezone.utc) - timedelta(days=dias)
-        
-        # Pagos por estado
-        pipeline = [
-            {"$match": {"fecha_creacion": {"$gte": desde}}},
-            {"$group": {"_id": "$status", "count": {"$sum": 1}, "total": {"$sum": "$amount"}}}
-        ]
-        por_estado = await db["mercadopago_pagos"].aggregate(pipeline).to_list(length=100)
-        
-        # Total aprobado
-        total_aprobado = await db["mercadopago_pagos"].aggregate([
-            {"$match": {"status": "approved", "fecha_creacion": {"$gte": desde}}},
-            {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
-        ]).to_list(length=1)
-        
-        return {
-            "por_estado": [{"estado": p["_id"], "cantidad": p["count"], "total": p["total"]} for p in por_estado],
-            "total_aprobado": total_aprobado[0]["total"] if total_aprobado else 0,
-            "periodo_dias": dias
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al obtener estadísticas: {str(e)}")
-
-@api_router.get("/mercadopago/no-notificados")
-async def pagos_no_notificados(
-    current_user: Usuario = Depends(get_admin_user)
-):
-    """Obtiene pagos no notificados (para polling desde el frontend)"""
-    try:
-        cursor = db["mercadopago_pagos"].find(
-            {"notificado": False, "status": "approved"}
-        ).sort("fecha_creacion", -1).limit(20)
-        
-        pagos = []
-        async for doc in cursor:
-            doc["_id"] = str(doc["_id"])
-            pagos.append(doc)
-        
-        return {"pagos": pagos, "cantidad": len(pagos)}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@api_router.post("/mercadopago/pagos/{pago_id}/marcar-notificado")
-async def marcar_pago_notificado(
-    pago_id: str,
-    current_user: Usuario = Depends(get_current_user)
-):
-    """Marca un pago como notificado"""
-    try:
-        result = await db["mercadopago_pagos"].update_one(
-            {"id": pago_id},
-            {"$set": {"notificado": True}}
-        )
-        if result.matched_count == 0:
-            raise HTTPException(status_code=404, detail="Pago no encontrado")
-        return {"message": "Pago marcado como notificado"}
-    except HTTPException:
-        raise
-    except Exception as e:
+        logger.error(f"Error buscando transferencias: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # ===== CONFIGURACIÓN MERCADOPAGO =====
