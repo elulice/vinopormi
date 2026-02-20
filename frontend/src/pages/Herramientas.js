@@ -171,64 +171,49 @@ const Herramientas = () => {
   // Solo permitir acceso a administradores
   if (user?.rol !== 'admin') {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center p-4">
         <div className="text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Shield className="w-8 h-8 text-red-600" />
+          <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+            <Shield className="w-6 h-6 text-red-600" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Acceso Restringido</h1>
-          <p className="text-gray-600 mb-6">
-            Esta sección está disponible solo para administradores del sistema.
+          <h1 className="text-xl font-bold mb-2">Acceso Restringido</h1>
+          <p className="text-sm text-muted-foreground mb-4">
+            Solo administradores pueden acceder
           </p>
-          <button
-            onClick={() => window.history.back()}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-          >
+          <Button variant="outline" onClick={() => window.history.back()}>
             Volver
-          </button>
+          </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
-        <h1 className="text-4xl font-bold mb-2">Herramientas de Administrador</h1>
-        <p className="text-muted-foreground">
-          Herramientas avanzadas para mantenimiento del sistema
+        <h1 className="text-2xl font-bold text-foreground">Herramientas</h1>
+        <p className="text-sm text-muted-foreground">
+          Mantenimiento del sistema
         </p>
       </div>
 
-      <Card className="border-red-200">
-        <CardHeader className="bg-red-50 border-b border-red-200">
-          <CardTitle className="text-red-800 flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5" />
+      <Card className="border-red-200 overflow-hidden">
+        <CardHeader className="py-2 bg-red-50 border-b border-red-200">
+          <CardTitle className="text-red-800 flex items-center gap-2 text-sm">
+            <AlertTriangle className="w-4 h-4" />
             Zona Crítica
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-6">
-          <div className="space-y-4">
+        <CardContent className="py-3">
+          <div className="space-y-3">
             <div>
-              <h3 className="font-semibold text-lg mb-2">Limpiar Base de Datos</h3>
-              <p className="text-gray-600 mb-4">
-                Esta acción eliminará permanentemente todos los datos de la base de datos, 
-                manteniendo solo:
+              <h3 className="font-semibold text-sm mb-1">Limpiar Base de Datos</h3>
+              <p className="text-xs text-muted-foreground mb-2">
+                Mantiene: Productos, Usuarios
               </p>
-              <ul className="list-disc list-inside text-sm text-gray-600 space-y-1 ml-4">
-                <li>✅ Productos</li>
-                <li>✅ Usuarios</li>
-              </ul>
-              <p className="text-red-600 font-semibold mt-2">
-                Se eliminarán permanentemente:
+              <p className="text-xs text-red-600 mb-2">
+                Elimina: Clientes, Ventas, Ctas Ctes, Egresos, Notificaciones
               </p>
-              <ul className="list-disc list-inside text-sm text-red-600 space-y-1 ml-4">
-                <li>🗑️ Clientes y toda su información</li>
-                <li>🗑️ Ventas registradas</li>
-                <li>🗑️ Movimientos de cuenta corriente</li>
-                <li>🗑️ Egresos registrados</li>
-                <li>🗑️ Notificaciones</li>
-              </ul>
             </div>
 
             <Dialog 
@@ -240,35 +225,33 @@ const Herramientas = () => {
               }}
             >
               <DialogTrigger asChild>
-                <Button variant="destructive" className="w-full" disabled={loading}>
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  {loading ? "Eliminando..." : "Limpiar Base de Datos"}
+                <Button variant="destructive" size="sm" disabled={loading}>
+                  <Trash2 className="w-3 h-3 mr-1" />
+                  {loading ? "Eliminando..." : "Limpiar Base"}
                 </Button>
               </DialogTrigger>
-              <DialogContent className="bg-red-50 border-red-200">
+              <DialogContent className="bg-red-50 border-red-200 max-w-sm">
                 <DialogHeader>
-                  <DialogTitle className="text-red-800">⚠️ Confirmación Requerida</DialogTitle>
-                  <DialogDescription className="text-red-700">
-                    Esta acción es irreversible y eliminará permanentemente los datos de:
-                    <br /><br />
-                    <strong>Clientes, Ventas, Cuentas Corrientes, Egresos y Notificaciones</strong>
-                    <br /><br />
+                  <DialogTitle className="text-red-800 text-base">⚠️ Confirmación</DialogTitle>
+                  <DialogDescription className="text-red-700 text-sm">
+                    Se eliminarán: Clientes, Ventas, Ctas Ctes, Egresos, Notificaciones.
+                    <br />
                     Solo se conservarán Productos y Usuarios.
-                    <br /><br />
-                    <strong>¿Estás absolutamente seguro de continuar?</strong>
                   </DialogDescription>
                 </DialogHeader>
-                <div className="flex gap-2 pt-4">
+                <div className="flex gap-2 pt-2">
                   <Button
                     variant="destructive"
+                    size="sm"
                     onClick={handleLimpiarBaseDatos}
                     disabled={loading}
                     className="flex-1"
                   >
-                    Sí, eliminar todo
+                    Sí, eliminar
                   </Button>
                   <Button
                     variant="outline"
+                    size="sm"
                     onClick={() => setDialogOpen(false)}
                     disabled={loading}
                     className="flex-1"
@@ -283,29 +266,22 @@ const Herramientas = () => {
       </Card>
 
       {/* SECCIÓN DE LIMPIEZA DE REGISTROS */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Trash2 className="w-5 h-5" />
+      <Card className="py-2">
+        <CardHeader className="py-2">
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <Trash2 className="w-4 h-4" />
             Limpieza de Registros
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <CardContent className="py-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Limpiar Auditoría */}
-            <div className="space-y-4">
+            <div className="space-y-2">
               <div>
-                <h3 className="font-semibold text-lg mb-2">Limpiar Auditoría</h3>
-                <p className="text-gray-600 mb-4">
-                  Esta acción eliminará permanentemente los registros de auditoría del sistema:
+                <h3 className="font-semibold text-sm mb-1">Limpiar Auditoría</h3>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Elimina historial de cambios del sistema
                 </p>
-                <ul className="list-disc list-inside text-sm text-gray-600 space-y-1 ml-4">
-                  <li>🗑️ Historial de cambios en productos</li>
-                  <li>🗑️ Historial de cambios en cuentas corrientes</li>
-                  <li>🗑️ Historial de cambios en egresos</li>
-                  <li>🗑️ Historial de cambios en usuarios</li>
-                  <li>🗑️ Historial de sticky notes</li>
-                </ul>
               </div>
 
               <Dialog 
@@ -318,44 +294,38 @@ const Herramientas = () => {
                 }}
               >
                 <DialogTrigger asChild>
-                  <Button variant="outline" className="w-full" disabled={loading}>
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    {loading ? "Eliminando..." : "Limpiar Auditoría"}
+                  <Button variant="outline" size="sm" disabled={loading}>
+                    <Trash2 className="w-3 h-3 mr-1" />
+                    {loading ? "Eliminando..." : "Limpiar"}
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>⚠️ Limpiar Registros de Auditoría</DialogTitle>
-                    <DialogDescription>
-                      Selecciona los tipos de registros que deseas eliminar:
+                    <DialogTitle className="text-base">Limpiar Auditoría</DialogTitle>
+                    <DialogDescription className="text-sm">
+                      Selecciona los registros a eliminar:
                     </DialogDescription>
                   </DialogHeader>
                   
-                  <div className="space-y-3 py-4">
-                    <div className="flex items-center space-x-3 pb-2 border-b">
+                  <div className="space-y-2 py-2">
+                    <div className="flex items-center gap-2 pb-2 border-b">
                       <Checkbox 
                         id="select-all"
                         checked={entidadesSeleccionadas.length === entidadesOptions.length && entidadesOptions.length > 0}
                         onCheckedChange={toggleTodos}
                       />
-                      <Label 
-                        htmlFor="select-all" 
-                        className="text-sm font-bold leading-none"
-                      >
+                      <Label htmlFor="select-all" className="text-xs font-medium">
                         Seleccionar todos
                       </Label>
                     </div>
                     {entidadesOptions.map((entidad) => (
-                      <div key={entidad.id} className="flex items-center space-x-3">
+                      <div key={entidad.id} className="flex items-center gap-2">
                         <Checkbox 
                           id={entidad.id}
                           checked={entidadesSeleccionadas.includes(entidad.id)}
                           onCheckedChange={() => toggleEntidad(entidad.id)}
                         />
-                        <Label 
-                          htmlFor={entidad.id} 
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                        >
+                        <Label htmlFor={entidad.id} className="text-xs">
                           {entidad.label}
                         </Label>
                       </div>
@@ -366,9 +336,10 @@ const Herramientas = () => {
                     Selecciona al menos una opción.
                   </p>
 
-                  <div className="flex gap-2 pt-4">
+                  <div className="flex gap-2 pt-2">
                     <Button
                       variant="destructive"
+                      size="sm"
                       onClick={handleLimpiarAuditoria}
                       disabled={loading}
                       className="flex-1"
@@ -377,6 +348,7 @@ const Herramientas = () => {
                     </Button>
                     <Button
                       variant="outline"
+                      size="sm"
                       onClick={() => {
                         setAuditoriaDialogOpen(false);
                         setEntidadesSeleccionadas([]);
@@ -392,18 +364,12 @@ const Herramientas = () => {
             </div>
 
             {/* Limpiar Login Registros */}
-            <div className="space-y-4">
+            <div className="space-y-2">
               <div>
-                <h3 className="font-semibold text-lg mb-2">Limpiar Registros de Login</h3>
-                <p className="text-gray-600 mb-4">
-                  Esta acción eliminará permanentemente todos los registros de acceso de usuarios:
+                <h3 className="font-semibold text-sm mb-1">Limpiar Login</h3>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Elimina historial de accesos
                 </p>
-                <ul className="list-disc list-inside text-sm text-gray-600 space-y-1 ml-4">
-                  <li>🗑️ Historial de accesos al sistema</li>
-                  <li>🗑️ Direcciones IP registradas</li>
-                  <li>🗑️ Información de dispositivos</li>
-                  <li>🗑️ Fechas y horas de acceso</li>
-                </ul>
               </div>
 
               <Dialog 
@@ -415,31 +381,31 @@ const Herramientas = () => {
                 }}
               >
                 <DialogTrigger asChild>
-                  <Button variant="outline" className="w-full" disabled={loading}>
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    {loading ? "Eliminando..." : "Limpiar Registros de Login"}
+                  <Button variant="outline" size="sm" disabled={loading}>
+                    <Trash2 className="w-3 h-3 mr-1" />
+                    {loading ? "Eliminando..." : "Limpiar"}
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>⚠️ Confirmación Requerida</DialogTitle>
-                    <DialogDescription>
-                      Esta acción eliminará permanentemente todos los registros de login del sistema.
-                      <br /><br />
-                      <strong>¿Estás seguro de continuar?</strong>
+                    <DialogTitle className="text-base">Limpiar Login</DialogTitle>
+                    <DialogDescription className="text-sm">
+                      Eliminar todos los registros de login del sistema
                     </DialogDescription>
                   </DialogHeader>
-                  <div className="flex gap-2 pt-4">
+                  <div className="flex gap-2 pt-2">
                     <Button
                       variant="destructive"
+                      size="sm"
                       onClick={handleLimpiarLoginRegistros}
                       disabled={loading}
                       className="flex-1"
                     >
-                      Sí, eliminar login registros
+                      Sí, eliminar
                     </Button>
                     <Button
                       variant="outline"
+                      size="sm"
                       onClick={() => setLoginDialogOpen(false)}
                       disabled={loading}
                       className="flex-1"
@@ -454,23 +420,18 @@ const Herramientas = () => {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Información del Sistema</CardTitle>
+      <Card className="py-2">
+        <CardHeader className="py-2">
+          <CardTitle className="text-sm">Info del Sistema</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="font-medium">Usuario actual:</span> {user?.nombre} ({user?.rol})
-            </div>
-            <div>
-              <span className="font-medium">Acceso:</span> Administrador
-            </div>
+        <CardContent className="py-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">Usuario:</span>
+            <span className="font-medium">{user?.nombre} ({user?.rol})</span>
           </div>
-          <div className="mt-4 p-3 bg-blue-50 rounded-md">
-            <p className="text-blue-800 text-sm">
-              💡 <strong>Recomendación:</strong> Realiza una copia de seguridad completa 
-              antes de ejecutar cualquier operación crítica.
+          <div className="mt-2 p-2 bg-blue-50 rounded-md">
+            <p className="text-xs text-blue-800">
+              💡 Recomendación: Haz backup antes de operaciones críticas
             </p>
           </div>
         </CardContent>
