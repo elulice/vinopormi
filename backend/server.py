@@ -2035,6 +2035,8 @@ async def webhook_handler(request: Request):
         signature = request.headers.get('x-mp-signature', '')
         mercadopago_token = os.getenv('MERCADOPAGO_WEBHOOK_SECRET', '')
         
+        logger.info(f"Webhook Mercadopago recibido desde IP: {request.client.host if request.client else 'unknown'}")
+        
         # Verificar firma (solo si hay token configurado)
         if mercadopago_token and not verify_mercadopago_signature(body, signature, mercadopago_token):
             logger.warning("Firma de webhook Mercadopago inválida")
@@ -2076,7 +2078,7 @@ async def webhook_mercadopago_api(request: Request):
     """Webhook API para recibir notificaciones de pagos de Mercadopago (con prefijo /api)"""
     return await webhook_handler(request)
 
-@app.get("/api/mercadopago/webhook-logs")
+@api_router.get("/mercadopago/webhook-logs")
 async def get_webhook_logs(
     limit: int = 20,
     current_user: Usuario = Depends(get_admin_user)
