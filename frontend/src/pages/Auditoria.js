@@ -50,23 +50,18 @@ const Auditoria = () => {
 
   const fetchRegistrosRef = useRef(null);
 
-  const fetchRegistros = useCallback(async (page = 1, searchOverride = null) => {
+  const fetchRegistros = useCallback(async (page = 1) => {
     setLoadingPage(true);
     try {
       const params = new URLSearchParams();
       params.append('page', page);
       params.append('limit', 50);
       
-      const currentFilters = { ...filters };
-      if (searchOverride !== null) {
-        currentFilters.search = searchOverride;
-      }
-      
-      if (currentFilters.entidad !== 'todos') params.append('entidad', currentFilters.entidad);
-      if (currentFilters.accion !== 'todos') params.append('accion', currentFilters.accion);
-      if (currentFilters.fechaDesde) params.append('fechaDesde', currentFilters.fechaDesde);
-      if (currentFilters.fechaHasta) params.append('fechaHasta', currentFilters.fechaHasta);
-      if (currentFilters.search) params.append('search', currentFilters.search);
+      if (filters.entidad !== 'todos') params.append('entidad', filters.entidad);
+      if (filters.accion !== 'todos') params.append('accion', filters.accion);
+      if (filters.fechaDesde) params.append('fechaDesde', filters.fechaDesde);
+      if (filters.fechaHasta) params.append('fechaHasta', filters.fechaHasta);
+      if (filters.search) params.append('search', filters.search);
 
       const response = await axios.get(`${API}/auditoria?${params.toString()}`, {
         headers: getAuthHeader(),
@@ -96,10 +91,6 @@ const Auditoria = () => {
 
   fetchRegistrosRef.current = fetchRegistros;
 
-  useEffect(() => {
-    fetchRegistrosRef.current?.(1);
-  }, []);
-
   const handlePageChange = (newPage) => {
     fetchRegistros(newPage);
     setPagination(prev => ({ ...prev, page: newPage }));
@@ -107,8 +98,14 @@ const Auditoria = () => {
 
   const handleFilterChange = (newFilters) => {
     setFilters(newFilters);
-    fetchRegistros(1, newFilters.search);
+    // El useEffect detectará el cambio en filters y ejecutará fetchRegistros
   };
+
+  // Effect para cargar datos cuando cambian los filtros
+  useEffect(() => {
+    fetchRegistrosRef.current?.(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters]);
 
   const getEntidadIcon = (entidad) => {
     switch (entidad) {
@@ -203,6 +200,7 @@ const Auditoria = () => {
                   <SelectItem value="todos">Todas</SelectItem>
                   <SelectItem value="producto">Productos</SelectItem>
                   <SelectItem value="cliente">Ctas Ctes</SelectItem>
+                  <SelectItem value="proveedor">Proveedores</SelectItem>
                   <SelectItem value="egreso">Egresos</SelectItem>
                   <SelectItem value="usuario">Usuarios</SelectItem>
                   <SelectItem value="sticky_note">Notas</SelectItem>
@@ -258,7 +256,7 @@ const Auditoria = () => {
                   onChange={(e) => handleFilterChange({ ...filters, search: e.target.value })}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
-                      fetchRegistros(1, filters.search);
+                      fetchRegistros(1);
                     }
                   }}
                   className="pl-7 h-8 text-xs"

@@ -531,7 +531,15 @@ async def get_auditoria(
         filtro['entidad'] = entidad
     
     if accion and accion != 'todos':
-        filtro['accion'] = accion
+        # Manejar acciones oldas y nuevas
+        if accion == 'creado':
+            filtro['accion'] = {'$in': ['creado', 'crear']}
+        elif accion == 'modificado':
+            filtro['accion'] = {'$in': ['modificado', 'actualizar']}
+        elif accion == 'eliminado':
+            filtro['accion'] = {'$in': ['eliminado', 'eliminar']}
+        else:
+            filtro['accion'] = accion
     
     if fechaDesde:
         try:
