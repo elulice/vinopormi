@@ -2044,12 +2044,27 @@ async def webhook_handler(request: Request):
         topic = payload.get('topic')
         action = payload.get('action')
         
-        logger.info(f"Webhook Mercadopago recibido: topic={topic}, action={action}")
+        logger.info(f"Webhook Mercadopago recibido: topic={topic}, action={action}, payload={payload}")
+        
+        # Guardar log del webhook
+        webhook_log = {
+            "id": str(uuid.uuid4()),
+            "fecha": datetime.now(timezone.utc),
+            "topic": topic,
+            "action": action,
+            "payload": payload,
+            "ip": request.client.host if request.client else None
+        }
+        await db["mercadopago_webhook_logs"].insert_one(webhook_log)
         
         if topic == 'payment':
-            payment_id = payload.get('resource')
+            # Mercadopago puede enviar el ID en 'resource' o en 'data.id'
+            payment_id = payload.get('resource') or payload.get('data', {}).get('id')
             if payment_id:
+                logger.info(f"Procesando pago con ID: {payment_id}")
                 await procesar_pago_mercadopago(payment_id)
+            else:
+                logger.warning(f"No se encontró ID de pago en el payload: {payload}")
         
         return {"status": "ok"}
     except Exception as e:
@@ -2061,12 +2076,43 @@ async def webhook_mercadopago_api(request: Request):
     """Webhook API para recibir notificaciones de pagos de Mercadopago (con prefijo /api)"""
     return await webhook_handler(request)
 
+@app.get("/api/mercadopago/webhook-logs")
+async def get_webhook_logs(
+    limit: int = 20,
+    current_user: Usuario = Depends(get_admin_user)
+):
+    """Obtiene los logs de los webhooks recibidos"""
+    try:
+        cursor = db["mercadopago_webhook_logs"].find().sort("fecha", -1).limit(limit)
+        logs = []
+        async for doc in cursor:
+            doc["_id"] = str(doc["_id"])
+            doc["fecha"] = doc["fecha"].isoformat() if doc.get("fecha") else None
+            # No mostrar el payload completo, solo resumido
+            if "payload" in doc:
+                doc["payload_resumen"] = {
+                    "topic": doc["payload"].get("topic"),
+                    "action": doc["payload"].get("action"),
+                    "data_id": doc["payload"].get("data", {}).get("id") or doc["payload"].get("resource"),
+                    "type": doc["payload"].get("type"),
+                    "user_id": doc["payload"].get("user_id")
+                }
+                del doc["payload"]
+            logs.append(doc)
+        return {"logs": logs, "cantidad": len(logs)}
+    except Exception as e:
+        logger.error(f"Error obteniendo logs: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 async def procesar_pago_mercadopago(payment_id: str):
     """Procesa un pago específico de Mercadopago"""
     try:
-        access_token = os.getenv('MERCADOPAGO_ACCESS_TOKEN')
+        # Obtener access_token desde la base de datos
+        mp_config = await db["configuracion"].find_one({"tipo": "mercadopago"})
+        access_token = mp_config.get("access_token") if mp_config else None
+        
         if not access_token:
-            logger.error("MERCADOPAGO_ACCESS_TOKEN no configurado")
+            logger.error("MERCADOPAGO_ACCESS_TOKEN no configurado en base de datos")
             return
         
         import httpx

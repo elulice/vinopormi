@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Pagination from '@/components/Pagination';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   CreditCard, 
   RefreshCw, 
@@ -13,7 +14,8 @@ import {
   Clock,
   AlertCircle,
   TrendingUp,
-  Eye
+  Eye,
+  Terminal
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -35,6 +37,9 @@ const Mercadopago = () => {
   const [estadisticas, setEstadisticas] = useState(null);
   const [loadingEstadisticas, setLoadingEstadisticas] = useState(false);
   const [selectedPago, setSelectedPago] = useState(null);
+  const [webhookLogs, setWebhookLogs] = useState([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
+  const [activeTab, setActiveTab] = useState('pagos');
 
   const fetchPagos = useCallback(async (page = 1) => {
     setLoadingPage(true);
@@ -83,10 +88,25 @@ const Mercadopago = () => {
     }
   }, [getAuthHeader]);
 
+  const fetchWebhookLogs = useCallback(async () => {
+    setLoadingLogs(true);
+    try {
+      const response = await axios.get(`${API}/mercadopago/webhook-logs?limit=20`, {
+        headers: getAuthHeader(),
+      });
+      setWebhookLogs(response.data.logs || []);
+    } catch (error) {
+      console.error('Error fetching webhook logs:', error);
+    } finally {
+      setLoadingLogs(false);
+    }
+  }, [getAuthHeader]);
+
   useEffect(() => {
     fetchPagos(1);
     fetchEstadisticas();
-  }, [fetchPagos, fetchEstadisticas]);
+    fetchWebhookLogs();
+  }, [fetchPagos, fetchEstadisticas, fetchWebhookLogs]);
 
   const handlePageChange = (newPage) => {
     fetchPagos(newPage);
@@ -144,7 +164,7 @@ const Mercadopago = () => {
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={() => { fetchPagos(1); fetchEstadisticas(); }}
+            onClick={() => { fetchPagos(1); fetchEstadisticas(); fetchWebhookLogs(); }}
             disabled={loadingPage}
           >
             <RefreshCw className={`w-4 h-4 mr-1 ${loadingPage ? 'animate-spin' : ''}`} />
@@ -193,6 +213,19 @@ const Mercadopago = () => {
         </div>
       )}
 
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="mb-3">
+          <TabsTrigger value="pagos" className="flex items-center gap-1">
+            <CreditCard className="w-4 h-4" />
+            Pagos
+          </TabsTrigger>
+          <TabsTrigger value="logs" className="flex items-center gap-1">
+            <Terminal className="w-4 h-4" />
+            Webhook Logs
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="pagos">
       <Card>
         <CardHeader className="p-3 pb-0">
           <div className="flex items-center justify-between">
@@ -281,6 +314,62 @@ const Mercadopago = () => {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="logs">
+          <Card>
+            <CardHeader className="p-3 pb-0">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">Logs de Webhook</CardTitle>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={fetchWebhookLogs}
+                  disabled={loadingLogs}
+                >
+                  <RefreshCw className={`w-4 h-4 mr-1 ${loadingLogs ? 'animate-spin' : ''}`} />
+                  Actualizar
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-3">
+              {loadingLogs ? (
+                <div className="animate-pulse space-y-2">
+                  {[1,2,3].map(i => (
+                    <div key={i} className="h-12 bg-muted rounded"></div>
+                  ))}
+                </div>
+              ) : webhookLogs.length === 0 ? (
+                <p className="text-center py-8 text-muted-foreground">
+                  No hay logs de webhooks registrados
+                </p>
+              ) : (
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {webhookLogs.map((log) => (
+                    <div key={log.id} className="p-2 bg-muted rounded text-xs font-mono">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-semibold">
+                          {log.fecha ? format(new Date(log.fecha), 'dd/MM/yyyy HH:mm:ss', { locale: es }) : 'Sin fecha'}
+                        </span>
+                        <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded">
+                          {log.topic}
+                        </span>
+                      </div>
+                      {log.payload_resumen && (
+                        <div className="text-muted-foreground">
+                          <div>Action: {log.payload_resumen.action}</div>
+                          <div>Data ID: {log.payload_resumen.data_id || 'N/A'}</div>
+                          <div>User ID: {log.payload_resumen.user_id}</div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {selectedPago && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
