@@ -2023,6 +2023,10 @@ def verify_mercadopago_signature(payload: bytes, signature: str, secret: str) ->
 @app.post("/webhooks/mercadopago")
 async def webhook_mercadopago(request: Request):
     """Webhook para recibir notificaciones de pagos de Mercadopago"""
+    return await webhook_handler(request)
+
+async def webhook_handler(request: Request):
+    """Handler para procesar notificaciones de pagos de Mercadopago"""
     try:
         body = await request.body()
         payload = json.loads(body)
@@ -2051,6 +2055,11 @@ async def webhook_mercadopago(request: Request):
     except Exception as e:
         logger.error(f"Error procesando webhook Mercadopago: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/webhooks/mercadopago")
+async def webhook_mercadopago_api(request: Request):
+    """Webhook API para recibir notificaciones de pagos de Mercadopago (con prefijo /api)"""
+    return await webhook_handler(request)
 
 async def procesar_pago_mercadopago(payment_id: str):
     """Procesa un pago específico de Mercadopago"""
