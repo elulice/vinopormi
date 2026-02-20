@@ -530,9 +530,6 @@ const clearFilters = () => {
             <div className="text-xs text-muted-foreground">
               {format(safeParseDate(venta.fecha), 'dd/MM HH:mm')}
             </div>
-            {venta.cliente_nombre && (
-              <div className="text-xs text-muted-foreground truncate max-w-[120px]">{venta.cliente_nombre}</div>
-            )}
           </div>
         </div>
       </div>
@@ -550,11 +547,23 @@ const clearFilters = () => {
             {venta.pagos.map((pago, idx) => (
               <div key={idx} className="capitalize">
                 {pago.medio_pago?.replace('_', ' ')}
+                {pago.medio_pago === 'cuenta_corriente' && venta.cliente_nombre && (
+                  <div className="text-muted-foreground font-normal truncate max-w-[80px]">
+                    {venta.cliente_nombre}
+                  </div>
+                )}
               </div>
             ))}
           </div>
         ) : (
-          <span className="text-xs capitalize">{venta.medio_pago.replace('_', ' ')}</span>
+          <div className="text-xs">
+            <span className="capitalize">{venta.medio_pago.replace('_', ' ')}</span>
+            {venta.medio_pago === 'cuenta_corriente' && venta.cliente_nombre && (
+              <div className="text-muted-foreground font-normal truncate max-w-[80px]">
+                {venta.cliente_nombre}
+              </div>
+            )}
+          </div>
         )}
       </div>
       <div className="col-span-1 flex items-center justify-center">
@@ -750,7 +759,7 @@ const clearFilters = () => {
         <CardContent className="py-2 space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
             <div className="space-y-1">
-              <Label className="text-xs">Tipo</Label>
+              <Label className="text-xs">Período</Label>
               <Select 
                 value={filters.dateType} 
                 onValueChange={(value) => setFilters(prev => ({ ...prev, dateType: value }))}
@@ -759,7 +768,7 @@ const clearFilters = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todas</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
                   <SelectItem value="specific">Fecha específica</SelectItem>
                   <SelectItem value="range">Rango</SelectItem>
                 </SelectContent>
