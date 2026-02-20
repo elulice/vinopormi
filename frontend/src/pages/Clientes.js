@@ -723,62 +723,59 @@ const Clientes = () => {
 
       {/* Modal de Detalle de Venta */}
       <Dialog open={ventaDialogOpen} onOpenChange={handleVentaDialogClose}>
-        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
-          <DialogHeader className="flex-shrink-0">
-            <DialogTitle>Detalle de Venta</DialogTitle>
-            <DialogDescription>
-              Información completa de la venta seleccionada
-            </DialogDescription>
+        <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+          <DialogHeader className="py-3 px-4 flex-shrink-0">
+            <DialogTitle className="text-base">Detalle de Venta</DialogTitle>
           </DialogHeader>
           {loadingVenta ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center py-8">Cargando detalles de la venta...</div>
             </div>
           ) : selectedVenta ? (
-            <div className="flex flex-col flex-1 min-h-0 space-y-4">
-              <div className="grid grid-cols-2 gap-4 p-4 bg-muted rounded-lg flex-shrink-0">
+            <div className="flex flex-col flex-1 min-h-0 px-4 pb-4 space-y-3">
+              <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded-md flex-shrink-0 text-xs">
                 <div>
-                  <p className="text-sm text-muted-foreground">Fecha y Hora</p>
-                  <p className="font-medium">
-                    {format(new Date(selectedVenta.fecha), 'PPP HH:mm:ss', { locale: es })}
+                  <p className="text-muted-foreground">Fecha</p>
+                  <p className="font-medium text-xs">
+                    {format(new Date(selectedVenta.fecha), 'dd/MM/yyyy HH:mm', { locale: es })}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Usuario</p>
-                  <p className="font-medium">
+                  <p className="text-muted-foreground">Usuario</p>
+                  <p className="font-medium text-xs">
                     {selectedVenta.usuario_nombre || 'Usuario desconocido'}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Medio de Pago</p>
-                  <p className="font-medium capitalize">
+                  <p className="text-muted-foreground">Medio de Pago</p>
+                  <p className="font-medium capitalize text-xs">
                     {selectedVenta.medio_pago?.replace('_', ' ') ?? '—'}
                   </p>
                 </div>
                 {selectedVenta.cliente_nombre && (
                   <div className="col-span-2">
-                    <p className="text-sm text-muted-foreground">Cliente</p>
-                    <p className="font-medium">{selectedVenta.cliente_nombre}</p>
+                    <p className="text-muted-foreground">Cliente</p>
+                    <p className="font-medium text-xs">{selectedVenta.cliente_nombre}</p>
                   </div>
                 )}
               </div>
 
               <div className="flex flex-col flex-1 min-h-0">
-                <h3 className="font-semibold mb-3 flex-shrink-0">Productos</h3>
-                <div className="flex-1 overflow-y-auto space-y-2 max-h-[50vh]">
+                <h3 className="font-semibold text-sm py-1 flex-shrink-0">Productos</h3>
+                <div className="flex-1 overflow-y-auto space-y-1 max-h-[40vh]">
                   {selectedVenta.detalles?.map((detalle, index) => (
                     <div
                       key={index}
-                      className="flex justify-between items-center p-3 bg-muted rounded-md"
+                      className="flex justify-between items-center p-2 bg-muted rounded-md text-xs"
                     >
                       <div>
-                        <p className="font-medium">{capitalizeWords(detalle.producto_nombre)}</p>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="font-medium text-xs">{capitalizeWords(detalle.producto_nombre)}</p>
+                        <p className="text-muted-foreground text-xs">
                           {detalle.cantidad} x {formatCurrency(detalle.precio_unitario, showCents)}
                         </p>
                       </div>
                       <div className="text-right">
-                        <div className="font-semibold">
+                        <div className="font-semibold text-xs">
                           {formatCurrency(detalle.subtotal, showCents)}
                         </div>
                       </div>
@@ -787,9 +784,9 @@ const Clientes = () => {
                 </div>
               </div>
 
-              <div className="flex justify-between items-center p-4 bg-primary/10 rounded-lg flex-shrink-0">
-                <span className="text-xl font-bold">Total</span>
-                <span className="text-2xl font-bold text-primary">
+              <div className="flex justify-between items-center p-2 bg-primary/10 rounded-md flex-shrink-0">
+                <span className="font-bold text-sm">Total</span>
+                <span className="text-lg font-bold text-primary">
                   {formatCurrency(selectedVenta.total, showCents)}
                 </span>
               </div>
