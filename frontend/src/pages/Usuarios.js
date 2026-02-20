@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -21,6 +22,7 @@ import {
   Search,
   Shield,
   User,
+  X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import ResponsiveTable from '@/components/ResponsiveTable';
@@ -146,27 +148,33 @@ const Usuarios = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-bold mb-2">Usuarios</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl font-bold text-foreground">Usuarios</h1>
+          <p className="text-sm text-muted-foreground">
             Gestiona los usuarios y accesos al sistema
           </p>
         </div>
       </div>
 
       {/* BUSCADOR + BOTÓN AGREGAR */}
-      <div className="flex gap-3 items-center">
+      <div className="flex gap-2 items-center">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
           <Input
-            placeholder="Buscar usuarios..."
+            placeholder="Buscar..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 w-64"
+            className="pl-7 pr-7 h-7 text-sm w-40"
           />
+          {searchTerm && (
+            <X 
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground hover:text-foreground cursor-pointer"
+              onClick={() => setSearchTerm('')}
+            />
+          )}
         </div>
 
         <Dialog
@@ -177,9 +185,9 @@ const Usuarios = () => {
           }}
         >
           <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Nuevo Usuario
+            <Button size="sm" className="h-7 text-xs">
+              <Plus className="w-3 h-3 mr-1" />
+              Nuevo
             </Button>
           </DialogTrigger>
 
@@ -188,16 +196,11 @@ const Usuarios = () => {
               <DialogTitle>
                 {editingUsuario ? 'Editar Usuario' : 'Nuevo Usuario'}
               </DialogTitle>
-              <DialogDescription>
-                {editingUsuario
-                  ? 'Modifica los datos del usuario seleccionado'
-                  : 'Crea un nuevo usuario para acceder al sistema'}
-              </DialogDescription>
             </DialogHeader>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-3">
               <div>
-                <Label>Nombre</Label>
+                <Label className="text-xs">Nombre</Label>
                 <Input
                   value={formData.nombre}
                   onChange={(e) =>
@@ -205,11 +208,12 @@ const Usuarios = () => {
                   }
                   required
                   placeholder="Ej: Juan Pérez"
+                  className="h-8"
                 />
               </div>
 
               <div>
-                <Label>Nombre de Usuario</Label>
+                <Label className="text-xs">Usuario</Label>
                 <Input
                   value={formData.username}
                   onChange={(e) =>
@@ -220,12 +224,13 @@ const Usuarios = () => {
                   }
                   required
                   placeholder="Ej: jperez"
+                  className="h-8"
                 />
               </div>
 
               <div>
-                <Label>
-                  {editingUsuario ? 'Contraseña (dejar en blanco para mantener actual)' : 'Contraseña'}
+                <Label className="text-xs">
+                  {editingUsuario ? 'Contraseña (opcional)' : 'Contraseña'}
                 </Label>
                 <Input
                   type="password"
@@ -237,27 +242,26 @@ const Usuarios = () => {
                     })
                   }
                   required={!editingUsuario}
-                  placeholder={editingUsuario ? "Nueva contraseña (opcional)" : "Contraseña"}
+                  placeholder={editingUsuario ? "Nueva contraseña" : "Contraseña"}
+                  className="h-8"
                 />
               </div>
 
               <div>
-                <Label>Rol</Label>
-                <select
+                <Label className="text-xs">Rol</Label>
+                <Select
                   value={formData.rol}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      rol: e.target.value,
-                    })
-                  }
-                  required
-                  className="w-full p-2 border rounded-md"
+                  onValueChange={(value) => setFormData({ ...formData, rol: value })}
                   disabled={editingUsuario && user?.id === editingUsuario.id}
                 >
-                  <option value="comun">Usuario Común</option>
-                  <option value="admin">Administrador</option>
-                </select>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="comun">Usuario Común</SelectItem>
+                    <SelectItem value="admin">Administrador</SelectItem>
+                  </SelectContent>
+                </Select>
                 {editingUsuario && user?.id === editingUsuario.id && (
                   <p className="text-xs text-muted-foreground mt-1">
                     No puedes modificar tu propio rol
@@ -265,14 +269,15 @@ const Usuarios = () => {
                 )}
               </div>
 
-              <div className="flex gap-2 pt-4">
-                <Button type="submit" className="flex-1">
+              <div className="flex gap-2 pt-2">
+                <Button type="submit" className="flex-1 h-8">
                   {editingUsuario ? 'Actualizar' : 'Crear'}
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setDialogOpen(false)}
+                  className="h-8"
                 >
                   Cancelar
                 </Button>
@@ -288,116 +293,108 @@ const Usuarios = () => {
           { title: 'Usuario', width: '25%' },
           { title: 'Nombre', width: '20%' },
           { title: 'Rol', width: '20%' },
-          { title: 'Fecha Creación', width: '15%' },
+          { title: 'Fecha', width: '15%' },
           { title: 'Acciones', width: '20%' }
         ]}
         rows={filteredUsuarios}
         renderDesktopRow={(usuario, index) => (
           <tr key={usuario.id} className="border-b">
-            <td className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-secondary/10 rounded-lg flex items-center justify-center">
-                  {user?.id === usuario.id ? (
-                    <Shield className="w-4 h-4 text-primary" />
-                  ) : (
-                    <User className="w-4 h-4 text-secondary" />
-                  )}
-                </div>
-                <div>
-                  <span className="font-medium">{usuario.username}</span>
-                  {user?.id === usuario.id && (
-                    <div className="text-xs text-primary">Tú</div>
-                  )}
-                </div>
+            <td className="p-2">
+              <div className="flex items-center gap-2 text-sm">
+                {user?.id === usuario.id ? (
+                  <Shield className="w-3 h-3 text-primary" />
+                ) : (
+                  <User className="w-3 h-3 text-secondary" />
+                )}
+                <span>{usuario.username}</span>
+                {user?.id === usuario.id && (
+                  <span className="text-xs text-primary">(tú)</span>
+                )}
               </div>
             </td>
-            <td className="p-4 font-medium">{usuario.nombre}</td>
-            <td className="p-4">
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+            <td className="p-2 text-sm">{usuario.nombre}</td>
+            <td className="p-2">
+              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                 usuario.rol === 'admin' 
                   ? 'bg-red-100 text-red-800 border border-red-200' 
                   : 'bg-blue-100 text-blue-800 border border-blue-200'
               }`}>
-                {usuario.rol === 'admin' ? '🛡️ Administrador' : '👤 Usuario Común'}
+                {usuario.rol === 'admin' ? 'Admin' : 'Usuario'}
               </span>
             </td>
-            <td className="p-4 text-muted-foreground">
-              {format(new Date(usuario.timestamp), 'dd/MM/yyyy', { locale: es })}
+            <td className="p-2 text-muted-foreground text-xs">
+              {format(new Date(usuario.timestamp), 'dd/MM/yyyy')}
             </td>
-            <td className="p-4">
-              <div className="flex justify-end gap-2">
+            <td className="p-2 text-right">
+              <div className="flex justify-end gap-1">
                 <Button
                   size="sm"
-                  variant="outline"
+                  variant="ghost"
+                  className="h-6 text-xs px-1"
                   onClick={() => handleEdit(usuario)}
                 >
-                  <Pencil className="w-4 h-4 mr-1" />
-                  Editar
+                  <Pencil className="w-3 h-3" />
                 </Button>
                 <Button
                   size="sm"
-                  variant="outline"
-                  className="text-destructive"
+                  variant="ghost"
+                  className="h-6 text-xs px-1 text-destructive"
                   onClick={() => handleDelete(usuario.id)}
                   disabled={user?.id === usuario.id}
                 >
-                  <Trash2 className="w-4 h-4 mr-1" />
-                  Eliminar
+                  <Trash2 className="w-3 h-3" />
                 </Button>
               </div>
             </td>
           </tr>
         )}
         renderMobileCard={(usuario, index) => (
-          <div className="p-4">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 bg-secondary/10 rounded-lg flex items-center justify-center">
+          <div className="p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 bg-secondary/10 rounded flex items-center justify-center">
                 {user?.id === usuario.id ? (
-                  <Shield className="w-5 h-5 text-primary" />
+                  <Shield className="w-4 h-4 text-primary" />
                 ) : (
-                  <User className="w-5 h-5 text-secondary" />
+                  <User className="w-4 h-4 text-secondary" />
                 )}
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold text-foreground">{usuario.username}</h3>
-                <div className="text-sm text-muted-foreground">{usuario.nombre}</div>
-                {user?.id === usuario.id && (
-                  <div className="text-xs text-primary font-medium">Tú</div>
-                )}
+                <h3 className="font-medium text-sm">{usuario.username}</h3>
+                <div className="text-xs text-muted-foreground">{usuario.nombre}</div>
               </div>
             </div>
             
-            <div className="flex items-center justify-between mb-3">
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+            <div className="flex items-center justify-between mb-2">
+              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                 usuario.rol === 'admin' 
                   ? 'bg-red-100 text-red-800 border border-red-200' 
                   : 'bg-blue-100 text-blue-800 border border-blue-200'
               }`}>
-                {usuario.rol === 'admin' ? '🛡️ Administrador' : '👤 Usuario Común'}
+                {usuario.rol === 'admin' ? 'Admin' : 'Usuario'}
               </span>
-              <span className="text-sm text-muted-foreground">
-                {format(new Date(usuario.timestamp), 'dd/MM/yyyy', { locale: es })}
+              <span className="text-xs text-muted-foreground">
+                {format(new Date(usuario.timestamp), 'dd/MM/yyyy')}
               </span>
             </div>
             
-            <div className="flex gap-2 pt-3 border-t">
+            <div className="flex gap-2 pt-2 border-t">
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => handleEdit(usuario)}
-                className="flex-1"
+                className="flex-1 h-7 text-xs"
               >
-                <Pencil className="w-4 h-4 mr-1" />
+                <Pencil className="w-3 h-3 mr-1" />
                 Editar
               </Button>
               <Button
                 size="sm"
                 variant="outline"
-                className="text-destructive flex-1"
+                className="text-destructive flex-1 h-7 text-xs"
                 onClick={() => handleDelete(usuario.id)}
                 disabled={user?.id === usuario.id}
               >
-                <Trash2 className="w-4 h-4 mr-1" />
+                <Trash2 className="w-3 h-3 mr-1" />
                 Eliminar
               </Button>
             </div>
@@ -407,10 +404,10 @@ const Usuarios = () => {
 
       {/* ESTADO VACÍO */}
       {filteredUsuarios.length === 0 && (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">
+        <Card className="py-6">
+          <CardContent className="py-6 text-center">
+            <Users className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+            <p className="text-sm text-muted-foreground">
               {searchTerm
                 ? `No se encontraron usuarios con "${searchTerm}"`
                 : 'No hay usuarios registrados aún. Crea uno para empezar.'}
