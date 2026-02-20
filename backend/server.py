@@ -241,11 +241,15 @@ class Egreso(BaseModel):
     descripcion: str
     monto: float
     categoria: str
+    usuario_id: Optional[str] = None
+    usuario_nombre: Optional[str] = None
 
 class EgresoCreate(BaseModel):
     descripcion: str
     monto: float
     categoria: str
+    usuario_id: Optional[str] = None
+    usuario_nombre: Optional[str] = None
 
 class EgresoUpdate(BaseModel):
     descripcion: Optional[str] = None
@@ -1388,7 +1392,11 @@ async def create_egreso(
     input: EgresoCreate, 
     current_user: Usuario = Depends(get_current_user)
 ):
-    egreso_obj = Egreso(**input.model_dump())
+    egreso_obj = Egreso(
+        **input.model_dump(),
+        usuario_id=current_user.id,
+        usuario_nombre=current_user.nombre
+    )
     doc = egreso_obj.model_dump()
     doc['fecha'] = doc['fecha'].isoformat()
     

@@ -401,9 +401,10 @@ const Egresos = () => {
       {/* TABLA RESPONSIVA */}
       <ResponsiveTable
         headers={[
-          { title: 'Descripción', width: '40%' },
-          { title: 'Fecha', width: '20%' },
-          { title: 'Monto', width: '20%' },
+          { title: 'Descripción', width: '30%' },
+          { title: 'Fecha', width: '15%' },
+          { title: 'Usuario', width: '20%' },
+          { title: 'Monto', width: '15%' },
           { title: 'Acción', width: '20%' }
         ]}
         rows={filteredEgresos}
@@ -417,6 +418,9 @@ const Egresos = () => {
             </td>
             <td className="p-2 text-muted-foreground text-xs">
               {format(new Date(egreso.fecha), 'dd/MM/yyyy')}
+            </td>
+            <td className="p-2 text-muted-foreground text-xs">
+              {egreso.usuario_nombre || '-'}
             </td>
             <td className="p-2 font-semibold text-destructive text-xs">
                   {formatCurrency(egreso.monto, showCents)}
@@ -459,6 +463,7 @@ const Egresos = () => {
             
             <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
               <span>{format(new Date(egreso.fecha), 'dd/MM/yyyy')}</span>
+              {egreso.usuario_nombre && <span>{egreso.usuario_nombre}</span>}
             </div>
             
             <div className="flex gap-2 pt-2 border-t">
