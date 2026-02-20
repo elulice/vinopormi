@@ -124,10 +124,17 @@ const Auditoria = () => {
 
   const getAccionIcon = (accion) => {
     switch (accion) {
-      case 'creado': return <Plus className="w-3 h-3 text-green-600" />;
-      case 'modificado': return <Edit className="w-3 h-3 text-yellow-600" />;
-      case 'eliminado': return <Trash2 className="w-3 h-3 text-red-600" />;
-      default: return <History className="w-3 h-3 text-gray-600" />;
+      case 'creado':
+      case 'crear':
+        return <Plus className="w-3 h-3 text-green-600" />;
+      case 'modificado':
+      case 'actualizar':
+        return <Edit className="w-3 h-3 text-yellow-600" />;
+      case 'eliminado':
+      case 'eliminar':
+        return <Trash2 className="w-3 h-3 text-red-600" />;
+      default:
+        return <History className="w-3 h-3 text-gray-600" />;
     }
   };
 
@@ -146,8 +153,11 @@ const Auditoria = () => {
   const getAccionBadge = (accion) => {
     const badges = {
       'creado': { label: 'Creado', color: 'bg-green-100 text-green-800' },
+      'crear': { label: 'Creado', color: 'bg-green-100 text-green-800' },
       'modificado': { label: 'Modificado', color: 'bg-yellow-100 text-yellow-800' },
-      'eliminado': { label: 'Eliminado', color: 'bg-red-100 text-red-800' }
+      'actualizar': { label: 'Modificado', color: 'bg-yellow-100 text-yellow-800' },
+      'eliminado': { label: 'Eliminado', color: 'bg-red-100 text-red-800' },
+      'eliminar': { label: 'Eliminado', color: 'bg-red-100 text-red-800' }
     };
     return badges[accion] || { label: accion, color: 'bg-gray-100 text-gray-800' };
   };

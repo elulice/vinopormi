@@ -1772,7 +1772,7 @@ async def crear_sticky_note(
         await registrar_auditoria(
             entidad="sticky_note",
             entidad_id=sticky_note.id,
-            accion="crear",
+            accion="creado",
             valores_nuevos=sticky_note.model_dump(),
             usuario_id=current_user.id,
             usuario_nombre=current_user.nombre
@@ -1867,7 +1867,7 @@ async def actualizar_sticky_note(
         await registrar_auditoria(
             entidad="sticky_note",
             entidad_id=note_id,
-            accion="actualizar",
+            accion="modificado",
             valores_anteriores=existing_note,
             valores_nuevos=updated_note,
             usuario_id=current_user.id,
@@ -1909,7 +1909,7 @@ async def eliminar_sticky_note(
         await registrar_auditoria(
             entidad="sticky_note",
             entidad_id=note_id,
-            accion="eliminar",
+            accion="eliminado",
             valores_anteriores=existing_note,
             usuario_id=current_user.id,
             usuario_nombre=current_user.nombre
