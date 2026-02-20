@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import Pagination from '@/components/Pagination';
 import { 
   History, 
   Filter, 
@@ -14,13 +15,12 @@ import {
   Users, 
   TrendingDown, 
   User as UserIcon,
-  Calendar,
   Search,
   Plus,
   Edit,
   Trash2,
-  X,
-  StickyNote
+  StickyNote,
+  Truck
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -32,29 +32,56 @@ const Auditoria = () => {
   const { getAuthHeader } = useAuth();
   const [registros, setRegistros] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingPage, setLoadingPage] = useState(false);
   const [selectedRegistro, setSelectedRegistro] = useState(null);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    pages: 1,
+    has_next: false,
+    has_prev: false
+  });
   const [filters, setFilters] = useState({
-    entidad: 'todos', // 'todos', 'producto', 'cliente', 'egreso', 'usuario', 'sticky_note'
-    accion: 'todos', // 'todos', 'creado', 'modificado', 'eliminado'
+    entidad: 'todos',
+    accion: 'todos',
     fechaDesde: '',
     fechaHasta: '',
     search: ''
   });
 
-  const fetchRegistros = useCallback(async () => {
+  const fetchRegistrosRef = useRef(null);
+
+  const fetchRegistros = useCallback(async (page = 1, searchOverride = null) => {
+    setLoadingPage(true);
     try {
       const params = new URLSearchParams();
+      params.append('page', page);
+      params.append('limit', 50);
       
-      if (filters.entidad !== 'todos') params.append('entidad', filters.entidad);
-      if (filters.accion !== 'todos') params.append('accion', filters.accion);
-      if (filters.fechaDesde) params.append('fechaDesde', filters.fechaDesde);
-      if (filters.fechaHasta) params.append('fechaHasta', filters.fechaHasta);
-      if (filters.search) params.append('search', filters.search);
+      const currentFilters = { ...filters };
+      if (searchOverride !== null) {
+        currentFilters.search = searchOverride;
+      }
+      
+      if (currentFilters.entidad !== 'todos') params.append('entidad', currentFilters.entidad);
+      if (currentFilters.accion !== 'todos') params.append('accion', currentFilters.accion);
+      if (currentFilters.fechaDesde) params.append('fechaDesde', currentFilters.fechaDesde);
+      if (currentFilters.fechaHasta) params.append('fechaHasta', currentFilters.fechaHasta);
+      if (currentFilters.search) params.append('search', currentFilters.search);
 
       const response = await axios.get(`${API}/auditoria?${params.toString()}`, {
         headers: getAuthHeader(),
       });
-      setRegistros(response.data);
+      
+      const data = response.data;
+      setRegistros(data.data || data);
+      if (data.pagination) {
+        setPagination({
+          page: data.pagination.page,
+          pages: data.pagination.pages,
+          has_next: data.pagination.page < data.pagination.pages,
+          has_prev: data.pagination.page > 1
+        });
+      }
     } catch (error) {
       if (error.response?.status === 403) {
         toast.error('No tienes permisos para ver la auditoría');
@@ -63,30 +90,44 @@ const Auditoria = () => {
       }
     } finally {
       setLoading(false);
+      setLoadingPage(false);
     }
   }, [filters, getAuthHeader]);
 
+  fetchRegistrosRef.current = fetchRegistros;
+
   useEffect(() => {
-    fetchRegistros();
-  }, [fetchRegistros]);
+    fetchRegistrosRef.current?.(1);
+  }, []);
+
+  const handlePageChange = (newPage) => {
+    fetchRegistros(newPage);
+    setPagination(prev => ({ ...prev, page: newPage }));
+  };
+
+  const handleFilterChange = (newFilters) => {
+    setFilters(newFilters);
+    fetchRegistros(1, newFilters.search);
+  };
 
   const getEntidadIcon = (entidad) => {
     switch (entidad) {
-      case 'producto': return <Package className="w-4 h-4 text-blue-600" />;
-      case 'cliente': return <Users className="w-4 h-4 text-green-600" />;
-      case 'egreso': return <TrendingDown className="w-4 h-4 text-red-600" />;
-      case 'usuario': return <UserIcon className="w-4 h-4 text-purple-600" />;
-      case 'sticky_note': return <StickyNote className="w-4 h-4 text-yellow-600" />;
-      default: return <History className="w-4 h-4 text-gray-600" />;
+      case 'producto': return <Package className="w-3 h-3 text-blue-600" />;
+      case 'cliente': return <Users className="w-3 h-3 text-green-600" />;
+      case 'proveedor': return <Truck className="w-3 h-3 text-orange-600" />;
+      case 'egreso': return <TrendingDown className="w-3 h-3 text-red-600" />;
+      case 'usuario': return <UserIcon className="w-3 h-3 text-purple-600" />;
+      case 'sticky_note': return <StickyNote className="w-3 h-3 text-yellow-600" />;
+      default: return <History className="w-3 h-3 text-gray-600" />;
     }
   };
 
   const getAccionIcon = (accion) => {
     switch (accion) {
-      case 'creado': return <Plus className="w-4 h-4 text-green-600" />;
-      case 'modificado': return <Edit className="w-4 h-4 text-yellow-600" />;
-      case 'eliminado': return <Trash2 className="w-4 h-4 text-red-600" />;
-      default: return <History className="w-4 h-4 text-gray-600" />;
+      case 'creado': return <Plus className="w-3 h-3 text-green-600" />;
+      case 'modificado': return <Edit className="w-3 h-3 text-yellow-600" />;
+      case 'eliminado': return <Trash2 className="w-3 h-3 text-red-600" />;
+      default: return <History className="w-3 h-3 text-gray-600" />;
     }
   };
 
@@ -94,9 +135,10 @@ const Auditoria = () => {
     const badges = {
       'producto': { label: 'Producto', color: 'bg-blue-100 text-blue-800' },
       'cliente': { label: 'Cliente', color: 'bg-green-100 text-green-800' },
+      'proveedor': { label: 'Proveedor', color: 'bg-orange-100 text-orange-800' },
       'egreso': { label: 'Egreso', color: 'bg-red-100 text-red-800' },
       'usuario': { label: 'Usuario', color: 'bg-purple-100 text-purple-800' },
-      'sticky_note': { label: 'Sticky Note', color: 'bg-yellow-100 text-yellow-800' }
+      'sticky_note': { label: 'Nota', color: 'bg-yellow-100 text-yellow-800' }
     };
     return badges[entidad] || { label: entidad, color: 'bg-gray-100 text-gray-800' };
   };
@@ -120,52 +162,52 @@ const Auditoria = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
-        <h1 className="text-4xl font-bold mb-2">Auditoría del Sistema</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-2xl font-bold text-foreground">Auditoría</h1>
+        <p className="text-sm text-muted-foreground">
           Registro de todas las altas, bajas y modificaciones
         </p>
       </div>
 
       {/* FILTROS */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="w-5 h-5" />
+      <Card className="py-3">
+        <CardHeader className="py-2 pb-1">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Filter className="w-4 h-4" />
             Filtros
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            <div className="space-y-2">
-              <Label>Entidad</Label>
+        <CardContent className="py-2">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Entidad</Label>
               <Select
                 value={filters.entidad}
-                onValueChange={(value) => setFilters({ ...filters, entidad: value })}
+                onValueChange={(value) => handleFilterChange({ ...filters, entidad: value })}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Todas las entidades" />
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Todas" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todos">Todas</SelectItem>
                   <SelectItem value="producto">Productos</SelectItem>
-                  <SelectItem value="cliente">Cuentas Corrientes</SelectItem>
+                  <SelectItem value="cliente">Ctas Ctes</SelectItem>
                   <SelectItem value="egreso">Egresos</SelectItem>
                   <SelectItem value="usuario">Usuarios</SelectItem>
-                  <SelectItem value="sticky_note">Sticky Notes</SelectItem>
+                  <SelectItem value="sticky_note">Notas</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label>Acción</Label>
+            <div className="space-y-1">
+              <Label className="text-xs">Acción</Label>
               <Select
                 value={filters.accion}
-                onValueChange={(value) => setFilters({ ...filters, accion: value })}
+                onValueChange={(value) => handleFilterChange({ ...filters, accion: value })}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Todas las acciones" />
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Todas" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todos">Todas</SelectItem>
@@ -176,33 +218,40 @@ const Auditoria = () => {
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label>Desde</Label>
+            <div className="space-y-1">
+              <Label className="text-xs">Desde</Label>
               <Input
                 type="date"
                 value={filters.fechaDesde}
-                onChange={(e) => setFilters({ ...filters, fechaDesde: e.target.value })}
+                onChange={(e) => handleFilterChange({ ...filters, fechaDesde: e.target.value })}
+                className="h-8 text-xs"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label>Hasta</Label>
+            <div className="space-y-1">
+              <Label className="text-xs">Hasta</Label>
               <Input
                 type="date"
                 value={filters.fechaHasta}
-                onChange={(e) => setFilters({ ...filters, fechaHasta: e.target.value })}
+                onChange={(e) => handleFilterChange({ ...filters, fechaHasta: e.target.value })}
+                className="h-8 text-xs"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label>Búsqueda</Label>
+            <div className="space-y-1">
+              <Label className="text-xs">Búsqueda</Label>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar por nombre o valor..."
+                  placeholder="Buscar..."
                   value={filters.search}
-                  onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                  className="pl-10"
+                  onChange={(e) => handleFilterChange({ ...filters, search: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      fetchRegistros(1, filters.search);
+                    }
+                  }}
+                  className="pl-7 h-8 text-xs"
                 />
               </div>
             </div>
@@ -222,84 +271,81 @@ const Auditoria = () => {
         renderDesktopRow={(registro, index) => (
           <tr 
             key={registro.id} 
-            className="border-b hover:bg-muted/50 transition-colors cursor-pointer"
+            className="border-b cursor-pointer"
             onClick={() => setSelectedRegistro(registro)}
           >
-            <td className="p-4 text-sm">
-              {format(new Date(registro.fecha), 'dd/MM/yyyy HH:mm:ss', { locale: es })}
+            <td className="p-2 text-xs text-muted-foreground">
+              {format(new Date(registro.fecha), 'dd/MM/yyyy HH:mm')}
             </td>
-            <td className="p-4">
-              <div className="flex items-center gap-2">
+            <td className="p-2">
+              <div className="flex items-center gap-1">
                 {getEntidadIcon(registro.entidad)}
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getEntidadBadge(registro.entidad).color}`}>
+                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getEntidadBadge(registro.entidad).color}`}>
                   {getEntidadBadge(registro.entidad).label}
                 </span>
               </div>
             </td>
-            <td className="p-4">
-              <div className="flex items-center gap-2">
+            <td className="p-2">
+              <div className="flex items-center gap-1">
                 {getAccionIcon(registro.accion)}
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAccionBadge(registro.accion).color}`}>
+                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getAccionBadge(registro.accion).color}`}>
                   {getAccionBadge(registro.accion).label}
                 </span>
               </div>
             </td>
-            <td className="p-4 text-sm">
-              <div>
-                <div className="font-medium">{registro.usuario_nombre}</div>
-                {registro.ip_address && (
-                  <div className="text-xs text-muted-foreground font-mono">
-                    {registro.ip_address}
-                  </div>
-                )}
-              </div>
+            <td className="p-2 text-xs font-medium">
+              {registro.usuario_nombre}
             </td>
           </tr>
         )}
         renderMobileCard={(registro, index) => (
           <div 
-            className="p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+            className="p-3 cursor-pointer"
             onClick={() => setSelectedRegistro(registro)}
           >
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                {getEntidadIcon(registro.entidad)}
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getEntidadBadge(registro.entidad).color}`}>
-                  {getEntidadBadge(registro.entidad).label}
-                </span>
-                {getAccionIcon(registro.accion)}
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAccionBadge(registro.accion).color}`}>
-                  {getAccionBadge(registro.accion).label}
-                </span>
-              </div>
+            <div className="flex items-center gap-1 mb-2">
+              {getEntidadIcon(registro.entidad)}
+              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getEntidadBadge(registro.entidad).color}`}>
+                {getEntidadBadge(registro.entidad).label}
+              </span>
+              {getAccionIcon(registro.accion)}
+              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getAccionBadge(registro.accion).color}`}>
+                {getAccionBadge(registro.accion).label}
+              </span>
             </div>
             
-            <div className="space-y-2">
-              <div className="text-sm text-muted-foreground">
-                {format(new Date(registro.fecha), 'PPP HH:mm:ss', { locale: es })}
-              </div>
-              <div className="text-sm">
-                <span className="font-medium">Por: </span>
-                <span>{registro.usuario_nombre}</span>
-                {registro.ip_address && (
-                  <span className="text-xs font-mono text-muted-foreground ml-2">
-                    ({registro.ip_address})
-                  </span>
-                )}
-              </div>
-              <div className="font-semibold text-foreground">
-                {registro.entidad_nombre || registro.entidad_id}
-              </div>
+            <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+              <span>{format(new Date(registro.fecha), 'dd/MM/yyyy HH:mm')}</span>
+              <span>{registro.usuario_nombre}</span>
+            </div>
+            <div className="text-xs truncate">
+              {registro.entidad_nombre || registro.entidad_id}
             </div>
           </div>
         )}
       />
 
-      {registros.length === 0 && (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <History className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">
+      {/* PAGINACIÓN */}
+      {!loading && pagination.pages > 1 && (
+        <Card className="py-2">
+          <CardContent className="p-0">
+            <Pagination
+              currentPage={pagination.page}
+              totalPages={pagination.pages}
+              onPageChange={handlePageChange}
+              hasNext={pagination.has_next}
+              hasPrev={pagination.has_prev}
+              loading={loadingPage}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {registros.length === 0 && !loading && (
+        <Card className="py-6">
+          <CardContent className="py-6 text-center">
+            <History className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+            <p className="text-sm text-muted-foreground">
               {filters.search || filters.entidad !== 'todos' || filters.accion !== 'todos'
                 ? 'No se encontraron registros con los filtros aplicados'
                 : 'No hay registros de auditoría disponibles'}
@@ -311,44 +357,42 @@ const Auditoria = () => {
       {/* MODAL DE DETALLES */}
       {selectedRegistro && (
         <Dialog open={!!selectedRegistro} onOpenChange={() => setSelectedRegistro(null)}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-3">
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader className="py-3 px-4">
+              <DialogTitle className="flex items-center gap-2 text-base">
                 {getEntidadIcon(selectedRegistro.entidad)}
-                <div className="flex items-center gap-2">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getEntidadBadge(selectedRegistro.entidad).color}`}>
-                    {getEntidadBadge(selectedRegistro.entidad).label}
-                  </span>
-                  {getAccionIcon(selectedRegistro.accion)}
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAccionBadge(selectedRegistro.accion).color}`}>
-                    {getAccionBadge(selectedRegistro.accion).label}
-                  </span>
-                </div>
+                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getEntidadBadge(selectedRegistro.entidad).color}`}>
+                  {getEntidadBadge(selectedRegistro.entidad).label}
+                </span>
+                {getAccionIcon(selectedRegistro.accion)}
+                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getAccionBadge(selectedRegistro.accion).color}`}>
+                  {getAccionBadge(selectedRegistro.accion).label}
+                </span>
               </DialogTitle>
             </DialogHeader>
 
-            <div className="space-y-6">
+            <div className="px-4 pb-4 space-y-3">
               {/* INFORMACIÓN GENERAL */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded-md text-xs">
                 <div>
-                  <Label>Elemento</Label>
-                  <div className="font-semibold text-foreground mt-1">
+                  <Label className="text-muted-foreground">Elemento</Label>
+                  <div className="font-medium">
                     {selectedRegistro.entidad_nombre || selectedRegistro.entidad_id}
                   </div>
                 </div>
                 <div>
-                  <Label>Fecha y Hora</Label>
-                  <div className="text-sm text-muted-foreground mt-1">
-                    {format(new Date(selectedRegistro.fecha), 'PPP HH:mm:ss', { locale: es })}
+                  <Label className="text-muted-foreground">Fecha</Label>
+                  <div className="text-muted-foreground">
+                    {format(new Date(selectedRegistro.fecha), 'dd/MM/yyyy HH:mm')}
                   </div>
                 </div>
-                <div>
-                  <Label>Usuario</Label>
-                  <div className="font-medium mt-1">
+                <div className="col-span-2">
+                  <Label className="text-muted-foreground">Usuario</Label>
+                  <div className="font-medium">
                     {selectedRegistro.usuario_nombre}
                   </div>
                   {selectedRegistro.ip_address && (
-                    <div className="text-xs text-muted-foreground font-mono mt-1">
+                    <div className="text-xs text-muted-foreground font-mono">
                       IP: {selectedRegistro.ip_address}
                     </div>
                   )}
@@ -358,9 +402,9 @@ const Auditoria = () => {
               {/* VALORES ANTERIORES */}
               {selectedRegistro.valores_anteriores && (
                 <div>
-                  <Label className="text-base font-medium mb-3 block">Valores Anteriores</Label>
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                    <pre className="text-sm font-mono whitespace-pre-wrap break-words">
+                  <Label className="text-xs font-medium mb-2 block">Valores Anteriores</Label>
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-md p-2">
+                    <pre className="text-xs font-mono whitespace-pre-wrap break-words">
                       {JSON.stringify(selectedRegistro.valores_anteriores, null, 2)}
                     </pre>
                   </div>
@@ -370,9 +414,9 @@ const Auditoria = () => {
               {/* VALORES NUEVOS */}
               {selectedRegistro.valores_nuevos && (
                 <div>
-                  <Label className="text-base font-medium mb-3 block">Valores Nuevos</Label>
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <pre className="text-sm font-mono whitespace-pre-wrap break-words">
+                  <Label className="text-xs font-medium mb-2 block">Valores Nuevos</Label>
+                  <div className="bg-green-50 border border-green-200 rounded-md p-2">
+                    <pre className="text-xs font-mono whitespace-pre-wrap break-words">
                       {JSON.stringify(selectedRegistro.valores_nuevos, null, 2)}
                     </pre>
                   </div>
@@ -381,8 +425,8 @@ const Auditoria = () => {
 
               {/* ID DEL REGISTRO */}
               <div>
-                <Label>ID de Auditoría</Label>
-                <div className="text-xs text-muted-foreground font-mono mt-1">
+                <Label className="text-xs">ID de Auditoría</Label>
+                <div className="text-xs text-muted-foreground font-mono">
                   {selectedRegistro.id}
                 </div>
               </div>

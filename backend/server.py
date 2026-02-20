@@ -492,10 +492,12 @@ async def get_login_registros(current_user: Usuario = Depends(get_current_user))
     
     return registros
 
-@api_router.get("/auditoria", response_model=List[RegistroAuditoria])
+@api_router.get("/auditoria")
 async def get_auditoria(
     request: Request,
-    current_user: Usuario = Depends(get_current_user)
+    current_user: Usuario = Depends(get_current_user),
+    page: int = 1,
+    limit: int = 50
 ):
     # Solo administradores pueden ver la auditoría
     if current_user.rol != 'admin':
@@ -543,7 +545,9 @@ async def get_auditoria(
         ]
     
     # Obtener registros
-    registros = await db.auditoria.find(filtro, {'_id': 0}).sort('fecha', -1).to_list(1000)
+    skip = (page - 1) * limit
+    total = await db.auditoria.count_documents(filtro)
+    registros = await db.auditoria.find(filtro, {'_id': 0}).sort('fecha', -1).skip(skip).limit(limit).to_list(limit)
     
     # Procesar registros para limpiar ObjectIds
     for registro in registros:
@@ -562,7 +566,15 @@ async def get_auditoria(
         if isinstance(registro.get('fecha'), str):
             registro['fecha'] = datetime.fromisoformat(registro['fecha'])
     
-    return registros
+    return {
+        "data": registros,
+        "pagination": {
+            "page": page,
+            "limit": limit,
+            "total": total,
+            "pages": (total + limit - 1) // limit
+        }
+    }
 
 # ===== PRODUCTOS ROUTES =====
 
