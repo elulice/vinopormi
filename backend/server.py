@@ -264,7 +264,9 @@ class StickyNote(BaseModel):
     autor_nombre: str  # Nombre del autor
     color: str = "yellow"  # yellow, pink, blue, green
     fijada: bool = False  # Nota fijada (prioritaria)
+    editada: bool = False  # Si la nota fue editada
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    fecha_actualizacion: Optional[datetime] = None  # Timestamp de última edición
 
 class StickyNoteCreate(BaseModel):
     texto: str
@@ -1803,7 +1805,14 @@ async def obtener_sticky_notes(current_user: Usuario = Depends(get_current_user)
                 document['_id'] = str(document['_id'])
             
             # Agregar timestamp relativo
-            timestamp = document.get('timestamp')
+            editada = document.get('editada', False)
+            
+            # Si la nota fue editada, usar fecha_actualizacion para calcular el tiempo
+            if editada:
+                timestamp = document.get('fecha_actualizacion') or document.get('timestamp')
+            else:
+                timestamp = document.get('timestamp')
+            
             tiempo_relativo = ""
             if timestamp:
                 now = datetime.now(timezone.utc)
@@ -1824,6 +1833,9 @@ async def obtener_sticky_notes(current_user: Usuario = Depends(get_current_user)
                     tiempo_relativo = f"hace {minutes} min"
                 else:
                     tiempo_relativo = "hace instantes"
+            
+            if editada:
+                tiempo_relativo = f"editado {tiempo_relativo}"
             
             # Crear una copia sin el _id para evitar problemas de serialización
             doc_copy = {k: v for k, v in document.items() if k != '_id'}
@@ -1852,7 +1864,10 @@ async def actualizar_sticky_note(
             raise HTTPException(status_code=403, detail="Solo el autor puede editar esta nota")
         
         # Preparar campos a actualizar
-        update_data = {}
+        update_data = {
+            "editada": True,
+            "fecha_actualizacion": datetime.now(timezone.utc)
+        }  # Siempre marcar como editada y actualizar timestamp
         if note_update.texto is not None:
             update_data["texto"] = note_update.texto
         if note_update.color is not None:
@@ -1882,15 +1897,46 @@ async def actualizar_sticky_note(
             usuario_nombre=current_user.nombre
         )
         
-        return StickyNote(
-            id=updated_note['id'],
-            texto=updated_note['texto'],
-            autor_id=updated_note['autor_id'],
-            autor_nombre=updated_note['autor_nombre'],
-            color=updated_note['color'],
-            fijada=updated_note['fijada'],
-            timestamp=updated_note['timestamp']
-        )
+        # Calcular tiempo_relativo para la respuesta
+        editada = updated_note.get('editada', False)
+        if editada:
+            ts = updated_note.get('fecha_actualizacion') or updated_note['timestamp']
+        else:
+            ts = updated_note['timestamp']
+        
+        if ts and ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        
+        tiempo_relativo = ""
+        if ts:
+            now = datetime.now(timezone.utc)
+            diff = now - ts
+            if diff.days > 0:
+                tiempo_relativo = f"hace {diff.days} día{'s' if diff.days != 1 else ''}"
+            elif diff.seconds > 3600:
+                hours = diff.seconds // 3600
+                tiempo_relativo = f"hace {hours} hora{'s' if hours != 1 else ''}"
+            elif diff.seconds > 60:
+                minutes = diff.seconds // 60
+                tiempo_relativo = f"hace {minutes} min"
+            else:
+                tiempo_relativo = "hace instantes"
+        
+        if editada:
+            tiempo_relativo = f"editado {tiempo_relativo}"
+        
+        return {
+            "id": updated_note['id'],
+            "texto": updated_note['texto'],
+            "autor_id": updated_note['autor_id'],
+            "autor_nombre": updated_note['autor_nombre'],
+            "color": updated_note['color'],
+            "fijada": updated_note['fijada'],
+            "editada": updated_note.get('editada', False),
+            "timestamp": updated_note['timestamp'],
+            "fecha_actualizacion": updated_note.get('fecha_actualizacion'),
+            "tiempo_relativo": tiempo_relativo
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al actualizar sticky note: {str(e)}")
 
