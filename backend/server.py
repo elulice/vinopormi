@@ -1798,12 +1798,16 @@ async def actualizar_sticky_note(
     note_update: StickyNoteUpdate,
     current_user: Usuario = Depends(get_current_user)
 ):
-    """Actualiza una sticky note (cualquier usuario puede editar)"""
+    """Actualiza una sticky note (solo el autor puede editar)"""
     try:
         # Verificar que la nota existe
         existing_note = await db["sticky_notes"].find_one({"id": note_id})
         if not existing_note:
             raise HTTPException(status_code=404, detail="Sticky note no encontrada")
+        
+        # Verificar que el usuario actual es el autor
+        if existing_note.get("autor_id") != current_user.id:
+            raise HTTPException(status_code=403, detail="Solo el autor puede editar esta nota")
         
         # Preparar campos a actualizar
         update_data = {}

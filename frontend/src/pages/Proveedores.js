@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash2, Building, CreditCard, TrendingUp, TrendingDown, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2, Truck, CreditCard, TrendingUp, TrendingDown, Search, X } from 'lucide-react';
 import { formatCurrency, formatNumber } from '@/lib/currency';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -187,32 +187,38 @@ const Proveedores = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-bold mb-2">Proveedores</h1>
-          <p className="text-muted-foreground">Gestiona tus proveedores y sus cuentas corrientes</p>
+          <h1 className="text-2xl font-bold text-foreground">Proveedores</h1>
+          <p className="text-sm text-muted-foreground">Gestiona tus proveedores y sus cuentas corrientes</p>
         </div>
       </div>
 
       {/* BUSCADOR + BOTÓN AGREGAR */}
-      <div className="flex gap-3 items-center">
+      <div className="flex gap-2 items-center">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
           <Input
-            placeholder="Buscar proveedores..."
+            placeholder="Buscar..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 w-64"
+            className="pl-7 pr-7 h-7 text-sm w-40"
           />
+          {searchTerm && (
+            <X 
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground hover:text-foreground cursor-pointer"
+              onClick={() => setSearchTerm('')}
+            />
+          )}
         </div>
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => resetForm()}>
-              <Plus className="w-4 h-4 mr-2" />
-              Nuevo Proveedor
+            <Button size="sm" className="h-7 text-xs" onClick={() => resetForm()}>
+              <Plus className="w-3 h-3 mr-1" />
+              Nuevo
             </Button>
           </DialogTrigger>
           <DialogContent>
@@ -220,58 +226,62 @@ const Proveedores = () => {
               <DialogTitle>
                 {editingProveedor ? 'Editar Proveedor' : 'Nuevo Proveedor'}
               </DialogTitle>
-              <DialogDescription>
-                {editingProveedor ? 'Modifica los datos del proveedor seleccionado' : 'Completa los datos para crear un nuevo proveedor'}
-              </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="nombre">Nombre *</Label>
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <div>
+                <Label htmlFor="nombre" className="text-xs">Nombre</Label>
                 <Input
                   id="nombre"
                   value={formData.nombre}
                   onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                   required
+                  className="h-8"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="telefono">Teléfono</Label>
-                <Input
-                  id="telefono"
-                  value={formData.telefono}
-                  onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="telefono" className="text-xs">Teléfono (opcional)</Label>
+                  <Input
+                    id="telefono"
+                    value={formData.telefono}
+                    onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                    className="h-8"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="email" className="text-xs">Email (opcional)</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="h-8"
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="direccion">Dirección</Label>
+              <div>
+                <Label htmlFor="direccion" className="text-xs">Dirección (opcional)</Label>
                 <Input
                   id="direccion"
                   value={formData.direccion}
                   onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
+                  className="h-8"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="cuit">CUIT</Label>
+              <div>
+                <Label htmlFor="cuit" className="text-xs">CUIT (opcional)</Label>
                 <Input
                   id="cuit"
                   value={formData.cuit}
                   onChange={(e) => setFormData({ ...formData, cuit: e.target.value })}
+                  className="h-8"
                 />
               </div>
-              <div className="flex gap-2 pt-4">
-                <Button type="submit" className="flex-1">
+              <div className="flex gap-2 pt-2">
+                <Button type="submit" className="flex-1 h-8">
                   {editingProveedor ? 'Actualizar' : 'Crear'}
                 </Button>
-                <Button type="button" variant="outline" onClick={handleDialogClose}>
+                <Button type="button" variant="outline" onClick={handleDialogClose} className="h-8">
                   Cancelar
                 </Button>
               </div>
@@ -289,146 +299,126 @@ const Proveedores = () => {
         ]}
         rows={filteredProveedores}
         renderDesktopRow={(proveedor, index) => (
-          <tr key={proveedor.id} className="border-b hover:bg-accent/50 transition-colors">
-            <td className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-secondary/10 rounded-lg flex items-center justify-center">
-                  <Building className="w-4 h-4 text-secondary" />
-                </div>
+          <tr key={proveedor.id} className="border-b">
+            <td className="p-2">
+              <div className="flex items-center gap-2 text-sm">
+                <Truck className="w-3 h-3 text-secondary" />
                 <div>
-                  <span className="font-medium">{proveedor.nombre}</span>
+                  <span className="truncate">{proveedor.nombre}</span>
                   {proveedor.cuit && (
-                    <p className="text-sm text-muted-foreground">CUIT: {proveedor.cuit}</p>
+                    <p className="text-xs text-muted-foreground">CUIT: {proveedor.cuit}</p>
                   )}
                 </div>
               </div>
             </td>
-            <td className="p-4">
-              <div className="text-sm">
+            <td className="p-2">
+              <div className="text-xs">
                 {proveedor.telefono && <p>{proveedor.telefono}</p>}
                 {proveedor.email && <p className="text-muted-foreground">{proveedor.email}</p>}
-                {proveedor.direccion && <p className="text-muted-foreground">{proveedor.direccion}</p>}
+                {proveedor.direccion && <p className="text-muted-foreground truncate">{proveedor.direccion}</p>}
               </div>
             </td>
-            <td className="p-4">
-              <div className={`text-lg font-semibold ${
+            <td className="p-2">
+              <div className={`text-sm font-semibold ${
                 proveedor.saldo < 0 ? 'text-destructive' : 'text-green-600'
               }`}>
                 {formatCurrency(Math.abs(proveedor.saldo || 0), showCents)}
                 {proveedor.saldo < 0 && (
-                  <span className="text-sm font-normal text-muted-foreground ml-2">(adeuda)</span>
+                  <span className="text-xs font-normal text-muted-foreground ml-1">(adeuda)</span>
                 )}
                 {proveedor.saldo > 0 && (
-                  <span className="text-sm font-normal text-muted-foreground ml-2">(a favor)</span>
+                  <span className="text-xs font-normal text-muted-foreground ml-1">(a favor)</span>
                 )}
               </div>
             </td>
-            <td className="p-4">
-              <div className="flex justify-end gap-2">
+            <td className="p-2 text-right">
+              <div className="flex justify-end gap-1">
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
+                  className="h-6 text-xs px-1"
                   onClick={() => handleViewCuenta(proveedor)}
                 >
-                  <CreditCard className="w-4 h-4 mr-1" />
-                  Cuenta
+                  <CreditCard className="w-3 h-3" />
                 </Button>
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
+                  className="h-6 text-xs px-1"
                   onClick={() => handleEdit(proveedor)}
                 >
-                  <Pencil className="w-4 h-4 mr-1" />
-                  Editar
+                  <Pencil className="w-3 h-3" />
                 </Button>
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
-                  className="text-destructive"
+                  className="h-6 text-xs px-1 text-destructive"
                   onClick={() => handleDelete(proveedor.id)}
                 >
-                  <Trash2 className="w-4 h-4 mr-1" />
-                  Eliminar
+                  <Trash2 className="w-3 h-3" />
                 </Button>
               </div>
             </td>
           </tr>
         )}
         renderMobileCard={(proveedor, index) => (
-          <div className="p-4">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 bg-secondary/10 rounded-lg flex items-center justify-center">
-                <Building className="w-5 h-5 text-secondary" />
+          <div className="p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 bg-secondary/10 rounded flex items-center justify-center">
+                <Truck className="w-4 h-4 text-secondary" />
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold text-foreground">{proveedor.nombre}</h3>
+                <h3 className="font-medium text-sm truncate">{proveedor.nombre}</h3>
                 {proveedor.cuit && (
-                  <p className="text-sm text-muted-foreground">CUIT: {proveedor.cuit}</p>
+                  <p className="text-xs text-muted-foreground">CUIT: {proveedor.cuit}</p>
                 )}
               </div>
             </div>
             
-            <div className="space-y-2 mb-4 text-sm">
-              {proveedor.telefono && (
-                <div>
-                  <span className="text-muted-foreground">Teléfono: </span>
-                  <span>{proveedor.telefono}</span>
-                </div>
-              )}
-              {proveedor.email && (
-                <div>
-                  <span className="text-muted-foreground">Email: </span>
-                  <span>{proveedor.email}</span>
-                </div>
-              )}
-              {proveedor.direccion && (
-                <div>
-                  <span className="text-muted-foreground">Dirección: </span>
-                  <span>{proveedor.direccion}</span>
-                </div>
-              )}
+            <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
               <div>
-                <span className="text-muted-foreground">Saldo: </span>
-                <span className={`font-semibold text-lg ${
-                  proveedor.saldo < 0 ? 'text-destructive' : 'text-green-600'
-                }`}>
-                  {formatCurrency(Math.abs(proveedor.saldo || 0), showCents)}
-                  {proveedor.saldo < 0 && (
-                    <span className="text-xs font-normal text-muted-foreground ml-1">(adeuda)</span>
-                  )}
-                  {proveedor.saldo > 0 && (
-                    <span className="text-xs font-normal text-muted-foreground ml-1">(a favor)</span>
-                  )}
-                </span>
+                {proveedor.telefono && <span>{proveedor.telefono}</span>}
+                {proveedor.email && <span className="ml-2">{proveedor.email}</span>}
+              </div>
+              <div className={`font-semibold ${
+                proveedor.saldo < 0 ? 'text-destructive' : 'text-green-600'
+              }`}>
+                {formatCurrency(Math.abs(proveedor.saldo || 0), showCents)}
+                {proveedor.saldo < 0 && (
+                  <span className="font-normal ml-1">(adeuda)</span>
+                )}
+                {proveedor.saldo > 0 && (
+                  <span className="font-normal ml-1">(a favor)</span>
+                )}
               </div>
             </div>
             
-            <div className="flex gap-2 pt-3 border-t">
+            <div className="flex gap-2 pt-2 border-t">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => handleViewCuenta(proveedor)}
-                className="flex-1"
+                className="flex-1 h-7 text-xs"
               >
-                <CreditCard className="w-4 h-4 mr-1" />
+                <CreditCard className="w-3 h-3 mr-1" />
                 Cuenta
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => handleEdit(proveedor)}
-                className="flex-1"
+                className="flex-1 h-7 text-xs"
               >
-                <Pencil className="w-4 h-4 mr-1" />
+                <Pencil className="w-3 h-3 mr-1" />
                 Editar
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                className="text-destructive flex-1"
+                className="text-destructive flex-1 h-7 text-xs"
                 onClick={() => handleDelete(proveedor.id)}
               >
-                <Trash2 className="w-4 h-4 mr-1" />
+                <Trash2 className="w-3 h-3 mr-1" />
                 Eliminar
               </Button>
             </div>
@@ -437,10 +427,10 @@ const Proveedores = () => {
       />
 
       {filteredProveedores.length === 0 && (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Building className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">
+        <Card className="py-6">
+          <CardContent className="py-6 text-center">
+            <Truck className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+            <p className="text-sm text-muted-foreground">
               {searchTerm
                 ? `No se encontraron proveedores con "${searchTerm}"`
                 : 'No hay proveedores aún. Crea uno para empezar.'}
@@ -454,50 +444,45 @@ const Proveedores = () => {
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <CreditCard className="w-5 h-5" />
+              <CreditCard className="w-4 h-4" />
               Cuenta Corriente - {selectedProveedor?.nombre}
             </DialogTitle>
-            <DialogDescription>
-              Gestiona los movimientos y saldo de la cuenta corriente del proveedor
-            </DialogDescription>
           </DialogHeader>
           
           {loadingCuenta ? (
             <div className="text-center py-8">Cargando cuenta corriente...</div>
           ) : cuentaInfo ? (
-            <div className="space-y-6">
+            <div className="space-y-4">
               {/* Saldo Actual */}
               <Card>
-                <CardHeader>
+                <CardHeader className="py-3">
                   <div className="flex justify-between items-center">
-                    <CardTitle className="text-lg">Saldo Actual</CardTitle>
+                    <CardTitle className="text-base">Saldo Actual</CardTitle>
                     <Dialog open={movimientoDialogOpen} onOpenChange={setMovimientoDialogOpen}>
                       <DialogTrigger asChild>
-                        <Button size="sm">
-                          <Plus className="w-4 h-4 mr-2" />
+                        <Button size="sm" className="h-7 text-xs">
+                          <Plus className="w-3 h-3 mr-1" />
                           Nuevo Movimiento
                         </Button>
                       </DialogTrigger>
                       <DialogContent>
                         <DialogHeader>
                           <DialogTitle>Registrar Movimiento</DialogTitle>
-                          <DialogDescription>
-                            Registra un nuevo movimiento en la cuenta corriente del proveedor
-                          </DialogDescription>
                         </DialogHeader>
-                        <form onSubmit={handleMovimientoSubmit} className="space-y-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="concepto">Concepto</Label>
+                        <form onSubmit={handleMovimientoSubmit} className="space-y-3">
+                          <div>
+                            <Label htmlFor="concepto" className="text-xs">Concepto</Label>
                             <Input
                               id="concepto"
                               value={movimientoData.concepto}
                               onChange={(e) => setMovimientoData({ ...movimientoData, concepto: e.target.value })}
                               required
                               placeholder="Ej: Pago, Compra"
+                              className="h-8"
                             />
                           </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="monto">Monto (positivo para pago, negativo para deuda)</Label>
+                          <div>
+                            <Label htmlFor="monto" className="text-xs">Monto (positivo para pago, negativo para deuda)</Label>
                             <Input
                               id="monto"
                               type="number"
@@ -505,16 +490,18 @@ const Proveedores = () => {
                               value={movimientoData.monto}
                               onChange={(e) => setMovimientoData({ ...movimientoData, monto: e.target.value })}
                               required
+                              className="h-8"
                             />
                           </div>
-                          <div className="flex gap-2 pt-4">
-                            <Button type="submit" className="flex-1">
+                          <div className="flex gap-2 pt-2">
+                            <Button type="submit" className="flex-1 h-8">
                               Registrar
                             </Button>
                             <Button
                               type="button"
                               variant="outline"
                               onClick={() => setMovimientoDialogOpen(false)}
+                              className="h-8"
                             >
                               Cancelar
                             </Button>
@@ -524,8 +511,8 @@ const Proveedores = () => {
                     </Dialog>
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <div className={`text-3xl font-bold ${
+                <CardContent className="py-2">
+                  <div className={`text-2xl font-bold ${
                     cuentaInfo.saldo < 0 ? 'text-destructive' : 'text-primary'
                   }`}>
                     {formatCurrency(Math.abs(cuentaInfo.saldo), showCents)}
@@ -536,31 +523,31 @@ const Proveedores = () => {
 
               {/* Movimientos */}
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Movimientos</CardTitle>
+                <CardHeader className="py-3">
+                  <CardTitle className="text-base">Movimientos</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="py-0">
                   {cuentaInfo.movimientos.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-8">
+                    <p className="text-center text-muted-foreground py-4 text-sm">
                       No hay movimientos registrados
                     </p>
                   ) : (
-                    <div className="flex-1 overflow-y-auto space-y-2 max-h-[50vh]">
+                    <div className="flex-1 overflow-y-auto space-y-1 max-h-[40vh] px-4 pb-4">
                        {cuentaInfo.movimientos.map((mov) => (
                          <div
                            key={mov.id}
-                           className="flex justify-between items-center p-3 bg-muted rounded-md"
+                           className="flex justify-between items-center p-2 bg-muted/50 rounded-md"
                          >
-                           <div className="flex items-center gap-3">
+                           <div className="flex items-center gap-2">
                              {mov.monto > 0 ? (
-                               <TrendingUp className="w-4 h-4 text-green-600" />
+                               <TrendingUp className="w-3 h-3 text-green-600" />
                              ) : (
-                               <TrendingDown className="w-4 h-4 text-red-600" />
+                               <TrendingDown className="w-3 h-3 text-red-600" />
                              )}
                              <div>
-                               <p className="font-medium text-sm">{mov.concepto}</p>
+                               <p className="font-medium text-xs">{mov.concepto}</p>
                                <p className="text-xs text-muted-foreground">
-                                 {format(new Date(mov.fecha), 'PPP HH:mm', { locale: es })}
+                                 {format(new Date(mov.fecha), 'dd/MM/yyyy HH:mm', { locale: es })}
                                </p>
                                {mov.usuario_nombre && (
                                  <p className="text-xs text-blue-600 font-medium">
@@ -569,7 +556,7 @@ const Proveedores = () => {
                                )}
                              </div>
                            </div>
-                           <div className={`text-sm font-semibold ${
+                           <div className={`text-xs font-semibold ${
                              mov.monto > 0 ? 'text-green-600' : 'text-red-600'
                            }`}>
                              {mov.monto > 0 ? '+' : ''}

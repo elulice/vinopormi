@@ -138,6 +138,7 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
   };
 
   const canDelete = user?.id === note.autor_id;
+  const canEdit = user?.id === note.autor_id;
   const tiempoRelativo = note.tiempo_relativo || 'hace instantes';
 
   return (
@@ -161,14 +162,16 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
             {note.autor_nombre}
           </span>
           <div className="flex gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsEditing(true)}
-              className="h-6 w-6 p-0 text-gray-600 hover:text-blue-600"
-            >
-              <Edit2 className="w-3 h-3" />
-            </Button>
+            {canEdit && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsEditing(true)}
+                className="h-6 w-6 p-0 text-gray-600 hover:text-blue-600"
+              >
+                <Edit2 className="w-3 h-3" />
+              </Button>
+            )}
             {canDelete && (
               <Button
                 variant="ghost"
