@@ -15,6 +15,7 @@ import LoginRegistros from "@/pages/LoginRegistros";
 import Auditoria from "@/pages/Auditoria";
 import Herramientas from "@/pages/Herramientas";
 import Configuracion from "@/pages/Configuracion";
+import Mercadopago from "@/pages/Mercadopago";
 import Layout from "@/components/Layout";
 import AdminRoute from "@/components/AdminRoute";
 import { AuthProvider } from "@/context/AuthContext";
@@ -64,6 +65,11 @@ function App() {
             <Route path="/herramientas" element={
               <AdminRoute>
                 <Herramientas />
+              </AdminRoute>
+            } />
+            <Route path="/mercadopago" element={
+              <AdminRoute>
+                <Mercadopago />
               </AdminRoute>
             } />
             <Route path="/configuracion" element={<Configuracion />} />

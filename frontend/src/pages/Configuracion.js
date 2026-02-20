@@ -3,15 +3,24 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
 import { useConfig } from '@/context/ConfigContext';
-import { Settings as SettingsIcon, Package, Users, Truck, TrendingDown, DollarSign, Loader2, AlertCircle, Menu, LogOut } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import axios from 'axios';
+import { Settings as SettingsIcon, Package, Users, Truck, TrendingDown, DollarSign, Loader2, AlertCircle, Menu, LogOut, CreditCard } from 'lucide-react';
+import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/currency';
+import { API } from '@/lib/config';
 
 const Configuracion = () => {
   const { showCents, toggleShowCents, floatingMenu, setFloatingMenu, autoLogout, setAutoLogout, loading, error } = useConfig();
+  const { getAuthHeader } = useAuth();
   const [localShowCents, setLocalShowCents] = useState(showCents);
   const [localFloatingMenu, setLocalFloatingMenu] = useState(floatingMenu);
   const [localAutoLogout, setLocalAutoLogout] = useState(autoLogout);
+  const [mercadopagoConfig, setMercadopagoConfig] = useState({ access_token: '', webhook_secret: '' });
+  const [savingMercadopago, setSavingMercadopago] = useState(false);
+  const [loadingMercadopago, setLoadingMercadopago] = useState(true);
 
   // Sincronizar estados locales con los globales cuando cambian
   useEffect(() => {
@@ -25,6 +34,47 @@ const Configuracion = () => {
   useEffect(() => {
     setLocalAutoLogout(autoLogout);
   }, [autoLogout]);
+
+  // Fetch Mercadopago config
+  useEffect(() => {
+    const fetchMercadopagoConfig = async () => {
+      try {
+        const response = await axios.get(`${API}/mercadopago/configuracion`, {
+          headers: getAuthHeader(),
+        });
+        if (response.data.access_token) {
+          setMercadopagoConfig({
+            access_token: response.data.access_token,
+            webhook_secret: response.data.webhook_secret || ''
+          });
+        }
+      } catch (err) {
+        console.error('Error fetching Mercadopago config:', err);
+      } finally {
+        setLoadingMercadopago(false);
+      }
+    };
+    fetchMercadopagoConfig();
+  }, [getAuthHeader]);
+
+  const handleSaveMercadopago = async () => {
+    setSavingMercadopago(true);
+    try {
+      await axios.post(
+        `${API}/mercadopago/configuracion`,
+        {
+          access_token: mercadopagoConfig.access_token,
+          webhook_secret: mercadopagoConfig.webhook_secret
+        },
+        { headers: getAuthHeader() }
+      );
+      toast.success('Configuración de Mercadopago guardada');
+    } catch (err) {
+      toast.error('Error al guardar configuración');
+    } finally {
+      setSavingMercadopago(false);
+    }
+  };
 
   const handleToggle = () => {
     const newValue = !localShowCents;
@@ -206,6 +256,53 @@ const handleFloatingMenuToggle = () => {
             </div>
           </div>
 
+        </CardContent>
+      </Card>
+
+      {/* Tarjeta de configuración de Mercadopago */}
+      <Card className="py-2">
+        <CardHeader className="py-2">
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <CreditCard className="w-4 h-4" />
+            Mercadopago
+            {loadingMercadopago && <Loader2 className="w-3 h-3 animate-spin" />}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="py-2 space-y-3">
+          <div>
+            <Label htmlFor="mp-access-token" className="text-sm font-medium">
+              Access Token
+            </Label>
+            <Input
+              id="mp-access-token"
+              type="password"
+              value={mercadopagoConfig.access_token}
+              onChange={(e) => setMercadopagoConfig({ ...mercadopagoConfig, access_token: e.target.value })}
+              placeholder="APP_USR-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+              className="mt-1"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Obtenelo en Mercadopago Developers → Credenciales
+            </p>
+          </div>
+          <div>
+            <Label htmlFor="mp-webhook-secret" className="text-sm font-medium">
+              Webhook Secret (opcional)
+            </Label>
+            <Input
+              id="mp-webhook-secret"
+              type="password"
+              value={mercadopagoConfig.webhook_secret}
+              onChange={(e) => setMercadopagoConfig({ ...mercadopagoConfig, webhook_secret: e.target.value })}
+              placeholder="Token de verificación del webhook"
+              className="mt-1"
+            />
+          </div>
+          <div className="flex justify-end">
+            <Button onClick={handleSaveMercadopago} disabled={savingMercadopago} size="sm">
+              {savingMercadopago ? 'Guardando...' : 'Guardar'}
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
