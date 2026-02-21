@@ -1429,7 +1429,7 @@ async def create_egreso(
     current_user: Usuario = Depends(get_current_user)
 ):
     egreso_obj = Egreso(
-        **input.model_dump(),
+        **{k: v for k, v in input.model_dump().items() if k not in ['usuario_id', 'usuario_nombre']},
         usuario_id=current_user.id,
         usuario_nombre=current_user.nombre
     )
