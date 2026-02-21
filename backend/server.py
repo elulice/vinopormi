@@ -49,7 +49,7 @@ class Usuario(BaseModel):
     username: str
     nombre: str
     rol: str = "comun"  # "admin" o "comun"
-    preferencias: dict = Field(default_factory=lambda: {"showCents": True, "sidebarWidth": "normal", "floatingMenu": False, "autoLogout": True})  # Preferencias del usuario
+    preferencias: dict = Field(default_factory=lambda: {"showCents": True, "sidebarWidth": "normal", "floatingMenu": False, "autoLogout": True, "soloMisDatos": False})  # Preferencias del usuario
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     lastActivity: Optional[datetime] = None  # Última actividad del usuario
 
@@ -71,6 +71,7 @@ class PreferenciasUpdate(BaseModel):
     sidebarWidth: Optional[str] = None  # 'compact', 'normal', 'expanded'
     floatingMenu: Optional[bool] = None  # Habilitar/deshabilitar menú flotante
     autoLogout: Optional[bool] = None   # Habilitar/deshabilitar cierre de sesión automático
+    soloMisDatos: Optional[bool] = None  # Mostrar solo mis datos en dashboard
 
 class LoginRequest(BaseModel):
     username: str
@@ -475,6 +476,8 @@ async def update_preferencias(
         preferencias_actuales['floatingMenu'] = preferencias.floatingMenu
     if preferencias.autoLogout is not None:
         preferencias_actuales['autoLogout'] = preferencias.autoLogout
+    if preferencias.soloMisDatos is not None:
+        preferencias_actuales['soloMisDatos'] = preferencias.soloMisDatos
     
     # Guardar en la base de datos
     result = await db.usuarios.update_one(
@@ -1079,6 +1082,9 @@ async def get_venta(venta_id: str, current_user: Usuario = Depends(get_current_u
 
 @api_router.get("/dashboard/stats", response_model=DashboardStats)
 async def get_dashboard_stats(current_user: Usuario = Depends(get_current_user)):
+    # Verificar si el usuario quiere solo sus datos
+    solo_mis_datos = current_user.preferencias.get('soloMisDatos', False) if current_user.preferencias else False
+    
     # Obtener fecha actual en UTC para coincidir con cómo se guardan los datos
     ahora_utc = datetime.now(timezone.utc)
     # Convertir a fecha local para obtener el día correcto en la zona horaria local
@@ -1091,10 +1097,16 @@ async def get_dashboard_stats(current_user: Usuario = Depends(get_current_user))
     hoy_inicio_str = hoy_inicio_utc.isoformat()
     hoy_fin_str = hoy_fin_utc.isoformat()
     
+    # Filtro base para ventas y egresos
+    filtro_fecha = {'fecha': {'$gte': hoy_inicio_str, '$lte': hoy_fin_str}}
+    
     # Filtrar ventas del día actual (00:00:00 - 23:59:59)
-    ventas_hoy = await db.ventas.find({
-        'fecha': {'$gte': hoy_inicio_str, '$lte': hoy_fin_str}
-    }, {'_id': 0}).to_list(1000)
+    if solo_mis_datos:
+        filtro_ventas = {**filtro_fecha, 'usuario_id': current_user.id}
+    else:
+        filtro_ventas = filtro_fecha
+    
+    ventas_hoy = await db.ventas.find(filtro_ventas, {'_id': 0}).to_list(1000)
     
     total_vendido = sum(v['total'] for v in ventas_hoy)
     cantidad_ventas = len(ventas_hoy)
@@ -1121,9 +1133,12 @@ async def get_dashboard_stats(current_user: Usuario = Depends(get_current_user))
         total_saldo_cuenta_corriente += saldo_cliente
     
 # Obtener egresos del día (mismo criterio que ventas)
-    egresos_hoy = await db.egresos.find({
-        'fecha': {'$gte': hoy_inicio_str, '$lte': hoy_fin_str}
-    }, {'_id': 0}).to_list(1000)
+    if solo_mis_datos:
+        filtro_egresos = {**filtro_fecha, 'usuario_id': current_user.id}
+    else:
+        filtro_egresos = filtro_fecha
+    
+    egresos_hoy = await db.egresos.find(filtro_egresos, {'_id': 0}).to_list(1000)
     total_egresos_hoy = sum(e['monto'] for e in egresos_hoy)
     
     # Obtener ingresos de cuenta corriente del día (movimientos positivos)

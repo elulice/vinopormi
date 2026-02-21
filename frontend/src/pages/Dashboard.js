@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { useConfig } from '@/context/ConfigContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, ShoppingCart, CreditCard, Users, TrendingDown, TrendingUp, ArrowRight } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { DollarSign, ShoppingCart, CreditCard, Users, TrendingDown, TrendingUp, ArrowRight, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import '@/components/Dashboard.css';
 import { formatCurrency, formatNumber } from '@/lib/currency';
@@ -12,9 +13,12 @@ import StickyNotesContainer from '@/components/StickyNotesContainer';
 import { API } from '@/lib/config';
 
 const Dashboard = () => {
-  const { getAuthHeader } = useAuth();
+  const { getAuthHeader, user } = useAuth();
   const { showCents } = useConfig();
   const navigate = useNavigate();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsRef = useRef(null);
+  const [soloMisDatos, setSoloMisDatos] = useState(false);
   const [stats, setStats] = useState({
     total_vendido_hoy: 0,
     cantidad_ventas_hoy: 0,
@@ -43,6 +47,41 @@ const Dashboard = () => {
     fetchStats();
   }, [fetchStats]);
 
+  useEffect(() => {
+    const loadPreferencias = async () => {
+      try {
+        const res = await axios.get(`${API}/auth/preferencias`, { headers: getAuthHeader() });
+        setSoloMisDatos(res.data.soloMisDatos || false);
+      } catch (error) {
+        console.error('Error loading preferencias:', error);
+      }
+    };
+    loadPreferencias();
+  }, [getAuthHeader]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (settingsRef.current && !settingsRef.current.contains(event.target)) {
+        setSettingsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSoloMisDatosChange = async (checked) => {
+    try {
+      await axios.put(`${API}/auth/preferencias`, 
+        { soloMisDatos: checked },
+        { headers: getAuthHeader() }
+      );
+      setSoloMisDatos(checked);
+      fetchStats();
+    } catch (error) {
+      toast.error('Error al guardar preferencia');
+    }
+  };
+
   if (loading) {
     return <div className="text-center py-8">Cargando...</div>;
   }
@@ -51,9 +90,33 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-4xl font-bold text-foreground mb-2">Escritorio</h1>
-        <p className="text-muted-foreground">Resumen de ventas del día</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-4xl font-bold text-foreground mb-2">Escritorio</h1>
+          <p className="text-muted-foreground">Resumen de ventas del día</p>
+        </div>
+        <div className="relative" ref={settingsRef}>
+          <button
+            onClick={() => setSettingsOpen(!settingsOpen)}
+            className="p-2 hover:bg-muted rounded-md transition-colors"
+          >
+            <Settings className="w-5 h-5 text-muted-foreground" />
+          </button>
+          {settingsOpen && (
+            <div className="absolute right-0 mt-2 w-64 bg-background border rounded-md shadow-lg p-3 z-50">
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Solo mis datos</span>
+                <Switch
+                  checked={soloMisDatos}
+                  onCheckedChange={handleSoloMisDatosChange}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Mostrar solo ventas y egresos registrados por ti
+              </p>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3 mt-3 !mt-3 dashboard-stats-grid">
