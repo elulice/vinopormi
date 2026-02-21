@@ -68,9 +68,7 @@ function App() {
               </AdminRoute>
             } />
             <Route path="/mercadopago" element={
-              <AdminRoute>
-                <Mercadopago />
-              </AdminRoute>
+              <Mercadopago />
             } />
             <Route path="/configuracion" element={<Configuracion />} />
 

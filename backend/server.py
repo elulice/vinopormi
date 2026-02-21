@@ -2030,7 +2030,7 @@ async def eliminar_sticky_note(
 @api_router.get("/mercadopago/buscar-transferencias")
 async def buscar_transferencias(
     minutos: int = 60,
-    current_user: Usuario = Depends(get_admin_user)
+    current_user: Usuario = Depends(get_current_user)
 ):
     """Busca transferencias/dinero recibido en los últimos X minutos"""
     try:
@@ -2041,16 +2041,16 @@ async def buscar_transferencias(
             raise HTTPException(status_code=400, detail="MERCADOPAGO_ACCESS_TOKEN no configurado")
         
         from datetime import timedelta
-        end_date = datetime.now(timezone.utc)
+        from zoneinfo import ZoneInfo
+        from dateutil import parser as date_parser
+        import httpx
+        
+        end_date = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires"))
         start_date = end_date - timedelta(minutes=minutos)
         
-        begin_date = start_date.strftime("%Y-%m-%dT%H:%M:%S.000-03:00")
-        end_date_str = end_date.strftime("%Y-%m-%dT%H:%M:%S.000-03:00")
-        
-        import httpx
         url = "https://api.mercadopago.com/v1/payments/search"
         headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
-        params = {"sort": "date_created", "criteria": "desc", "range": "date_created", "begin_date": begin_date, "end_date": end_date_str, "limit": 100}
+        params = {"sort": "date_created", "criteria": "desc", "limit": 20}
         
         async with httpx.AsyncClient() as client:
             response = await client.get(url, headers=headers, params=params)
@@ -2063,6 +2063,15 @@ async def buscar_transferencias(
             payment_type = payment.get("payment_type_id", "")
             operation_type = payment.get("operation_type", "")
             status = payment.get("status", "")
+            date_created_str = payment.get("date_created", "")
+            
+            if date_created_str:
+                try:
+                    payment_date = date_parser.parse(date_created_str)
+                    if payment_date < start_date:
+                        continue
+                except:
+                    pass
             
             if (payment_type in ["bank_transfer", "account_money"] or operation_type in ["transfer", "account_fund"]) and status == "approved":
                 transferencias.append({
@@ -2085,7 +2094,6 @@ async def buscar_transferencias(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error buscando transferencias: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # ===== CONFIGURACIÓN MERCADOPAGO =====

@@ -14,7 +14,7 @@ import { API } from '@/lib/config';
 
 const Configuracion = () => {
   const { showCents, toggleShowCents, floatingMenu, setFloatingMenu, autoLogout, setAutoLogout, loading, error } = useConfig();
-  const { getAuthHeader } = useAuth();
+  const { getAuthHeader, user } = useAuth();
   const [localShowCents, setLocalShowCents] = useState(showCents);
   const [localFloatingMenu, setLocalFloatingMenu] = useState(floatingMenu);
   const [localAutoLogout, setLocalAutoLogout] = useState(autoLogout);
@@ -257,7 +257,7 @@ const handleFloatingMenuToggle = () => {
         </CardContent>
       </Card>
 
-      {/* Tarjeta de configuración de Mercadopago */}
+      {user?.rol === 'admin' && (
       <Card className="py-2">
         <CardHeader className="py-2">
           <CardTitle className="flex items-center gap-2 text-sm">
@@ -290,6 +290,7 @@ const handleFloatingMenuToggle = () => {
           </div>
         </CardContent>
       </Card>
+      )}
 
       {/* Nota general de configuración */}
       <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
