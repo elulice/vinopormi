@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { 
   Package, 
   Users, 
   Truck, 
   TrendingDown,
-  Plus
+  GripVertical
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,6 +24,50 @@ const FloatingMenu = () => {
   const [customerModalOpen, setCustomerModalOpen] = useState(false);
   const [providerModalOpen, setProviderModalOpen] = useState(false);
   const [egressModalOpen, setEgressModalOpen] = useState(false);
+
+  const [position, setPosition] = useState({ x: 16, y: 16 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const menuRef = useRef(null);
+
+  const handleMouseDown = (e) => {
+    setIsDragging(true);
+    const rect = menuRef.current.getBoundingClientRect();
+    setDragOffset({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    });
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isDragging) return;
+      const newX = window.innerWidth - e.clientX - dragOffset.x;
+      const newY = e.clientY - dragOffset.y;
+      
+      const maxX = window.innerWidth - 60 - 16;
+      const maxY = window.innerHeight - 200 - 16;
+      
+      setPosition({
+        x: Math.max(0, Math.min(newX, maxX)),
+        y: Math.max(0, Math.min(newY, maxY))
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, dragOffset]);
 
   const quickActions = [
     {
@@ -55,8 +99,20 @@ const FloatingMenu = () => {
   return (
     <>
       {/* Menú flotante */}
-      <div className="fixed top-[4.5rem] right-4 z-50 bg-white rounded-lg shadow-lg border border-gray-200 p-2 lg:top-4 lg:right-4">
-        <div className="flex flex-row gap-2">
+      <div 
+        ref={menuRef}
+        className={`fixed z-50 bg-white rounded-lg shadow-lg border border-gray-200 p-2 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+        style={{ 
+          right: position.x, 
+          top: position.y,
+          touchAction: 'none'
+        }}
+        onMouseDown={handleMouseDown}
+      >
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center justify-center pb-1 border-b mb-1">
+            <GripVertical className="w-4 h-4 text-muted-foreground" />
+          </div>
           {quickActions.map((action) => {
             const Icon = action.icon;
             return (
@@ -68,7 +124,7 @@ const FloatingMenu = () => {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="p-2 hover:bg-gray-100"
+                    className="p-1 h-6 hover:bg-gray-100"
                     title={action.label}
                   >
                     <Icon className="w-5 h-5" />
