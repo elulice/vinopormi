@@ -47,10 +47,15 @@ const Productos = () => {
     nombre: '',
     precio_unitario: '',
     stock: '',
-    // Descuento por cantidad (opcional)
+    tipo: 'normal',
+    productos_incluidos: [],
     descuento_cantidad_minima: '',
     descuento_precio_unitario: '',
   });
+  const [productosNormales, setProductosNormales] = useState([]);
+  const [showProductoSelect, setShowProductoSelect] = useState(false);
+  const [productoSearch, setProductoSearch] = useState('');
+  const [filteredProductos, setFilteredProductos] = useState([]);
 
   /* =============================
      FETCH
@@ -79,7 +84,16 @@ const Productos = () => {
         headers: getAuthHeader(),
       });
       
-      setProductos(res.data.productos);
+      const prodsConStock = await axios.get(`${API}/productos-stock`, { headers: getAuthHeader() });
+      const prodsMap = {};
+      prodsConStock.data.forEach(p => { prodsMap[p.id] = p; });
+      
+      const productosConStockCalculado = res.data.productos.map(p => ({
+        ...p,
+        stock: prodsMap[p.id]?.stock ?? p.stock
+      }));
+      
+      setProductos(productosConStockCalculado);
       setPagination(res.data.pagination);
     } catch (error) {
       toast.error('Error al cargar productos');
@@ -93,9 +107,73 @@ const Productos = () => {
   // Mantener la referencia actualizada
   fetchProductosRef.current = fetchProductos;
 
-useEffect(() => {
+  useEffect(() => {
     fetchProductosRef.current?.(1);
   }, []);
+
+  useEffect(() => {
+    if (dialogOpen && formData.tipo === 'promo') {
+      axios.get(`${API}/productos-stock`, { headers: getAuthHeader() })
+        .then(res => {
+          const normals = res.data.filter(p => p.tipo !== 'promo');
+          setProductosNormales(normals);
+          setFilteredProductos(normals.slice(0, 50));
+        });
+    }
+  }, [dialogOpen, formData.tipo, getAuthHeader]);
+
+  const handleProductoSearch = useCallback((value) => {
+    setProductoSearch(value);
+    if (value && value.trim() !== '' && productosNormales.length > 0) {
+      const terms = value.toLowerCase().trim().split(/\s+/);
+      const filtered = productosNormales.filter(p => 
+        terms.every(term => p.nombre.toLowerCase().includes(term))
+      );
+      setFilteredProductos(filtered);
+    } else {
+      setFilteredProductos(productosNormales.slice(0, 50));
+    }
+  }, [productosNormales]);
+
+  const agregarProducto = useCallback((producto) => {
+    const existente = formData.productos_incluidos.find(p => p.producto_id === producto.id);
+    if (existente) {
+      toast.error('El producto ya está incluido');
+      return;
+    }
+    setFormData(prev => ({
+      ...prev,
+      productos_incluidos: [...prev.productos_incluidos, {
+        producto_id: producto.id,
+        cantidad: 1,
+        nombre: producto.nombre,
+        precio_unitario: producto.precio_unitario
+      }]
+    }));
+    setShowProductoSelect(false);
+    setProductoSearch('');
+  }, [formData.productos_incluidos]);
+
+  const eliminarProducto = useCallback((producto_id) => {
+    setFormData(prev => ({
+      ...prev,
+      productos_incluidos: prev.productos_incluidos.filter(p => p.producto_id !== producto_id)
+    }));
+  }, []);
+
+  const actualizarCantidad = useCallback((producto_id, cantidad) => {
+    if (cantidad < 1) return;
+    setFormData(prev => ({
+      ...prev,
+      productos_incluidos: prev.productos_incluidos.map(p => 
+        p.producto_id === producto_id ? { ...p, cantidad: Number(cantidad) } : p
+      )
+    }));
+  }, []);
+
+  const totalProductos = useMemo(() => {
+    return formData.productos_incluidos.reduce((sum, p) => sum + (p.precio_unitario * p.cantidad), 0);
+  }, [formData.productos_incluidos]);
 
   /* ==============================
      FORM
@@ -105,10 +183,14 @@ useEffect(() => {
       nombre: '', 
       precio_unitario: '', 
       stock: '',
+      tipo: 'normal',
+      productos_incluidos: [],
       descuento_cantidad_minima: '',
       descuento_precio_unitario: '',
     });
     setEditingProducto(null);
+    setShowProductoSelect(false);
+    setProductoSearch('');
   }, []);
 
   const handleSubmit = useCallback(async (e) => {
@@ -118,7 +200,10 @@ useEffect(() => {
       nombre: formData.nombre,
       precio_unitario: Number(formData.precio_unitario),
       stock: formData.stock ? Number(formData.stock) : 0,
-      // Descuento por cantidad (opcional - solo si ambos valores están completos)
+      tipo: formData.tipo,
+      ...(formData.tipo === 'promo' && formData.productos_incluidos.length > 0 ? {
+        productos_incluidos: formData.productos_incluidos
+      } : {}),
       ...(formData.descuento_cantidad_minima && formData.descuento_precio_unitario ? {
         descuento_cantidad_minima: Number(formData.descuento_cantidad_minima),
         descuento_precio_unitario: Number(formData.descuento_precio_unitario)
@@ -146,17 +231,32 @@ useEffect(() => {
     }
   }, [editingProducto, formData, pagination.page, resetForm, searchTerm, getAuthHeader]);
 
-  const handleEdit = useCallback((producto) => {
+  const handleEdit = useCallback(async (producto) => {
     setEditingProducto(producto);
+    let productosInc = producto.productos_incluidos || [];
+    
+    if (producto.tipo === 'promo' && productosInc.length > 0) {
+      const prods = await axios.get(`${API}/productos-stock`, { headers: getAuthHeader() });
+      const prodsMap = {};
+      prods.data.forEach(p => { prodsMap[p.id] = p; });
+      productosInc = productosInc.map(inc => ({
+        ...inc,
+        nombre: prodsMap[inc.producto_id]?.nombre || 'Unknown',
+        precio_unitario: prodsMap[inc.producto_id]?.precio_unitario || 0
+      }));
+    }
+    
     setFormData({
       nombre: producto.nombre,
       precio_unitario: String(producto.precio_unitario),
       stock: producto.stock ? String(producto.stock) : '',
+      tipo: producto.tipo || 'normal',
+      productos_incluidos: productosInc,
       descuento_cantidad_minima: producto.descuento_cantidad_minima ? String(producto.descuento_cantidad_minima) : '',
       descuento_precio_unitario: producto.descuento_precio_unitario ? String(producto.descuento_precio_unitario) : '',
     });
     setDialogOpen(true);
-  }, []);
+  }, [getAuthHeader]);
 
   const handleDelete = useCallback(async (id) => {
     if (!window.confirm('¿Eliminar producto?')) return;
@@ -246,7 +346,12 @@ useEffect(() => {
           )}
         </div>
 
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <Dialog open={dialogOpen} onOpenChange={(open) => {
+          if (!open) {
+            resetForm();
+          }
+          setDialogOpen(open);
+        }}>
           <DialogTrigger asChild>
             <Button size="sm" className="h-7 text-xs">
               <Plus className="w-3 h-3 mr-1" />
@@ -254,7 +359,7 @@ useEffect(() => {
             </Button>
           </DialogTrigger>
 
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {editingProducto ? 'Editar Producto' : 'Nuevo Producto'}
@@ -267,43 +372,165 @@ useEffect(() => {
             <form onSubmit={handleSubmit} className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-xs">Nombre</Label>
-                  <Input
-                    value={formData.nombre}
-                    onChange={(e) =>
-                      setFormData({ ...formData, nombre: e.target.value })
-                    }
-                    required
-                    className="h-8"
-                  />
+                  <Label className="text-xs">Tipo</Label>
+                  <select
+                    value={formData.tipo}
+                    onChange={(e) => setFormData({ ...formData, tipo: e.target.value, productos_incluidos: e.target.value === 'normal' ? [] : formData.productos_incluidos })}
+                    className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <option value="normal">Normal</option>
+                    <option value="promo">Promo</option>
+                  </select>
                 </div>
+              </div>
 
-                <div>
-                  <Label className="text-xs">Precio Unitario</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={formData.precio_unitario}
-                    onChange={(e) =>
-                      setFormData({ ...formData, precio_unitario: e.target.value })
-                    }
-                    required
-                    className="h-8"
-                  />
+              {formData.tipo === 'promo' && (
+                <div className="border rounded-md p-3 space-y-2">
+                  <Label className="text-xs font-medium">Productos incluidos</Label>
+                  
+                  {formData.productos_incluidos.length > 0 && (
+                    <div className="space-y-2 mb-3">
+                      {formData.productos_incluidos.map((p, idx) => (
+                        <div key={p.producto_id} className="flex items-center gap-2 text-xs bg-muted p-2 rounded">
+                          <span className="flex-1 truncate">{p.nombre}</span>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={p.cantidad}
+                            onChange={(e) => actualizarCantidad(p.producto_id, e.target.value)}
+                            className="w-16 h-6"
+                          />
+                          <span className="w-20 text-right">{formatCurrency(p.precio_unitario * p.cantidad, showCents)}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 text-destructive"
+                            onClick={() => eliminarProducto(p.producto_id)}
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ))}
+                      <div className="flex justify-between text-xs font-medium border-t pt-2">
+                        <span>Total productos:</span>
+                        <span>{formatCurrency(totalProductos, showCents)}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {showProductoSelect ? (
+                    <div className="space-y-2">
+                      <div className="relative">
+                        <Input
+                          placeholder="Buscar producto... (Enter para buscar)"
+                          value={productoSearch}
+                          onChange={(e) => setProductoSearch(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleProductoSearch(productoSearch);
+                            }
+                          }}
+                          onPaste={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }}
+                          className="h-7 text-xs pr-7"
+                          autoFocus
+                        />
+                        {productoSearch && (
+                          <X
+                            className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground hover:text-foreground cursor-pointer"
+                            onClick={() => {
+                              setProductoSearch('');
+                              setFilteredProductos(productosNormales.slice(0, 50));
+                            }}
+                          />
+                        )}
+                      </div>
+                      <div className="max-h-32 overflow-y-auto border rounded">
+                        {filteredProductos.map(p => (
+                          <div
+                            key={p.id}
+                            className="flex items-center justify-between p-2 hover:bg-muted cursor-pointer text-xs"
+                            onClick={() => agregarProducto(p)}
+                          >
+                            <span>{p.nombre}</span>
+                            <span className="text-muted-foreground">{formatCurrency(p.precio_unitario, showCents)}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-full h-6 text-xs"
+                        onClick={() => { setShowProductoSelect(false); setProductoSearch(''); setFilteredProductos(productosNormales.slice(0, 50)); }}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full h-7 text-xs"
+                      onClick={() => { 
+                        setShowProductoSelect(true); 
+                        setProductoSearch('');
+                        setFilteredProductos(productosNormales.slice(0, 50));
+                      }}
+                    >
+                      <Plus className="w-3 h-3 mr-1" />
+                      Agregar producto
+                    </Button>
+                  )}
                 </div>
+              )}
+
+              <div>
+                <Label className="text-xs">Nombre</Label>
+                <Input
+                  value={formData.nombre}
+                  onChange={(e) =>
+                    setFormData({ ...formData, nombre: e.target.value })
+                  }
+                  required
+                  className="h-8"
+                  placeholder={formData.tipo === 'promo' ? 'Ej: Combo Verano' : ''}
+                />
               </div>
 
               <div>
-                <Label className="text-xs">Stock (opcional)</Label>
+                <Label className="text-xs">Precio Unitario</Label>
                 <Input
                   type="number"
-                  value={formData.stock}
+                  step="0.01"
+                  value={formData.precio_unitario}
                   onChange={(e) =>
-                    setFormData({ ...formData, stock: e.target.value })
+                    setFormData({ ...formData, precio_unitario: e.target.value })
                   }
+                  required
                   className="h-8"
                 />
               </div>
+
+              {formData.tipo === 'normal' && (
+                <div>
+                  <Label className="text-xs">Stock (opcional)</Label>
+                  <Input
+                    type="number"
+                    value={formData.stock}
+                    onChange={(e) =>
+                      setFormData({ ...formData, stock: e.target.value })
+                    }
+                    className="h-8"
+                  />
+                </div>
+              )}
 
               {/* Descuento por Cantidad (Opcional) */}
               <div className="border-t pt-3">
@@ -366,9 +593,10 @@ useEffect(() => {
       {/* TABLA */}
       <ResponsiveTable
         headers={[
-          { title: 'Nombre', width: '30%' },
-          { title: 'Stock', width: '15%' },
-          { title: 'Precio', width: '15%' },
+          { title: 'Nombre', width: '25%' },
+          { title: 'Tipo', width: '10%' },
+          { title: 'Stock', width: '12%' },
+          { title: 'Precio', width: '13%' },
           { title: 'Descuento', width: '20%' },
           { title: 'Acciones', width: '20%' }
         ]}
@@ -377,9 +605,16 @@ useEffect(() => {
           <tr key={p.id} className="border-b">
             <td className="p-2">
               <div className="flex items-center gap-2 text-sm">
-                <Package className="w-3 h-3 text-primary" />
+                <Package className={`w-3 h-3 ${p.tipo === 'promo' ? 'text-orange-500' : 'text-primary'}`} />
                 <span className="truncate">{capitalizeWords(p.nombre)}</span>
               </div>
+            </td>
+            <td className="p-2 text-xs">
+              {p.tipo === 'promo' ? (
+                <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-xs font-medium">Promo</span>
+              ) : (
+                <span className="text-muted-foreground">Normal</span>
+              )}
             </td>
             <td className="p-2 text-muted-foreground text-xs">
               {Number(p.stock) || 0} unid.
@@ -424,11 +659,16 @@ useEffect(() => {
         renderMobileCard={(p, index) => (
           <div className="p-3">
             <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 bg-primary/10 rounded flex items-center justify-center">
-                <Package className="w-4 h-4 text-primary" />
+              <div className={`w-8 h-8 ${p.tipo === 'promo' ? 'bg-orange-100' : 'bg-primary/10'} rounded flex items-center justify-center`}>
+                <Package className={`w-4 h-4 ${p.tipo === 'promo' ? 'text-orange-500' : 'text-primary'}`} />
               </div>
               <div className="flex-1">
-                <h3 className="font-medium text-sm truncate">{capitalizeWords(p.nombre)}</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-medium text-sm truncate">{capitalizeWords(p.nombre)}</h3>
+                  {p.tipo === 'promo' && (
+                    <span className="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-xs font-medium">Promo</span>
+                  )}
+                </div>
                 <div className="font-bold text-primary text-sm">
                   {formatCurrency(p.precio_unitario, showCents)}
                 </div>

@@ -80,22 +80,28 @@ class LoginResponse(BaseModel):
     token: str
     user: Usuario
 
+class ProductoIncluido(BaseModel):
+    producto_id: str
+    cantidad: int = 1
+
 class Producto(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     nombre: str
     precio_unitario: float
     stock: int = 0
-    # Descuento por cantidad (opcional)
-    descuento_cantidad_minima: Optional[int] = None  # Cantidad mínima para descuento
-    descuento_precio_unitario: Optional[float] = None  # Precio unitario con descuento
+    tipo: str = "normal"  # "normal" | "promo"
+    productos_incluidos: Optional[List[ProductoIncluido]] = None  # solo si es promo
+    descuento_cantidad_minima: Optional[int] = None
+    descuento_precio_unitario: Optional[float] = None
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class ProductoCreate(BaseModel):
     nombre: str
     precio_unitario: float
     stock: Optional[int] = 0
-    # Descuento por cantidad (opcional)
+    tipo: str = "normal"
+    productos_incluidos: Optional[List[ProductoIncluido]] = None
     descuento_cantidad_minima: Optional[int] = None
     descuento_precio_unitario: Optional[float] = None
 
@@ -103,7 +109,8 @@ class ProductoUpdate(BaseModel):
     nombre: Optional[str] = None
     precio_unitario: Optional[float] = None
     stock: Optional[int] = None
-    # Descuento por cantidad (opcional)
+    tipo: Optional[str] = None
+    productos_incluidos: Optional[List[ProductoIncluido]] = None
     descuento_cantidad_minima: Optional[int] = None
     descuento_precio_unitario: Optional[float] = None
 
@@ -785,6 +792,26 @@ async def delete_producto(
     
     return {"message": "Producto eliminado"}
 
+@api_router.get("/productos-stock")
+async def get_productos_con_stock(current_user: Usuario = Depends(get_current_user)):
+    """Obtiene todos los productos con stock calculado para promos"""
+    productos = await db.productos.find({}, {'_id': 0}).to_list(1000)
+    
+    for p in productos:
+        if isinstance(p.get('timestamp'), str):
+            p['timestamp'] = datetime.fromisoformat(p['timestamp'])
+        
+        if p.get('tipo') == 'promo' and p.get('productos_incluidos'):
+            stocks = []
+            for incluido in p['productos_incluidos']:
+                prod = await db.productos.find_one({'id': incluido['producto_id']}, {'_id': 0, 'stock': 1})
+                if prod:
+                    stock_disponible = prod.get('stock', 0) // incluido['cantidad']
+                    stocks.append(stock_disponible)
+            p['stock'] = min(stocks) if stocks else 0
+    
+    return productos
+
 # ===== CLIENTES ROUTES =====
 
 @api_router.post("/clientes", response_model=Cliente)
@@ -980,11 +1007,21 @@ async def create_venta(input: VentaCreate, current_user: Usuario = Depends(get_c
     for detalle in detalles_finales:
         producto = await db.productos.find_one({'id': detalle['producto_id']})
         if producto:
-            nuevo_stock = producto['stock'] - detalle['cantidad']
-            await db.productos.update_one(
-                {'id': detalle['producto_id']},
-                {'$set': {'stock': nuevo_stock}}
-            )
+            if producto.get('tipo') == 'promo' and producto.get('productos_incluidos'):
+                for incluido in producto['productos_incluidos']:
+                    producto_incluido = await db.productos.find_one({'id': incluido['producto_id']})
+                    if producto_incluido:
+                        nuevo_stock = producto_incluido.get('stock', 0) - (incluido['cantidad'] * detalle['cantidad'])
+                        await db.productos.update_one(
+                            {'id': incluido['producto_id']},
+                            {'$set': {'stock': nuevo_stock}}
+                        )
+            else:
+                nuevo_stock = producto.get('stock', 0) - detalle['cantidad']
+                await db.productos.update_one(
+                    {'id': detalle['producto_id']},
+                    {'$set': {'stock': nuevo_stock}}
+                )
     
     # Procesar pagos a cuenta corriente
     if input.pagos:
