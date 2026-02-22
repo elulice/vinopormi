@@ -81,11 +81,12 @@ const Ventas = () => {
   const { getAuthHeader } = useAuth();
   const { showCents } = useConfig();
   const [searchParams] = useSearchParams();
-const [ventas, setVentas] = useState([]);
+  const [ventas, setVentas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedVenta, setSelectedVenta] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [usuarios, setUsuarios] = useState([]);
+  const [updatingMedioPago, setUpdatingMedioPago] = useState(false);
   
   // Estados para filtros y ordenamiento
   const [filters, setFilters] = useState({
@@ -1155,11 +1156,11 @@ const clearFilters = () => {
       {/* Diálogo de detalles */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
-          <DialogHeader className="py-3 px-4 flex-shrink-0">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle className="text-base">Detalle de Venta</DialogTitle>
           </DialogHeader>
           {selectedVenta && (
-            <div className="flex flex-col flex-1 min-h-0 px-4 pb-4 space-y-3">
+            <div className="flex flex-col flex-1 min-h-0 space-y-3">
               <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded-md flex-shrink-0 text-xs">
                 <div>
                   <p className="text-muted-foreground">Fecha</p>
@@ -1184,9 +1185,43 @@ const clearFilters = () => {
                       ))}
                     </div>
                   ) : (
-                    <p className="font-medium capitalize text-xs">
-                      {selectedVenta.medio_pago?.replace('_', ' ') ?? '—'}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <Select
+                        value={selectedVenta.medio_pago}
+                        onValueChange={async (value) => {
+                          setUpdatingMedioPago(true);
+                          try {
+                            await axios.put(
+                              `${API}/ventas/${selectedVenta.id}/medio-pago`,
+                              { medio_pago: value },
+                              { headers: getAuthHeader() }
+                            );
+                            setSelectedVenta({ ...selectedVenta, medio_pago: value });
+                            setVentas(ventas.map(v => 
+                              v.id === selectedVenta.id ? { ...v, medio_pago: value } : v
+                            ));
+                            toast.success('Medio de pago actualizado');
+                          } catch (error) {
+                            console.error('Error updating medio_pago:', error);
+                            toast.error('Error al actualizar medio de pago');
+                          } finally {
+                            setUpdatingMedioPago(false);
+                          }
+                        }}
+                        disabled={updatingMedioPago}
+                      >
+                        <SelectTrigger className="h-7 text-xs w-auto min-w-[120px] capitalize">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="efectivo">Efectivo</SelectItem>
+                          <SelectItem value="posnet">Posnet</SelectItem>
+                          <SelectItem value="transferencia">Transferencia</SelectItem>
+                          <SelectItem value="cuenta_corriente">Cta. Cte.</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {updatingMedioPago && <span className="text-xs text-muted-foreground">Actualizando...</span>}
+                    </div>
                   )}
                 </div>
                 {selectedVenta.cliente_nombre && (

@@ -339,13 +339,13 @@ const Egresos = () => {
           </DialogTrigger>
 
           <DialogContent className="max-w-sm">
-            <DialogHeader className="py-3 px-4 border-b">
+            <DialogHeader>
               <DialogTitle className="text-lg">
                 {editingEgreso ? 'Editar Egreso' : 'Nuevo Egreso'}
               </DialogTitle>
             </DialogHeader>
 
-            <form onSubmit={handleSubmit} className="p-4 space-y-3">
+            <form onSubmit={handleSubmit} className="space-y-3">
               <div className="space-y-1.5">
                 <Label className="text-sm font-medium">Descripción</Label>
                 <Input

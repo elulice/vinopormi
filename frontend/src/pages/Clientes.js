@@ -724,7 +724,7 @@ const Clientes = () => {
       {/* Modal de Detalle de Venta */}
       <Dialog open={ventaDialogOpen} onOpenChange={handleVentaDialogClose}>
         <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
-          <DialogHeader className="py-3 px-4 flex-shrink-0">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle className="text-base">Detalle de Venta</DialogTitle>
           </DialogHeader>
           {loadingVenta ? (
@@ -732,7 +732,7 @@ const Clientes = () => {
               <div className="text-center py-8">Cargando detalles de la venta...</div>
             </div>
           ) : selectedVenta ? (
-            <div className="flex flex-col flex-1 min-h-0 px-4 pb-4 space-y-3">
+            <div className="flex flex-col flex-1 min-h-0 space-y-3">
               <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded-md flex-shrink-0 text-xs">
                 <div>
                   <p className="text-muted-foreground">Fecha</p>
