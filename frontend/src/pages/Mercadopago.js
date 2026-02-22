@@ -1,17 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   RefreshCw,
-  TrendingUp
 } from 'lucide-react';
 import MercadopagoIcon from '@/components/MercadopagoIcon';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { API } from '@/lib/config';
 
 const Mercadopago = () => {
@@ -47,13 +45,15 @@ const Mercadopago = () => {
   };
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <MercadopagoIcon className="w-5 h-5" />
-          <h1 className="text-xl font-bold">Mercadopago</h1>
+    <div className="space-y-2">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+      <div>
+          <h1 className="text-2xl font-bold">Mercadopago</h1>
+          <p className="text-sm text-muted-foreground">
+          Historial de transferencias recibidas
+          </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-1">
           <Select 
             value={minutosBusqueda.toString()} 
             onValueChange={(val) => {
@@ -63,7 +63,7 @@ const Mercadopago = () => {
             }}
             disabled={loadingTransferencias}
           >
-            <SelectTrigger className="w-40 h-8">
+            <SelectTrigger className="w-32 h-7 text-xs">
               <SelectValue placeholder="Últimos..." />
             </SelectTrigger>
             <SelectContent>
@@ -78,59 +78,40 @@ const Mercadopago = () => {
           <Button 
             variant="outline" 
             size="sm" 
+            className="h-7 px-2"
             onClick={() => fetchTransferencias(minutosBusqueda)}
             disabled={loadingTransferencias}
           >
-            <RefreshCw className={`w-4 h-4 mr-1 ${loadingTransferencias ? 'animate-spin' : ''}`} />
-            Actualizar
+            <RefreshCw className={`w-3 h-3 ${loadingTransferencias ? 'animate-spin' : ''}`} />
           </Button>
         </div>
       </div>
 
       <Card>
-        <CardHeader className="p-3 pb-0">
-          <CardTitle className="text-base flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-green-600" />
-            Transferencias Recibidas
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-3">
+        <CardContent className="p-2">
           {loadingTransferencias ? (
-            <div className="animate-pulse space-y-2">
+            <div className="animate-pulse space-y-1">
               {[1,2,3].map(i => (
-                <div key={i} className="h-16 bg-muted rounded"></div>
+                <div key={i} className="h-10 bg-muted rounded"></div>
               ))}
             </div>
           ) : transferencias.length === 0 ? (
-            <p className="text-center py-8 text-muted-foreground">
-              No se encontraron transferencias en el período seleccionado
+            <p className="text-center py-4 text-muted-foreground text-sm">
+              Sin transferencias en el período
             </p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-1">
               {transferencias.map((t) => (
-                <div key={t.id} className="p-3 bg-muted rounded flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-lg">{formatCurrency(t.monto, t.currency)}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {t.fecha_aprobacion ? format(new Date(t.fecha_aprobacion), 'dd/MM/yyyy HH:mm', { locale: es }) : '-'}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {t.descripcion || t.tipo_pago}
-                    </p>
-                    {t.payer_email && (
-                      <p className="text-xs text-muted-foreground">
-                        De: {t.payer_email}
-                      </p>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <span className="px-2 py-0.5 bg-green-100 text-green-800 rounded text-xs">
-                      {t.estado}
-                    </span>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {t.tipo_pago}
+                <div key={t.id} className="p-2 bg-muted rounded flex items-center justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm">{formatCurrency(t.monto, t.currency)}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {t.fecha_aprobacion ? format(new Date(t.fecha_aprobacion), 'dd/MM • HH:mm') : '-'} • {t.descripcion || t.tipo_pago}
                     </p>
                   </div>
+                  <span className="px-1.5 py-0.5 bg-green-100 text-green-800 rounded text-xs whitespace-nowrap">
+                    {t.estado}
+                  </span>
                 </div>
               ))}
             </div>

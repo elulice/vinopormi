@@ -207,7 +207,7 @@ const Layout = () => {
                     }}
                     title={sidebarWidth === 'compact' ? item.label : undefined}
                   >
-                    <Icon className="w-5 h-5 flex-shrink-0" />
+                    <Icon className="w-5 h-5 flex-shrink-0" color={isActive ? "white" : undefined} />
                     {sidebarWidth !== 'compact' && (
                       <span className="font-medium">{item.label}</span>
                     )}
@@ -336,7 +336,7 @@ const Layout = () => {
         sidebarWidth === 'normal' ? 'lg:ml-56' : 
         'lg:ml-72'
       }`}>
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-7xl mx-auto pt-4 lg:pt-0">
           <Outlet />
         </div>
       </main>
