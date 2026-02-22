@@ -15,7 +15,6 @@ import {
   History,
   Shield,
   Wrench,
-  CreditCard,
   Menu,
   X,
   ChevronRight,
@@ -26,6 +25,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useState, useRef, useEffect } from 'react';
 import { logoImage } from '@/assets/images';
+import MercadopagoIcon from '@/components/MercadopagoIcon';
 
 const Layout = () => {
   const { user, logout } = useAuth();
@@ -95,7 +95,7 @@ const Layout = () => {
     { path: '/clientes', icon: Users, label: 'Ctas. Ctes.' },
     { path: '/proveedores', icon: Truck, label: 'Proveedores' },
     { path: '/egresos', icon: TrendingDown, label: 'Egresos' },
-    { path: '/mercadopago', icon: CreditCard, label: 'Mercadopago' },
+    { path: '/mercadopago', icon: MercadopagoIcon, label: 'Mercadopago' },
   ];
 
   // Items del menú de configuración según rol

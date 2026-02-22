@@ -5,10 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
-  CreditCard, 
   RefreshCw,
   TrendingUp
 } from 'lucide-react';
+import MercadopagoIcon from '@/components/MercadopagoIcon';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -50,13 +50,18 @@ const Mercadopago = () => {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <CreditCard className="w-5 h-5" />
+          <MercadopagoIcon className="w-5 h-5" />
           <h1 className="text-xl font-bold">Mercadopago</h1>
         </div>
         <div className="flex gap-2">
           <Select 
             value={minutosBusqueda.toString()} 
-            onValueChange={(val) => setMinutosBusqueda(parseInt(val))}
+            onValueChange={(val) => {
+              const nuevosMinutos = parseInt(val);
+              setMinutosBusqueda(nuevosMinutos);
+              fetchTransferencias(nuevosMinutos);
+            }}
+            disabled={loadingTransferencias}
           >
             <SelectTrigger className="w-40 h-8">
               <SelectValue placeholder="Últimos..." />
@@ -68,7 +73,6 @@ const Mercadopago = () => {
               <SelectItem value="360">Últimas 6 horas</SelectItem>
               <SelectItem value="1440">Últimas 24 horas</SelectItem>
               <SelectItem value="10080">Últimos 7 días</SelectItem>
-              <SelectItem value="43200">Últimos 30 días</SelectItem>
             </SelectContent>
           </Select>
           <Button 
@@ -78,7 +82,7 @@ const Mercadopago = () => {
             disabled={loadingTransferencias}
           >
             <RefreshCw className={`w-4 h-4 mr-1 ${loadingTransferencias ? 'animate-spin' : ''}`} />
-            Buscar
+            Actualizar
           </Button>
         </div>
       </div>

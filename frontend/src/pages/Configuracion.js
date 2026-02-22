@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { useConfig } from '@/context/ConfigContext';
 import { useAuth } from '@/context/AuthContext';
 import axios from 'axios';
-import { Settings as SettingsIcon, Package, Users, Truck, TrendingDown, DollarSign, Loader2, AlertCircle, Menu, LogOut, CreditCard } from 'lucide-react';
+import { Settings as SettingsIcon, Package, Users, Truck, TrendingDown, DollarSign, Loader2, AlertCircle, Menu, LogOut } from 'lucide-react';
+import MercadopagoIcon from '@/components/MercadopagoIcon';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/currency';
 import { API } from '@/lib/config';
@@ -174,7 +175,7 @@ const handleFloatingMenuToggle = () => {
                 Menú flotante
               </Label>
               <p className="text-xs text-muted-foreground">
-                Acciones rápidas en esquina superior
+                Acciones rápidas
               </p>
             </div>
             <Switch
@@ -261,7 +262,7 @@ const handleFloatingMenuToggle = () => {
       <Card className="py-2">
         <CardHeader className="py-2">
           <CardTitle className="flex items-center gap-2 text-sm">
-            <CreditCard className="w-4 h-4" />
+            <MercadopagoIcon className="w-4 h-4" />
             Mercadopago
             {loadingMercadopago && <Loader2 className="w-3 h-3 animate-spin" />}
           </CardTitle>

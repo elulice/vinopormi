@@ -2050,7 +2050,7 @@ async def buscar_transferencias(
         
         url = "https://api.mercadopago.com/v1/payments/search"
         headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
-        params = {"sort": "date_created", "criteria": "desc", "limit": 20}
+        params = {"sort": "date_created", "criteria": "desc", "limit": 100}
         
         async with httpx.AsyncClient() as client:
             response = await client.get(url, headers=headers, params=params)

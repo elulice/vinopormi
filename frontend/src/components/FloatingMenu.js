@@ -9,20 +9,21 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
 import Productos from '@/pages/Productos';
 import Clientes from '@/pages/Clientes';
 import Proveedores from '@/pages/Proveedores';
 import Egresos from '@/pages/Egresos';
+import Mercadopago from '@/pages/Mercadopago';
+import MercadopagoIcon from '@/components/MercadopagoIcon';
 
 const FloatingMenu = () => {
   const [productModalOpen, setProductModalOpen] = useState(false);
   const [customerModalOpen, setCustomerModalOpen] = useState(false);
   const [providerModalOpen, setProviderModalOpen] = useState(false);
   const [egressModalOpen, setEgressModalOpen] = useState(false);
+  const [mercadopagoModalOpen, setMercadopagoModalOpen] = useState(false);
 
   const quickActions = [
     {
@@ -49,6 +50,12 @@ const FloatingMenu = () => {
       modal: 'egress',
       setOpen: setEgressModalOpen,
     },
+    {
+      icon: MercadopagoIcon,
+      label: 'Mercadopago',
+      modal: 'mercadopago',
+      setOpen: setMercadopagoModalOpen,
+    },
   ];
 
   return (
@@ -64,7 +71,8 @@ const FloatingMenu = () => {
               <Dialog key={action.modal} open={action.modal === 'product' ? productModalOpen : 
                                                    action.modal === 'customer' ? customerModalOpen : 
                                                    action.modal === 'provider' ? providerModalOpen : 
-                                                   egressModalOpen} onOpenChange={action.setOpen}>
+                                                   action.modal === 'egress' ? egressModalOpen : 
+                                                   mercadopagoModalOpen} onOpenChange={action.setOpen}>
                 <DialogTrigger asChild>
                   <Button
                     variant="ghost"
@@ -75,14 +83,8 @@ const FloatingMenu = () => {
                     <Icon className="w-5 h-5" />
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 overflow-hidden flex flex-col">
-                  <DialogHeader className="flex-shrink-0 px-6 pt-6 pb-4 border-b">
-                    <DialogTitle className="flex items-center gap-2">
-                      <Icon className="w-5 h-5" />
-                      {action.label}
-                    </DialogTitle>
-                  </DialogHeader>
-                  <div className="flex-1 overflow-y-auto px-6 pb-6">
+                <DialogContent className={action.modal === 'mercadopago' ? "max-w-2xl max-h-[85vh] p-0 overflow-hidden flex flex-col [&>button]:right-2 [&>button]:top-2" : "max-w-[95vw] max-h-[95vh] p-0 overflow-hidden flex flex-col"}>
+                  <div className="flex-1 overflow-y-auto px-6 py-6">
                     {action.modal === 'product' && (
                       <div className="max-w-none">
                         <Productos />
@@ -101,6 +103,11 @@ const FloatingMenu = () => {
                     {action.modal === 'egress' && (
                       <div className="max-w-none">
                         <Egresos />
+                      </div>
+                    )}
+                    {action.modal === 'mercadopago' && (
+                      <div className="max-w-none">
+                        <Mercadopago />
                       </div>
                     )}
                   </div>
