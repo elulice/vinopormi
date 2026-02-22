@@ -27,6 +27,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import ResponsiveTable from '@/components/ResponsiveTable';
 import { API } from '@/lib/config';
+import StatusBadge from '@/components/common/StatusBadge';
 
 const Auditoria = () => {
   const { getAuthHeader } = useAuth();
@@ -136,27 +137,11 @@ const Auditoria = () => {
   };
 
   const getEntidadBadge = (entidad) => {
-    const badges = {
-      'producto': { label: 'Producto', color: 'bg-blue-100 text-blue-800' },
-      'cliente': { label: 'Cliente', color: 'bg-green-100 text-green-800' },
-      'proveedor': { label: 'Proveedor', color: 'bg-orange-100 text-orange-800' },
-      'egreso': { label: 'Egreso', color: 'bg-red-100 text-red-800' },
-      'usuario': { label: 'Usuario', color: 'bg-purple-100 text-purple-800' },
-      'sticky_note': { label: 'Nota', color: 'bg-yellow-100 text-yellow-800' }
-    };
-    return badges[entidad] || { label: entidad, color: 'bg-gray-100 text-gray-800' };
+    return <StatusBadge status={entidad} size="sm" />;
   };
 
   const getAccionBadge = (accion) => {
-    const badges = {
-      'creado': { label: 'Creado', color: 'bg-green-100 text-green-800' },
-      'crear': { label: 'Creado', color: 'bg-green-100 text-green-800' },
-      'modificado': { label: 'Modificado', color: 'bg-yellow-100 text-yellow-800' },
-      'actualizar': { label: 'Modificado', color: 'bg-yellow-100 text-yellow-800' },
-      'eliminado': { label: 'Eliminado', color: 'bg-red-100 text-red-800' },
-      'eliminar': { label: 'Eliminado', color: 'bg-red-100 text-red-800' }
-    };
-    return badges[accion] || { label: accion, color: 'bg-gray-100 text-gray-800' };
+    return <StatusBadge status={accion} size="sm" />;
   };
 
   const formatValores = (valores) => {
@@ -288,17 +273,13 @@ const Auditoria = () => {
             <td className="p-2">
               <div className="flex items-center gap-1">
                 {getEntidadIcon(registro.entidad)}
-                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getEntidadBadge(registro.entidad).color}`}>
-                  {getEntidadBadge(registro.entidad).label}
-                </span>
+                {getEntidadBadge(registro.entidad)}
               </div>
             </td>
             <td className="p-2">
               <div className="flex items-center gap-1">
                 {getAccionIcon(registro.accion)}
-                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getAccionBadge(registro.accion).color}`}>
-                  {getAccionBadge(registro.accion).label}
-                </span>
+                {getAccionBadge(registro.accion)}
               </div>
             </td>
             <td className="p-2 text-xs font-medium">
@@ -313,13 +294,9 @@ const Auditoria = () => {
           >
             <div className="flex items-center gap-1 mb-2">
               {getEntidadIcon(registro.entidad)}
-              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getEntidadBadge(registro.entidad).color}`}>
-                {getEntidadBadge(registro.entidad).label}
-              </span>
+              {getEntidadBadge(registro.entidad)}
               {getAccionIcon(registro.accion)}
-              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getAccionBadge(registro.accion).color}`}>
-                {getAccionBadge(registro.accion).label}
-              </span>
+              {getAccionBadge(registro.accion)}
             </div>
             
             <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
@@ -369,13 +346,9 @@ const Auditoria = () => {
             <DialogHeader className="py-3 px-4">
               <DialogTitle className="flex items-center gap-2 text-base">
                 {getEntidadIcon(selectedRegistro.entidad)}
-                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getEntidadBadge(selectedRegistro.entidad).color}`}>
-                  {getEntidadBadge(selectedRegistro.entidad).label}
-                </span>
+                {getEntidadBadge(selectedRegistro.entidad)}
                 {getAccionIcon(selectedRegistro.accion)}
-                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getAccionBadge(selectedRegistro.accion).color}`}>
-                  {getAccionBadge(selectedRegistro.accion).label}
-                </span>
+                {getAccionBadge(selectedRegistro.accion)}
               </DialogTitle>
             </DialogHeader>
 

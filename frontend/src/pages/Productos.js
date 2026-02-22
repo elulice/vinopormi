@@ -14,14 +14,16 @@ import {
   DialogDescription,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash2, Package, Info, Search, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Package, Info, X } from 'lucide-react';
 import { toast } from 'sonner';
 import ResponsiveTable from '@/components/ResponsiveTable';
-import { formatCurrency, formatNumber } from '@/lib/currency';
+import { formatCurrency } from '@/lib/currency';
 import { capitalizeWords } from '@/lib/utils';
 import Pagination from '@/components/Pagination';
 import { Loader2 } from 'lucide-react';
 import { API } from '@/lib/config';
+import SearchInput from '@/components/common/SearchInput';
+import StatusBadge from '@/components/common/StatusBadge';
 
 const Productos = () => {
   const { getAuthHeader } = useAuth();
@@ -319,32 +321,20 @@ const Productos = () => {
 
       {/* BUSCADOR + BOTÓN AGREGAR */}
       <div className="flex gap-2 items-center">
-        <div className="relative">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
-          <Input
-            ref={searchInputRef}
-            placeholder="Buscar..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                fetchProductosRef.current?.(1, searchTerm);
-                setTimeout(() => searchInputRef.current?.focus(), 100);
-              }
-            }}
-            className="pl-7 pr-7 h-7 text-sm w-40"
-          />
-          {searchTerm && (
-            <X 
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground hover:text-foreground cursor-pointer"
-              onClick={() => {
-                setSearchTerm('');
-                fetchProductosRef.current?.(1, '');
-                setTimeout(() => searchInputRef.current?.focus(), 100);
-              }}
-            />
-          )}
-        </div>
+        <SearchInput
+          ref={searchInputRef}
+          value={searchTerm}
+          onChange={(value) => setSearchTerm(value)}
+          onClear={() => {
+            setSearchTerm('');
+            fetchProductosRef.current?.(1, '');
+            setTimeout(() => searchInputRef.current?.focus(), 100);
+          }}
+          onSearch={() => {
+            fetchProductosRef.current?.(1, searchTerm);
+            setTimeout(() => searchInputRef.current?.focus(), 100);
+          }}
+        />
 
         <Dialog open={dialogOpen} onOpenChange={(open) => {
           if (!open) {
@@ -610,11 +600,7 @@ const Productos = () => {
               </div>
             </td>
             <td className="p-2 text-xs">
-              {p.tipo === 'promo' ? (
-                <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-xs font-medium">Promo</span>
-              ) : (
-                <span className="text-muted-foreground">Normal</span>
-              )}
+              <StatusBadge status={p.tipo === 'promo' ? "Promo" : "Normal"} />
             </td>
             <td className="p-2 text-muted-foreground text-xs">
               {Number(p.stock) || 0} unid.
@@ -666,7 +652,7 @@ const Productos = () => {
                 <div className="flex items-center gap-2">
                   <h3 className="font-medium text-sm truncate">{capitalizeWords(p.nombre)}</h3>
                   {p.tipo === 'promo' && (
-                    <span className="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-xs font-medium">Promo</span>
+                    <StatusBadge status="promo" size="sm" />
                   )}
                 </div>
                 <div className="font-bold text-primary text-sm">

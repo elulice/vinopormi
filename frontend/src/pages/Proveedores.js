@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash2, Truck, CreditCard, TrendingUp, TrendingDown, Search, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Truck, CreditCard, TrendingUp, TrendingDown } from 'lucide-react';
 import { formatCurrency, formatNumber } from '@/lib/currency';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -15,6 +15,7 @@ import { es } from 'date-fns/locale';
 import { capitalizeWords } from '@/lib/utils';
 import ResponsiveTable from '@/components/ResponsiveTable';
 import { API } from '@/lib/config';
+import SearchInput from '@/components/common/SearchInput';
 
 const Proveedores = () => {
   const { getAuthHeader } = useAuth();
@@ -198,21 +199,11 @@ const Proveedores = () => {
 
       {/* BUSCADOR + BOTÓN AGREGAR */}
       <div className="flex gap-2 items-center">
-        <div className="relative">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
-          <Input
-            placeholder="Buscar..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-7 pr-7 h-7 text-sm w-40"
-          />
-          {searchTerm && (
-            <X 
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground hover:text-foreground cursor-pointer"
-              onClick={() => setSearchTerm('')}
-            />
-          )}
-        </div>
+        <SearchInput
+          value={searchTerm}
+          onChange={(value) => setSearchTerm(value)}
+          onClear={() => setSearchTerm('')}
+        />
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>

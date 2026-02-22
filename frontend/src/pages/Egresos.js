@@ -22,9 +22,7 @@ import {
   Pencil,
   Trash2,
   TrendingDown,
-  Search,
   Filter,
-  X,
   Calendar,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -32,6 +30,7 @@ import { format, isWithinInterval, parseISO, startOfDay, endOfDay } from 'date-f
 import { es } from 'date-fns/locale';
 import ResponsiveTable from '@/components/ResponsiveTable';
 import { API } from '@/lib/config';
+import SearchInput from '@/components/common/SearchInput';
 
 
 
@@ -314,15 +313,11 @@ const Egresos = () => {
 
       {/* BUSCADOR + BOTÓN AGREGAR */}
       <div className="flex gap-2 items-center">
-        <div className="relative">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
-          <Input
-            placeholder="Buscar..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-7 h-7 text-sm w-40"
-          />
-        </div>
+        <SearchInput
+          value={searchTerm}
+          onChange={(value) => setSearchTerm(value)}
+          onClear={() => setSearchTerm('')}
+        />
 
         <Dialog
           open={dialogOpen}

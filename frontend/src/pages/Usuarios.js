@@ -11,7 +11,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
   DialogTrigger,
 } from '@/components/ui/dialog';
 import {
@@ -27,8 +26,8 @@ import {
 import { toast } from 'sonner';
 import ResponsiveTable from '@/components/ResponsiveTable';
 import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { API } from '@/lib/config';
+import StatusBadge from '@/components/common/StatusBadge';
 
 const Usuarios = () => {
   const { getAuthHeader, user } = useAuth();
@@ -314,13 +313,10 @@ const Usuarios = () => {
             </td>
             <td className="p-2 text-sm">{usuario.nombre}</td>
             <td className="p-2">
-              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                usuario.rol === 'admin' 
-                  ? 'bg-red-100 text-red-800 border border-red-200' 
-                  : 'bg-blue-100 text-blue-800 border border-blue-200'
-              }`}>
-                {usuario.rol === 'admin' ? 'Admin' : 'Usuario'}
-              </span>
+              <StatusBadge 
+                status={usuario.rol} 
+                customClass="border"
+              />
             </td>
             <td className="p-2 text-muted-foreground text-xs">
               {format(new Date(usuario.timestamp), 'dd/MM/yyyy')}
@@ -365,13 +361,10 @@ const Usuarios = () => {
             </div>
             
             <div className="flex items-center justify-between mb-2">
-              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                usuario.rol === 'admin' 
-                  ? 'bg-red-100 text-red-800 border border-red-200' 
-                  : 'bg-blue-100 text-blue-800 border border-blue-200'
-              }`}>
-                {usuario.rol === 'admin' ? 'Admin' : 'Usuario'}
-              </span>
+              <StatusBadge 
+                status={usuario.rol} 
+                customClass="border"
+              />
               <span className="text-xs text-muted-foreground">
                 {format(new Date(usuario.timestamp), 'dd/MM/yyyy')}
               </span>

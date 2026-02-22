@@ -11,6 +11,7 @@ import MercadopagoIcon from '@/components/MercadopagoIcon';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { API } from '@/lib/config';
+import StatusBadge from '@/components/common/StatusBadge';
 
 const Mercadopago = () => {
   const { getAuthHeader } = useAuth();
@@ -109,9 +110,7 @@ const Mercadopago = () => {
                       {t.fecha_aprobacion ? format(new Date(t.fecha_aprobacion), 'dd/MM • HH:mm') : '-'} • {t.descripcion || t.tipo_pago}
                     </p>
                   </div>
-                  <span className="px-1.5 py-0.5 bg-green-100 text-green-800 rounded text-xs whitespace-nowrap">
-                    {t.estado}
-                  </span>
+                  <StatusBadge status="approved" size="sm" />
                 </div>
               ))}
             </div>

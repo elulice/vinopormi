@@ -2395,21 +2395,79 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 # ===== CREAR ÍNDICES AL INICIAR =====
 async def create_indexes():
     """Crear índices para optimizar rendimiento"""
+    
+    # PRODUCTOS
     try:
-        # Índice único en nombre de producto
-        await db.productos.create_index("nombre", unique=True)
-        
-        # Índice de texto para búsquedas difusas
-        await db.productos.create_index([("nombre", "text")])
-        
-
-        
-        # Índice para paginación por nombre
-        await db.productos.create_index([("nombre", 1), ("_id", 1)])
-        
-        print("Indices creados exitosamente para productos")
+        await db.productos.create_index([("nombre", "text"), ("categoria", "text")])
     except Exception as e:
-        print(f"Error creando indices: {e}")
+        print(f"Error creando índice de texto en productos: {e}")
+    
+    try:
+        await db.productos.create_index([("categoria", 1), ("nombre", 1)])
+    except Exception as e:
+        print(f"Error creando índice compuesto en productos: {e}")
+    
+    # VENTAS
+    try:
+        await db.ventas.create_index([("fecha", -1)])
+    except Exception as e:
+        print(f"Error creando índice en ventas.fecha: {e}")
+    
+    try:
+        await db.ventas.create_index("cliente_id")
+    except Exception as e:
+        print(f"Error creando índice en ventas.cliente_id: {e}")
+    
+    try:
+        await db.ventas.create_index([("fecha", -1), ("total", 1)])
+    except Exception as e:
+        print(f"Error creando índice compuesto en ventas: {e}")
+    
+    # MOVIMIENTOS
+    try:
+        await db.movimientos.create_index("cliente_id")
+    except Exception as e:
+        print(f"Error creando índice en movimientos.cliente_id: {e}")
+    
+    try:
+        await db.movimientos.create_index("fecha")
+    except Exception as e:
+        print(f"Error creando índice en movimientos.fecha: {e}")
+    
+    try:
+        await db.movimientos.create_index([("cliente_id", 1), ("fecha", -1)])
+    except Exception as e:
+        print(f"Error creando índice compuesto en movimientos: {e}")
+    
+    # EGRESOS
+    try:
+        await db.egresos.create_index("fecha")
+    except Exception as e:
+        print(f"Error creando índice en egresos.fecha: {e}")
+    
+    try:
+        await db.egresos.create_index("categoria")
+    except Exception as e:
+        print(f"Error creando índice en egresos.categoria: {e}")
+    
+    # AUDITORIA
+    try:
+        await db.auditoria.create_index("fecha")
+    except Exception as e:
+        print(f"Error creando índice en auditoria.fecha: {e}")
+    
+    try:
+        await db.auditoria.create_index("fecha", expireAfterSeconds=2592000)
+    except Exception as e:
+        print(f"Error creando índice TTL en auditoria: {e}")
+    
+    # USUARIOS
+    try:
+        await db.usuarios.create_index("username", unique=True)
+    except Exception as e:
+        print(f"Error creando índice único en usuarios.username: {e}")
+    
+    print("Índices creados exitosamente")
 
 @app.on_event("startup")
 async def startup_event():
