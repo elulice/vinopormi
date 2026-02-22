@@ -31,6 +31,7 @@ import { es } from 'date-fns/locale';
 import ResponsiveTable from '@/components/ResponsiveTable';
 import { API } from '@/lib/config';
 import SearchInput from '@/components/common/SearchInput';
+import DeleteConfirmDialog from '@/components/common/DeleteConfirmDialog';
 
 
 
@@ -41,6 +42,8 @@ const Egresos = () => {
   const [egresos, setEgresos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
   const [editingEgreso, setEditingEgreso] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
@@ -129,17 +132,25 @@ const Egresos = () => {
     setDialogOpen(true);
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('¿Estás seguro de eliminar este egreso?')) return;
+  const handleDelete = (id) => {
+    setDeletingId(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingId) return;
 
     try {
-      await axios.delete(`${API}/egresos/${id}`, {
+      await axios.delete(`${API}/egresos/${deletingId}`, {
         headers: getAuthHeader(),
       });
       toast.success('Egreso eliminado');
       fetchEgresos();
     } catch {
       toast.error('Error al eliminar egreso');
+    } finally {
+      setDeleteDialogOpen(false);
+      setDeletingId(null);
     }
   };
 
@@ -498,6 +509,14 @@ const Egresos = () => {
           </CardContent>
         </Card>
       )}
+
+      <DeleteConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={confirmDelete}
+        title="Eliminar egreso"
+        description="¿Estás seguro de eliminar este egreso? Esta acción no se puede deshacer."
+      />
     </div>
   );
 };

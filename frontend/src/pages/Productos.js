@@ -24,6 +24,7 @@ import { Loader2 } from 'lucide-react';
 import { API } from '@/lib/config';
 import SearchInput from '@/components/common/SearchInput';
 import StatusBadge from '@/components/common/StatusBadge';
+import DeleteConfirmDialog from '@/components/common/DeleteConfirmDialog';
 
 const Productos = () => {
   const { getAuthHeader } = useAuth();
@@ -40,6 +41,8 @@ const Productos = () => {
   });
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
   const [editingProducto, setEditingProducto] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [loadingPage, setLoadingPage] = useState(false);
@@ -261,18 +264,26 @@ const Productos = () => {
   }, [getAuthHeader]);
 
   const handleDelete = useCallback(async (id) => {
-    if (!window.confirm('¿Eliminar producto?')) return;
+    setDeletingId(id);
+    setDeleteDialogOpen(true);
+  }, []);
+
+  const confirmDelete = useCallback(async () => {
+    if (!deletingId) return;
 
     try {
-      await axios.delete(`${API}/productos/${id}`, {
+      await axios.delete(`${API}/productos/${deletingId}`, {
         headers: getAuthHeader(),
       });
       toast.success('Producto eliminado');
       fetchProductosRef.current?.(pagination.page, searchTerm);
     } catch {
       toast.error('Error al eliminar producto');
+    } finally {
+      setDeleteDialogOpen(false);
+      setDeletingId(null);
     }
-  }, [pagination.page, searchTerm, getAuthHeader]);
+  }, [deletingId, pagination.page, searchTerm, getAuthHeader]);
 
   // Manejador de cambio de página
   const handlePageChange = useCallback((newPage) => {
@@ -718,6 +729,14 @@ const Productos = () => {
           </div>
         </div>
       )}
+
+      <DeleteConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={confirmDelete}
+        title="Eliminar producto"
+        description="¿Estás seguro de eliminar este producto? Esta acción no se puede deshacer."
+      />
     </div>
   );
 };

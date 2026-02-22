@@ -16,6 +16,7 @@ import { capitalizeWords } from '@/lib/utils';
 import ResponsiveTable from '@/components/ResponsiveTable';
 import { API } from '@/lib/config';
 import SearchInput from '@/components/common/SearchInput';
+import DeleteConfirmDialog from '@/components/common/DeleteConfirmDialog';
 
 const Proveedores = () => {
   const { getAuthHeader } = useAuth();
@@ -41,6 +42,8 @@ const Proveedores = () => {
     concepto: '',
     monto: ''
   });
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
 
   const fetchProveedores = useCallback(async () => {
     try {
@@ -103,17 +106,25 @@ const Proveedores = () => {
     setDialogOpen(true);
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('¿Estás seguro de eliminar este proveedor?')) return;
-    
+  const handleDelete = (id) => {
+    setDeletingId(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingId) return;
+
     try {
-      await axios.delete(`${API}/proveedores/${id}`, {
+      await axios.delete(`${API}/proveedores/${deletingId}`, {
         headers: getAuthHeader()
       });
       toast.success('Proveedor eliminado');
       fetchProveedores();
     } catch (error) {
       toast.error('Error al eliminar proveedor');
+    } finally {
+      setDeleteDialogOpen(false);
+      setDeletingId(null);
     }
   };
 
@@ -277,9 +288,17 @@ const Proveedores = () => {
                 </Button>
               </div>
             </form>
-          </DialogContent>
-        </Dialog>
-      </div>
+        </DialogContent>
+      </Dialog>
+
+      <DeleteConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={confirmDelete}
+        title="Eliminar proveedor"
+        description="¿Estás seguro de eliminar este proveedor? Esta acción no se puede deshacer."
+      />
+    </div>
 
       <ResponsiveTable
         headers={[

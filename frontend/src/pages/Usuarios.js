@@ -28,12 +28,15 @@ import ResponsiveTable from '@/components/ResponsiveTable';
 import { format } from 'date-fns';
 import { API } from '@/lib/config';
 import StatusBadge from '@/components/common/StatusBadge';
+import DeleteConfirmDialog from '@/components/common/DeleteConfirmDialog';
 
 const Usuarios = () => {
   const { getAuthHeader, user } = useAuth();
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
   const [editingUsuario, setEditingUsuario] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
@@ -117,23 +120,29 @@ const Usuarios = () => {
     setDialogOpen(true);
   };
 
-  const handleDelete = async (id) => {
-    // Evitar eliminar el usuario actual
+  const handleDelete = (id) => {
     if (user?.id === id) {
       toast.error('No puedes eliminar tu propio usuario');
       return;
     }
+    setDeletingId(id);
+    setDeleteDialogOpen(true);
+  };
 
-    if (!window.confirm('¿Estás seguro de eliminar este usuario?')) return;
+  const confirmDelete = async () => {
+    if (!deletingId) return;
 
     try {
-      await axios.delete(`${API}/admin/usuarios/${id}`, {
+      await axios.delete(`${API}/admin/usuarios/${deletingId}`, {
         headers: getAuthHeader(),
       });
       toast.success('Usuario eliminado');
       fetchUsuarios();
     } catch {
       toast.error('Error al eliminar usuario');
+    } finally {
+      setDeleteDialogOpen(false);
+      setDeletingId(null);
     }
   };
 
@@ -408,6 +417,14 @@ const Usuarios = () => {
           </CardContent>
         </Card>
       )}
+
+      <DeleteConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={confirmDelete}
+        title="Eliminar usuario"
+        description="¿Estás seguro de eliminar este usuario? Esta acción no se puede deshacer."
+      />
     </div>
   );
 };

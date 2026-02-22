@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Pencil, Trash2, Users, CreditCard, TrendingUp, TrendingDown, ShoppingCart, List } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { formatCurrency, formatNumber } from '@/lib/currency';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -17,6 +18,7 @@ import { capitalizeWords } from '@/lib/utils';
 import ResponsiveTable from '@/components/ResponsiveTable';
 import { API } from '@/lib/config';
 import SearchInput from '@/components/common/SearchInput';
+import DeleteConfirmDialog from '@/components/common/DeleteConfirmDialog';
 
 const Clientes = () => {
   const { getAuthHeader } = useAuth();
@@ -47,6 +49,8 @@ const Clientes = () => {
   const [movimientosTodos, setMovimientosTodos] = useState([]);
   const [loadingMovimientos, setLoadingMovimientos] = useState(false);
   const [activeTab, setActiveTab] = useState('clientes');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
 
   const fetchClientes = useCallback(async () => {
     try {
@@ -125,17 +129,25 @@ const Clientes = () => {
     setDialogOpen(true);
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('¿Estás seguro de eliminar este cliente?')) return;
-    
+  const handleDelete = (id) => {
+    setDeletingId(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingId) return;
+
     try {
-      await axios.delete(`${API}/clientes/${id}`, {
+      await axios.delete(`${API}/clientes/${deletingId}`, {
         headers: getAuthHeader()
       });
       toast.success('Cliente eliminado');
       fetchClientes();
     } catch (error) {
       toast.error('Error al eliminar cliente');
+    } finally {
+      setDeleteDialogOpen(false);
+      setDeletingId(null);
     }
   };
 
@@ -786,6 +798,14 @@ const Clientes = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      <DeleteConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={confirmDelete}
+        title="Eliminar cliente"
+        description="¿Estás seguro de eliminar este cliente? Esta acción no se puede deshacer."
+      />
     </div>
   );
 };
