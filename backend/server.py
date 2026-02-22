@@ -162,11 +162,6 @@ class VentaCreate(BaseModel):
     cliente_id: Optional[str] = None
     detalles: List[DetalleVenta]
 
-class VentaUpdateMedioPago(BaseModel):
-    medio_pago: str
-
-MEDIOS_PAGO_VALIDOS = ['efectivo', 'posnet', 'transferencia', 'cuenta_corriente']
-
 class Proveedor(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -1082,40 +1077,6 @@ async def get_venta(venta_id: str, current_user: Usuario = Depends(get_current_u
         venta['fecha'] = datetime.fromisoformat(venta['fecha'])
     
     return Venta(**venta)
-
-@api_router.put("/ventas/{venta_id}/medio-pago")
-async def update_venta_medio_pago(
-    request: Request,
-    venta_id: str,
-    input: VentaUpdateMedioPago,
-    current_user: Usuario = Depends(get_current_user)
-):
-    """Actualiza el medio de pago de una venta"""
-    venta = await db.ventas.find_one({'id': venta_id}, {'_id': 0})
-    if not venta:
-        raise HTTPException(status_code=404, detail="Venta no encontrada")
-    
-    medio_pago_anterior = venta.get('medio_pago', 'desconocido')
-    
-    if input.medio_pago not in MEDIOS_PAGO_VALIDOS:
-        raise HTTPException(status_code=400, detail=f"Medio de pago inválido. Opciones: {', '.join(MEDIOS_PAGO_VALIDOS)}")
-    
-    await db.ventas.update_one(
-        {'id': venta_id},
-        {'$set': {'medio_pago': input.medio_pago}}
-    )
-    
-    await registrar_auditoria(
-        entidad='venta',
-        entidad_id=venta_id,
-        accion='actualizar_medio_pago',
-        valores_anteriores={'medio_pago': medio_pago_anterior},
-        valores_nuevos={'medio_pago': input.medio_pago},
-        usuario_id=current_user.id,
-        usuario_nombre=current_user.nombre
-    )
-    
-    return {"success": True, "message": "Medio de pago actualizado"}
 
 # ===== DASHBOARD ROUTES =====
 

@@ -1185,43 +1185,9 @@ const clearFilters = () => {
                       ))}
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2">
-                      <Select
-                        value={selectedVenta.medio_pago}
-                        onValueChange={async (value) => {
-                          setUpdatingMedioPago(true);
-                          try {
-                            await axios.put(
-                              `${API}/ventas/${selectedVenta.id}/medio-pago`,
-                              { medio_pago: value },
-                              { headers: getAuthHeader() }
-                            );
-                            setSelectedVenta({ ...selectedVenta, medio_pago: value });
-                            setVentas(ventas.map(v => 
-                              v.id === selectedVenta.id ? { ...v, medio_pago: value } : v
-                            ));
-                            toast.success('Medio de pago actualizado');
-                          } catch (error) {
-                            console.error('Error updating medio_pago:', error);
-                            toast.error('Error al actualizar medio de pago');
-                          } finally {
-                            setUpdatingMedioPago(false);
-                          }
-                        }}
-                        disabled={updatingMedioPago}
-                      >
-                        <SelectTrigger className="h-7 text-xs w-auto min-w-[120px] capitalize">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="efectivo">Efectivo</SelectItem>
-                          <SelectItem value="posnet">Posnet</SelectItem>
-                          <SelectItem value="transferencia">Transferencia</SelectItem>
-                          <SelectItem value="cuenta_corriente">Cta. Cte.</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {updatingMedioPago && <span className="text-xs text-muted-foreground">Actualizando...</span>}
-                    </div>
+                    <p className="font-medium capitalize text-xs">
+                      {selectedVenta.medio_pago?.replace('_', ' ') ?? '—'}
+                    </p>
                   )}
                 </div>
                 {selectedVenta.cliente_nombre && (
