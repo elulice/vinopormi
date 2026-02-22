@@ -55,9 +55,9 @@ const FloatingMenu = () => {
     <>
       {/* Menú flotante */}
       <div 
-        className="fixed top-4 right-4 z-50 bg-white rounded-lg shadow-lg border border-gray-200 p-2"
+        className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-white rounded-lg shadow-lg border border-gray-200 p-2"
       >
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-row gap-2">
           {quickActions.map((action) => {
             const Icon = action.icon;
             return (
@@ -69,7 +69,7 @@ const FloatingMenu = () => {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="p-1 h-6 hover:bg-gray-100"
+                    className="p-1 h-8 hover:bg-gray-100"
                     title={action.label}
                   >
                     <Icon className="w-5 h-5" />
