@@ -453,7 +453,7 @@ const NuevaVenta = () => {
         nuevosDetalles[index].subtotal = precioUnitario * nuevosDetalles[index].cantidad;
       }
     } else if (field === 'cantidad') {
-      const cantidad = parseInt(value) || 0;
+      const cantidad = Math.max(1, parseInt(value) || 1);
       nuevosDetalles[index].cantidad = cantidad;
       
       // Aplicar descuento por cantidad si corresponde
