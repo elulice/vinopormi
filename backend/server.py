@@ -553,22 +553,43 @@ async def get_auditoria(
         else:
             filtro['accion'] = accion
     
-    if fechaDesde:
-        try:
-            fechaDesde_dt = datetime.fromisoformat(fechaDesde)
-            filtro['fecha'] = {'$gte': fechaDesde_dt.isoformat()}
-        except ValueError:
-            pass
-    
-    if fechaHasta:
-        try:
-            fechaHasta_dt = datetime.fromisoformat(fechaHasta)
-            if '$gte' in filtro.get('fecha', {}):
-                filtro['fecha']['$lte'] = fechaHasta_dt.isoformat()
+    # Filtros de fecha - convertir a ISO con timezone
+    if fechaDesde or fechaHasta:
+        from datetime import timezone
+        ahora_utc = datetime.now(timezone.utc)
+        ahora_local = ahora_utc.astimezone()
+        
+        if fechaDesde:
+            # Convertir YYYY-MM-DD a datetime con timezone
+            fecha_desde_dt = datetime.strptime(fechaDesde, '%Y-%m-%d').replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
+            # Si es hora local, convertir a UTC para la comparación
+            fecha_desde_local = ahora_local.replace(
+                year=fecha_desde_dt.year,
+                month=fecha_desde_dt.month,
+                day=fecha_desde_dt.day,
+                hour=0, minute=0, second=0, microsecond=0
+            )
+            fecha_desde_utc = fecha_desde_local.astimezone(timezone.utc)
+            filtro['fecha'] = {'$gte': fecha_desde_utc.isoformat()}
+        
+        if fechaHasta:
+            # Convertir YYYY-MM-DD a datetime con timezone (fin del día)
+            fecha_hasta_dt = datetime.strptime(fechaHasta, '%Y-%m-%d').replace(
+                hour=23, minute=59, second=59, microsecond=999999
+            )
+            fecha_hasta_local = ahora_local.replace(
+                year=fecha_hasta_dt.year,
+                month=fecha_hasta_dt.month,
+                day=fecha_hasta_dt.day,
+                hour=23, minute=59, second=59, microsecond=999999
+            )
+            fecha_hasta_utc = fecha_hasta_local.astimezone(timezone.utc)
+            if 'fecha' in filtro:
+                filtro['fecha']['$lte'] = fecha_hasta_utc.isoformat()
             else:
-                filtro['fecha'] = {'$lte': fechaHasta_dt.isoformat()}
-        except ValueError:
-            pass
+                filtro['fecha'] = {'$lte': fecha_hasta_utc.isoformat()}
     
     if search:
         filtro['$or'] = [
@@ -578,7 +599,7 @@ async def get_auditoria(
             {'valores_nuevos.username': {'$regex': search, '$options': 'i'}}
         ]
     
-    # Obtener registros
+    # Obtener registros sin filtro de fecha
     skip = (page - 1) * limit
     total = await db.auditoria.count_documents(filtro)
     registros = await db.auditoria.find(filtro, {'_id': 0}).sort('fecha', -1).skip(skip).limit(limit).to_list(limit)

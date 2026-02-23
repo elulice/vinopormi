@@ -59,12 +59,10 @@ const Auditoria = () => {
       if (filters.entidad !== 'todos') params.append('entidad', filters.entidad);
       if (filters.accion !== 'todos') params.append('accion', filters.accion);
       if (filters.fechaDesde) {
-        const fechaDesdeISO = filters.fechaDesde + 'T00:00:00';
-        params.append('fechaDesde', fechaDesdeISO);
+        params.append('fechaDesde', filters.fechaDesde);
       }
       if (filters.fechaHasta) {
-        const fechaHastaISO = filters.fechaHasta + 'T23:59:59';
-        params.append('fechaHasta', fechaHastaISO);
+        params.append('fechaHasta', filters.fechaHasta);
       }
       if (filters.search) params.append('search', filters.search);
 
