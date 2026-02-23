@@ -1,9 +1,32 @@
 import axios from 'axios';
 import { API } from './config';
 
+const getToken = () => localStorage.getItem('token');
+
+const getAuthHeader = () => {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
 const api = axios.create({
   baseURL: API,
 });
+
+export const apiGet = async (url, config = {}) => {
+  return api.get(url, { ...config, headers: { ...getAuthHeader(), ...config.headers } });
+};
+
+export const apiPost = async (url, data, config = {}) => {
+  return api.post(url, data, { ...config, headers: { ...getAuthHeader(), ...config.headers } });
+};
+
+export const apiPut = async (url, data, config = {}) => {
+  return api.put(url, data, { ...config, headers: { ...getAuthHeader(), ...config.headers } });
+};
+
+export const apiDelete = async (url, config = {}) => {
+  return api.delete(url, { ...config, headers: { ...getAuthHeader(), ...config.headers } });
+};
 
 export const setAuthHeader = (header) => {
   api.defaults.headers.common = {
@@ -14,22 +37,6 @@ export const setAuthHeader = (header) => {
 
 export const clearAuthHeader = () => {
   delete api.defaults.headers.common['Authorization'];
-};
-
-export const apiGet = async (url, authHeader = {}) => {
-  return api.get(url, { headers: authHeader });
-};
-
-export const apiPost = async (url, data, authHeader = {}) => {
-  return api.post(url, data, { headers: authHeader });
-};
-
-export const apiPut = async (url, data, authHeader = {}) => {
-  return api.put(url, data, { headers: authHeader });
-};
-
-export const apiDelete = async (url, authHeader = {}) => {
-  return api.delete(url, { headers: authHeader });
 };
 
 export default api;

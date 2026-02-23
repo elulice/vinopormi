@@ -1,6 +1,4 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import axios from 'axios';
-import { useAuth } from '@/context/AuthContext';
 import { useConfig } from '@/context/ConfigContext';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -14,9 +12,9 @@ import { formatCurrency, formatNumber } from '@/lib/currency';
 import { capitalizeWords } from '@/lib/utils';
 import { API } from '@/lib/config';
 import { useDebounce } from '@/hooks/useDebounce';
+import { apiGet, apiPost } from '@/lib/api';
 
 const NuevaVenta = () => {
-  const { getAuthHeader } = useAuth();
   const { showCents } = useConfig();
   const navigate = useNavigate();
   const [productos, setProductos] = useState([]);
@@ -95,23 +93,19 @@ const NuevaVenta = () => {
 
   const fetchProductos = useCallback(async () => {
     try {
-      const res = await axios.get(`${API}/productos-paginados?limit=1000`, {
-        headers: getAuthHeader(),
-      });
+      const res = await apiGet(`${API}/productos-paginados?limit=1000`);
       setProductos(res.data.productos);
     } catch (error) {
       toast.error('Error al cargar productos');
     } finally {
       setLoading(false);
     }
-  }, [getAuthHeader]);
+  }, []);
 
   const refreshProductos = async () => {
     setRefreshingProductos(true);
     try {
-      const res = await axios.get(`${API}/productos-paginados?limit=1000`, {
-        headers: getAuthHeader(),
-      });
+      const res = await apiGet(`${API}/productos-paginados?limit=1000`);
       setProductos(res.data.productos);
       toast.success('Lista de productos actualizada');
     } catch (error) {
@@ -123,14 +117,12 @@ const NuevaVenta = () => {
 
   const fetchClientes = useCallback(async () => {
     try {
-      const response = await axios.get(`${API}/clientes`, {
-        headers: getAuthHeader()
-      });
+      const response = await apiGet(`${API}/clientes`);
       setClientes(response.data);
     } catch (error) {
       toast.error('Error al cargar clientes');
     }
-  }, [getAuthHeader]);
+  }, []);
 
   useEffect(() => {
     fetchProductos();
@@ -572,9 +564,7 @@ const NuevaVenta = () => {
         })
       };
 
-      await axios.post(`${API}/ventas`, data, {
-        headers: getAuthHeader()
-      });
+      await apiPost(`${API}/ventas`, data);
       
       toast.success('Venta registrada exitosamente');
       resetForm();

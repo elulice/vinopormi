@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { useConfig } from '@/context/ConfigContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +10,7 @@ import '@/components/Dashboard.css';
 import { formatCurrency, formatNumber } from '@/lib/currency';
 import StickyNotesContainer from '@/components/StickyNotesContainer';
 import { API } from '@/lib/config';
+import { apiGet, apiPut } from '@/lib/api';
 
 const Dashboard = () => {
   const { getAuthHeader, user } = useAuth();
@@ -32,16 +32,14 @@ const Dashboard = () => {
 
   const fetchStats = useCallback(async () => {
     try {
-      const response = await axios.get(`${API}/dashboard/stats`, {
-        headers: getAuthHeader()
-      });
+      const response = await apiGet(`${API}/dashboard/stats`);
       setStats(response.data);
     } catch (error) {
       toast.error('Error al cargar estadísticas');
     } finally {
       setLoading(false);
     }
-  }, [getAuthHeader]);
+  }, []);
 
   useEffect(() => {
     fetchStats();
@@ -50,14 +48,14 @@ const Dashboard = () => {
   useEffect(() => {
     const loadPreferencias = async () => {
       try {
-        const res = await axios.get(`${API}/auth/preferencias`, { headers: getAuthHeader() });
+        const res = await apiGet(`${API}/auth/preferencias`);
         setSoloMisDatos(res.data.soloMisDatos || false);
       } catch (error) {
         console.error('Error loading preferencias:', error);
       }
     };
     loadPreferencias();
-  }, [getAuthHeader]);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -71,9 +69,8 @@ const Dashboard = () => {
 
   const handleSoloMisDatosChange = async (checked) => {
     try {
-      await axios.put(`${API}/auth/preferencias`, 
-        { soloMisDatos: checked },
-        { headers: getAuthHeader() }
+      await apiPut(`${API}/auth/preferencias`, 
+        { soloMisDatos: checked }
       );
       setSoloMisDatos(checked);
       fetchStats();

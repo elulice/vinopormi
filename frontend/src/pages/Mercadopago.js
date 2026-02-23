@@ -1,6 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
-import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -12,9 +10,9 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { API } from '@/lib/config';
 import StatusBadge from '@/components/common/StatusBadge';
+import { apiGet } from '@/lib/api';
 
 const Mercadopago = () => {
-  const { getAuthHeader } = useAuth();
   const [transferencias, setTransferencias] = useState([]);
   const [loadingTransferencias, setLoadingTransferencias] = useState(false);
   const [minutosBusqueda, setMinutosBusqueda] = useState(60);
@@ -22,9 +20,7 @@ const Mercadopago = () => {
   const fetchTransferencias = useCallback(async (minutos = 60) => {
     setLoadingTransferencias(true);
     try {
-      const response = await axios.get(`${API}/mercadopago/buscar-transferencias?minutos=${minutos}`, {
-        headers: getAuthHeader(),
-      });
+      const response = await apiGet(`${API}/mercadopago/buscar-transferencias?minutos=${minutos}`);
       setTransferencias(response.data.transferencias || []);
     } catch (error) {
       console.error('Error fetching transferencias:', error);
@@ -32,7 +28,7 @@ const Mercadopago = () => {
     } finally {
       setLoadingTransferencias(false);
     }
-  }, [getAuthHeader]);
+  }, []);
 
   useEffect(() => {
     fetchTransferencias(60);

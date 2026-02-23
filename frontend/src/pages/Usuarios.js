@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,9 +28,10 @@ import { format } from 'date-fns';
 import { API } from '@/lib/config';
 import StatusBadge from '@/components/common/StatusBadge';
 import DeleteConfirmDialog from '@/components/common/DeleteConfirmDialog';
+import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
 
 const Usuarios = () => {
-  const { getAuthHeader, user } = useAuth();
+  const { user } = useAuth();
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -48,16 +48,14 @@ const Usuarios = () => {
 
   const fetchUsuarios = useCallback(async () => {
     try {
-      const response = await axios.get(`${API}/admin/usuarios`, {
-        headers: getAuthHeader(),
-      });
+      const response = await apiGet(`${API}/admin/usuarios`);
       setUsuarios(response.data);
     } catch {
       toast.error('Error al cargar usuarios');
     } finally {
       setLoading(false);
     }
-  }, [getAuthHeader]);
+  }, []);
 
   useEffect(() => {
     fetchUsuarios();
@@ -85,9 +83,7 @@ const Usuarios = () => {
 
     try {
       if (editingUsuario) {
-        await axios.put(`${API}/admin/usuarios/${editingUsuario.id}`, data, {
-          headers: getAuthHeader(),
-        });
+        await apiPut(`${API}/admin/usuarios/${editingUsuario.id}`, data);
         toast.success('Usuario actualizado');
       } else {
         // Al crear, password es requerido
@@ -95,9 +91,7 @@ const Usuarios = () => {
           toast.error('La contraseña es requerida para crear un usuario');
           return;
         }
-        await axios.post(`${API}/admin/usuarios`, data, {
-          headers: getAuthHeader(),
-        });
+        await apiPost(`${API}/admin/usuarios`, data);
         toast.success('Usuario creado');
       }
 
@@ -133,9 +127,7 @@ const Usuarios = () => {
     if (!deletingId) return;
 
     try {
-      await axios.delete(`${API}/admin/usuarios/${deletingId}`, {
-        headers: getAuthHeader(),
-      });
+      await apiDelete(`${API}/admin/usuarios/${deletingId}`);
       toast.success('Usuario eliminado');
       fetchUsuarios();
     } catch {

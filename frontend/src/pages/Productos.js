@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { useConfig } from '@/context/ConfigContext';
 import { Button } from '@/components/ui/button';
@@ -22,12 +21,12 @@ import { capitalizeWords } from '@/lib/utils';
 import Pagination from '@/components/Pagination';
 import { Loader2 } from 'lucide-react';
 import { API } from '@/lib/config';
+import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
 import SearchInput from '@/components/common/SearchInput';
 import StatusBadge from '@/components/common/StatusBadge';
 import DeleteConfirmDialog from '@/components/common/DeleteConfirmDialog';
 
 const Productos = () => {
-  const { getAuthHeader } = useAuth();
   const { showCents } = useConfig();
 
   const [productos, setProductos] = useState([]);
@@ -85,11 +84,9 @@ const Productos = () => {
         params.append('search', search);
       }
 
-      const res = await axios.get(`${API}/productos-paginados?${params}`, {
-        headers: getAuthHeader(),
-      });
+      const res = await apiGet(`${API}/productos-paginados?${params}`);
       
-      const prodsConStock = await axios.get(`${API}/productos-stock`, { headers: getAuthHeader() });
+      const prodsConStock = await apiGet(`${API}/productos-stock`);
       const prodsMap = {};
       prodsConStock.data.forEach(p => { prodsMap[p.id] = p; });
       
@@ -107,7 +104,7 @@ const Productos = () => {
       setLoading(false);
       setLoadingPage(false);
     }
-  }, [pagination.limit, getAuthHeader]);
+  }, [pagination.limit]);
 
   // Mantener la referencia actualizada
   fetchProductosRef.current = fetchProductos;
@@ -118,14 +115,14 @@ const Productos = () => {
 
   useEffect(() => {
     if (dialogOpen && formData.tipo === 'promo') {
-      axios.get(`${API}/productos-stock`, { headers: getAuthHeader() })
+      apiGet(`${API}/productos-stock`)
         .then(res => {
           const normals = res.data.filter(p => p.tipo !== 'promo');
           setProductosNormales(normals);
           setFilteredProductos(normals.slice(0, 50));
         });
     }
-  }, [dialogOpen, formData.tipo, getAuthHeader]);
+  }, [dialogOpen, formData.tipo]);
 
   const handleProductoSearch = useCallback((value) => {
     setProductoSearch(value);
@@ -217,14 +214,10 @@ const Productos = () => {
 
     try {
       if (editingProducto) {
-        await axios.put(`${API}/productos/${editingProducto.id}`, payload, {
-          headers: getAuthHeader(),
-        });
+        await apiPut(`${API}/productos/${editingProducto.id}`, payload);
         toast.success('Producto actualizado');
       } else {
-        await axios.post(`${API}/productos`, payload, {
-          headers: getAuthHeader(),
-        });
+        await apiPost(`${API}/productos`, payload);
         toast.success('Producto creado');
       }
 
@@ -234,14 +227,14 @@ const Productos = () => {
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Error al guardar producto');
     }
-  }, [editingProducto, formData, pagination.page, resetForm, searchTerm, getAuthHeader]);
+  }, [editingProducto, formData, pagination.page, resetForm, searchTerm]);
 
   const handleEdit = useCallback(async (producto) => {
     setEditingProducto(producto);
     let productosInc = producto.productos_incluidos || [];
     
     if (producto.tipo === 'promo' && productosInc.length > 0) {
-      const prods = await axios.get(`${API}/productos-stock`, { headers: getAuthHeader() });
+      const prods = await apiGet(`${API}/productos-stock`);
       const prodsMap = {};
       prods.data.forEach(p => { prodsMap[p.id] = p; });
       productosInc = productosInc.map(inc => ({
@@ -261,7 +254,7 @@ const Productos = () => {
       descuento_precio_unitario: producto.descuento_precio_unitario ? String(producto.descuento_precio_unitario) : '',
     });
     setDialogOpen(true);
-  }, [getAuthHeader]);
+  }, []);
 
   const handleDelete = useCallback(async (id) => {
     setDeletingId(id);
@@ -272,9 +265,7 @@ const Productos = () => {
     if (!deletingId) return;
 
     try {
-      await axios.delete(`${API}/productos/${deletingId}`, {
-        headers: getAuthHeader(),
-      });
+      await apiDelete(`${API}/productos/${deletingId}`);
       toast.success('Producto eliminado');
       fetchProductosRef.current?.(pagination.page, searchTerm);
     } catch {
@@ -283,7 +274,7 @@ const Productos = () => {
       setDeleteDialogOpen(false);
       setDeletingId(null);
     }
-  }, [deletingId, pagination.page, searchTerm, getAuthHeader]);
+  }, [deletingId, pagination.page, searchTerm]);
 
   // Manejador de cambio de página
   const handlePageChange = useCallback((newPage) => {

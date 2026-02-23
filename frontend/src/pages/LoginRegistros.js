@@ -1,6 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import axios from 'axios';
-import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Pagination from '@/components/Pagination';
 import { LogIn, User, Monitor } from 'lucide-react';
@@ -9,9 +7,9 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import ResponsiveTable from '@/components/ResponsiveTable';
 import { API } from '@/lib/config';
+import { apiGet } from '@/lib/api';
 
 const LoginRegistros = () => {
-  const { getAuthHeader } = useAuth();
   const [registros, setRegistros] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingPage, setLoadingPage] = useState(false);
@@ -27,9 +25,7 @@ const LoginRegistros = () => {
   const fetchRegistros = useCallback(async (page = 1) => {
     setLoadingPage(true);
     try {
-      const response = await axios.get(`${API}/auth/login-registros?page=${page}&limit=50`, {
-        headers: getAuthHeader(),
-      });
+      const response = await apiGet(`${API}/auth/login-registros?page=${page}&limit=50`);
       
       const data = response.data;
       setRegistros(data.data || data);
@@ -51,7 +47,7 @@ const LoginRegistros = () => {
       setLoading(false);
       setLoadingPage(false);
     }
-  }, [getAuthHeader]);
+  }, []);
 
   fetchRegistrosRef.current = fetchRegistros;
 

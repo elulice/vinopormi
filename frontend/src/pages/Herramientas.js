@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,10 +14,11 @@ import { AlertTriangle, Trash2, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { API } from '@/lib/config';
+import { API, BACKEND_URL } from '@/lib/config';
+import { apiPost } from '@/lib/api';
 
 const Herramientas = () => {
-  const { user, getAuthHeader } = useAuth();
+  const { user } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [auditoriaDialogOpen, setAuditoriaDialogOpen] = useState(false);
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
@@ -58,12 +58,7 @@ const Herramientas = () => {
       console.log("User:", user);
       
       // Usar endpoint directo - no va por /api
-      const response = await axios.post(`${BACKEND_URL}/limpiar-base-datos-direct`, {}, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeader()
-        },
-      });
+      const response = await apiPost(`${BACKEND_URL}/limpiar-base-datos-direct`, {});
       
       console.log("Respuesta del servidor:", response.data);
       toast.success(response.data.message);
@@ -104,14 +99,8 @@ const Herramientas = () => {
     setLoading(true);
     
     try {
-      const response = await axios.post(`${BACKEND_URL}/limpiar-auditoria-direct`, 
-        { entidades: entidadesSeleccionadas },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            ...getAuthHeader()
-          },
-        }
+      const response = await apiPost(`${BACKEND_URL}/limpiar-auditoria-direct`, 
+        { entidades: entidadesSeleccionadas }
       );
       
       toast.success(`${response.data.message} (${response.data.eliminados} registros)`);
@@ -139,12 +128,7 @@ const Herramientas = () => {
     setLoading(true);
     
     try {
-      const response = await axios.post(`${BACKEND_URL}/limpiar-login-registros-direct`, {}, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeader()
-        },
-      });
+      const response = await apiPost(`${BACKEND_URL}/limpiar-login-registros-direct`, {});
       
       toast.success(`${response.data.message} (${response.data.eliminados} registros)`);
       setLoginDialogOpen(false);

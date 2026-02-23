@@ -1,7 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import axios from 'axios';
-import { useAuth } from '@/context/AuthContext';
 import { useConfig } from '@/context/ConfigContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,11 +30,11 @@ import ResponsiveTable from '@/components/ResponsiveTable';
 import { API } from '@/lib/config';
 import SearchInput from '@/components/common/SearchInput';
 import DeleteConfirmDialog from '@/components/common/DeleteConfirmDialog';
+import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
 
 
 
 const Egresos = () => {
-  const { getAuthHeader } = useAuth();
   const { showCents } = useConfig();
   const [searchParams] = useSearchParams();
   const [egresos, setEgresos] = useState([]);
@@ -73,16 +71,14 @@ const Egresos = () => {
 
   const fetchEgresos = useCallback(async () => {
     try {
-      const response = await axios.get(`${API}/egresos`, {
-        headers: getAuthHeader(),
-      });
+      const response = await apiGet(`${API}/egresos`);
       setEgresos(response.data);
     } catch {
       toast.error('Error al cargar egresos');
     } finally {
       setLoading(false);
     }
-  }, [getAuthHeader]);
+  }, []);
 
   useEffect(() => {
     fetchEgresos();
@@ -104,14 +100,10 @@ const Egresos = () => {
 
     try {
       if (editingEgreso) {
-        await axios.put(`${API}/egresos/${editingEgreso.id}`, data, {
-          headers: getAuthHeader(),
-        });
+        await apiPut(`${API}/egresos/${editingEgreso.id}`, data);
         toast.success('Egreso actualizado');
       } else {
-        await axios.post(`${API}/egresos`, data, {
-          headers: getAuthHeader(),
-        });
+        await apiPost(`${API}/egresos`, data);
         toast.success('Egreso creado');
       }
 
@@ -141,9 +133,7 @@ const Egresos = () => {
     if (!deletingId) return;
 
     try {
-      await axios.delete(`${API}/egresos/${deletingId}`, {
-        headers: getAuthHeader(),
-      });
+      await apiDelete(`${API}/egresos/${deletingId}`);
       toast.success('Egreso eliminado');
       fetchEgresos();
     } catch {

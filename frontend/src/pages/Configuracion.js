@@ -6,16 +6,16 @@ import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { useConfig } from '@/context/ConfigContext';
 import { useAuth } from '@/context/AuthContext';
-import axios from 'axios';
 import { Settings as SettingsIcon, Package, Users, Truck, TrendingDown, DollarSign, Loader2, AlertCircle, Menu, LogOut } from 'lucide-react';
 import MercadopagoIcon from '@/components/MercadopagoIcon';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/currency';
 import { API } from '@/lib/config';
+import { apiGet, apiPost } from '@/lib/api';
 
 const Configuracion = () => {
   const { showCents, toggleShowCents, floatingMenu, setFloatingMenu, autoLogout, setAutoLogout, loading, error } = useConfig();
-  const { getAuthHeader, user } = useAuth();
+  const { user } = useAuth();
   const [localShowCents, setLocalShowCents] = useState(showCents);
   const [localFloatingMenu, setLocalFloatingMenu] = useState(floatingMenu);
   const [localAutoLogout, setLocalAutoLogout] = useState(autoLogout);
@@ -40,9 +40,7 @@ const Configuracion = () => {
   useEffect(() => {
     const fetchMercadopagoConfig = async () => {
       try {
-        const response = await axios.get(`${API}/mercadopago/configuracion`, {
-          headers: getAuthHeader(),
-        });
+        const response = await apiGet(`${API}/mercadopago/configuracion`);
         if (response.data.access_token) {
           setMercadopagoConfig({
             access_token: response.data.access_token
@@ -55,17 +53,16 @@ const Configuracion = () => {
       }
     };
     fetchMercadopagoConfig();
-  }, [getAuthHeader]);
+  }, []);
 
   const handleSaveMercadopago = async () => {
     setSavingMercadopago(true);
     try {
-      await axios.post(
+      await apiPost(
         `${API}/mercadopago/configuracion`,
         {
           access_token: mercadopagoConfig.access_token
-        },
-        { headers: getAuthHeader() }
+        }
       );
       toast.success('Configuración de Mercadopago guardada');
     } catch (err) {

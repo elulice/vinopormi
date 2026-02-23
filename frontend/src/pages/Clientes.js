@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { useConfig } from '@/context/ConfigContext';
 import { Button } from '@/components/ui/button';
@@ -17,11 +16,11 @@ import { es } from 'date-fns/locale';
 import { capitalizeWords } from '@/lib/utils';
 import ResponsiveTable from '@/components/ResponsiveTable';
 import { API } from '@/lib/config';
+import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
 import SearchInput from '@/components/common/SearchInput';
 import DeleteConfirmDialog from '@/components/common/DeleteConfirmDialog';
 
 const Clientes = () => {
-  const { getAuthHeader } = useAuth();
   const { showCents } = useConfig();
   const navigate = useNavigate();
   const [clientes, setClientes] = useState([]);
@@ -54,30 +53,26 @@ const Clientes = () => {
 
   const fetchClientes = useCallback(async () => {
     try {
-      const response = await axios.get(`${API}/clientes`, {
-        headers: getAuthHeader()
-      });
+      const response = await apiGet(`${API}/clientes`);
       setClientes(response.data);
     } catch (error) {
       toast.error('Error al cargar clientes');
     } finally {
       setLoading(false);
     }
-  }, [getAuthHeader]);
+  }, []);
 
   const fetchMovimientosTodos = useCallback(async () => {
     setLoadingMovimientos(true);
     try {
-      const response = await axios.get(`${API}/movimientos-todos`, {
-        headers: getAuthHeader()
-      });
+      const response = await apiGet(`${API}/movimientos-todos`);
       setMovimientosTodos(response.data);
     } catch (error) {
       toast.error('Error al cargar movimientos');
     } finally {
       setLoadingMovimientos(false);
     }
-  }, [getAuthHeader]);
+  }, []);
 
   useEffect(() => {
     fetchClientes();
@@ -100,14 +95,10 @@ const Clientes = () => {
 
     try {
       if (editingCliente) {
-        await axios.put(`${API}/clientes/${editingCliente.id}`, data, {
-          headers: getAuthHeader()
-        });
+        await apiPut(`${API}/clientes/${editingCliente.id}`, data);
         toast.success('Cliente actualizado');
       } else {
-        await axios.post(`${API}/clientes`, data, {
-          headers: getAuthHeader()
-        });
+        await apiPost(`${API}/clientes`, data);
         toast.success('Cliente creado');
       }
       
@@ -138,9 +129,7 @@ const Clientes = () => {
     if (!deletingId) return;
 
     try {
-      await axios.delete(`${API}/clientes/${deletingId}`, {
-        headers: getAuthHeader()
-      });
+      await apiDelete(`${API}/clientes/${deletingId}`);
       toast.success('Cliente eliminado');
       fetchClientes();
     } catch (error) {
@@ -167,9 +156,8 @@ const Clientes = () => {
     setLoadingCuenta(true);
     
    try {
-      const response = await axios.get(
-        `${API}/clientes/${cliente.id}/cuenta-corriente`,
-        { headers: getAuthHeader() }
+      const response = await apiGet(
+        `${API}/clientes/${cliente.id}/cuenta-corriente`
       );
       setCuentaInfo(response.data);
     } catch (error) {
@@ -189,10 +177,9 @@ const Clientes = () => {
     e.preventDefault();
     
     try {
-      await axios.post(
+      await apiPost(
         `${API}/clientes/${selectedCliente.id}/movimientos?concepto=${encodeURIComponent(movimientoData.concepto)}&monto=${parseFloat(movimientoData.monto)}`,
-        {},
-        { headers: getAuthHeader() }
+        {}
       );
       
       toast.success('Movimiento registrado');
@@ -200,9 +187,8 @@ const Clientes = () => {
       setMovimientoData({ concepto: '', monto: '' });
       
       // Recargar cuenta corriente
-      const response = await axios.get(
-        `${API}/clientes/${selectedCliente.id}/cuenta-corriente`,
-        { headers: getAuthHeader() }
+      const response = await apiGet(
+        `${API}/clientes/${selectedCliente.id}/cuenta-corriente`
       );
       setCuentaInfo(response.data);
     } catch (error) {
@@ -229,9 +215,7 @@ const Clientes = () => {
     setLoadingVenta(true);
     
     try {
-      const response = await axios.get(`${API}/ventas/${ventaId}`, {
-        headers: getAuthHeader()
-      });
+      const response = await apiGet(`${API}/ventas/${ventaId}`);
       setSelectedVenta(response.data);
     } catch (error) {
       toast.error('Error al cargar detalles de la venta');

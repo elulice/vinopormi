@@ -1,7 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import axios from 'axios';
-import { useAuth } from '@/context/AuthContext';
 import { useConfig } from '@/context/ConfigContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -17,6 +15,7 @@ import { formatCurrency, formatNumber } from '@/lib/currency';
 import { capitalizeWords } from '@/lib/utils';
 import ResponsiveTable from '@/components/ResponsiveTable';
 import { API } from '@/lib/config';
+import { apiGet } from '@/lib/api';
 
 // Componente de virtual scrolling manual
 const VirtualTable = ({ items, itemHeight, containerHeight, renderItem, headers }) => {
@@ -78,7 +77,6 @@ const VirtualTable = ({ items, itemHeight, containerHeight, renderItem, headers 
 };
 
 const Ventas = () => {
-  const { getAuthHeader } = useAuth();
   const { showCents } = useConfig();
   const [searchParams] = useSearchParams();
   const [ventas, setVentas] = useState([]);
@@ -127,27 +125,23 @@ const Ventas = () => {
 
 const fetchVentas = useCallback(async () => {
     try {
-      const response = await axios.get(`${API}/ventas`, {
-        headers: getAuthHeader()
-      });
+      const response = await apiGet(`${API}/ventas`);
       setVentas(response.data);
     } catch (error) {
       toast.error('Error al cargar ventas');
     } finally {
       setLoading(false);
     }
-  }, [getAuthHeader]);
+  }, []);
 
   const fetchUsuarios = useCallback(async () => {
     try {
-      const response = await axios.get(`${API}/usuarios`, {
-        headers: getAuthHeader()
-      });
+      const response = await apiGet(`${API}/usuarios`);
       setUsuarios(response.data);
     } catch (error) {
       toast.error('Error al cargar usuarios');
     }
-  }, [getAuthHeader]);
+  }, []);
 
   useEffect(() => {
     fetchVentas();

@@ -1,6 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
-import { useAuth } from '@/context/AuthContext';
 import { useConfig } from '@/context/ConfigContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,11 +13,11 @@ import { es } from 'date-fns/locale';
 import { capitalizeWords } from '@/lib/utils';
 import ResponsiveTable from '@/components/ResponsiveTable';
 import { API } from '@/lib/config';
+import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
 import SearchInput from '@/components/common/SearchInput';
 import DeleteConfirmDialog from '@/components/common/DeleteConfirmDialog';
 
 const Proveedores = () => {
-  const { getAuthHeader } = useAuth();
   const { showCents } = useConfig();
   const [proveedores, setProveedores] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -47,16 +45,14 @@ const Proveedores = () => {
 
   const fetchProveedores = useCallback(async () => {
     try {
-      const response = await axios.get(`${API}/proveedores`, {
-        headers: getAuthHeader()
-      });
+      const response = await apiGet(`${API}/proveedores`);
       setProveedores(response.data);
     } catch (error) {
       toast.error('Error al cargar proveedores');
     } finally {
       setLoading(false);
     }
-  }, [getAuthHeader]);
+  }, []);
 
   useEffect(() => {
     fetchProveedores();
@@ -75,14 +71,10 @@ const Proveedores = () => {
 
     try {
       if (editingProveedor) {
-        await axios.put(`${API}/proveedores/${editingProveedor.id}`, data, {
-          headers: getAuthHeader()
-        });
+        await apiPut(`${API}/proveedores/${editingProveedor.id}`, data);
         toast.success('Proveedor actualizado');
       } else {
-        await axios.post(`${API}/proveedores`, data, {
-          headers: getAuthHeader()
-        });
+        await apiPost(`${API}/proveedores`, data);
         toast.success('Proveedor creado');
       }
       
@@ -115,9 +107,7 @@ const Proveedores = () => {
     if (!deletingId) return;
 
     try {
-      await axios.delete(`${API}/proveedores/${deletingId}`, {
-        headers: getAuthHeader()
-      });
+      await apiDelete(`${API}/proveedores/${deletingId}`);
       toast.success('Proveedor eliminado');
       fetchProveedores();
     } catch (error) {
@@ -144,9 +134,8 @@ const Proveedores = () => {
     setLoadingCuenta(true);
     
     try {
-      const response = await axios.get(
-        `${API}/proveedores/${proveedor.id}/cuenta-corriente`,
-        { headers: getAuthHeader() }
+      const response = await apiGet(
+        `${API}/proveedores/${proveedor.id}/cuenta-corriente`
       );
       setCuentaInfo(response.data);
     } catch (error) {
@@ -160,10 +149,9 @@ const Proveedores = () => {
     e.preventDefault();
     
     try {
-      await axios.post(
+      await apiPost(
         `${API}/proveedores/${selectedProveedor.id}/movimientos?concepto=${encodeURIComponent(movimientoData.concepto)}&monto=${parseFloat(movimientoData.monto)}`,
-        {},
-        { headers: getAuthHeader() }
+        {}
       );
       
       toast.success('Movimiento registrado');
@@ -171,9 +159,8 @@ const Proveedores = () => {
       setMovimientoData({ concepto: '', monto: '' });
       
       // Recargar cuenta corriente
-      const response = await axios.get(
-        `${API}/proveedores/${selectedProveedor.id}/cuenta-corriente`,
-        { headers: getAuthHeader() }
+      const response = await apiGet(
+        `${API}/proveedores/${selectedProveedor.id}/cuenta-corriente`
       );
       setCuentaInfo(response.data);
     } catch (error) {

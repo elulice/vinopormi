@@ -556,7 +556,7 @@ async def get_auditoria(
     if fechaDesde:
         try:
             fechaDesde_dt = datetime.fromisoformat(fechaDesde)
-            filtro['fecha'] = {'$gte': fechaDesde_dt}
+            filtro['fecha'] = {'$gte': fechaDesde_dt.isoformat()}
         except ValueError:
             pass
     
@@ -564,9 +564,9 @@ async def get_auditoria(
         try:
             fechaHasta_dt = datetime.fromisoformat(fechaHasta)
             if '$gte' in filtro.get('fecha', {}):
-                filtro['fecha']['$lte'] = fechaHasta_dt
+                filtro['fecha']['$lte'] = fechaHasta_dt.isoformat()
             else:
-                filtro['fecha'] = {'$lte': fechaHasta_dt}
+                filtro['fecha'] = {'$lte': fechaHasta_dt.isoformat()}
         except ValueError:
             pass
     

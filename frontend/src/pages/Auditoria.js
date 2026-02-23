@@ -1,6 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import axios from 'axios';
-import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -28,9 +26,9 @@ import { es } from 'date-fns/locale';
 import ResponsiveTable from '@/components/ResponsiveTable';
 import { API } from '@/lib/config';
 import StatusBadge from '@/components/common/StatusBadge';
+import { apiGet } from '@/lib/api';
 
 const Auditoria = () => {
-  const { getAuthHeader } = useAuth();
   const [registros, setRegistros] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingPage, setLoadingPage] = useState(false);
@@ -60,13 +58,17 @@ const Auditoria = () => {
       
       if (filters.entidad !== 'todos') params.append('entidad', filters.entidad);
       if (filters.accion !== 'todos') params.append('accion', filters.accion);
-      if (filters.fechaDesde) params.append('fechaDesde', filters.fechaDesde);
-      if (filters.fechaHasta) params.append('fechaHasta', filters.fechaHasta);
+      if (filters.fechaDesde) {
+        const fechaDesdeISO = filters.fechaDesde + 'T00:00:00';
+        params.append('fechaDesde', fechaDesdeISO);
+      }
+      if (filters.fechaHasta) {
+        const fechaHastaISO = filters.fechaHasta + 'T23:59:59';
+        params.append('fechaHasta', fechaHastaISO);
+      }
       if (filters.search) params.append('search', filters.search);
 
-      const response = await axios.get(`${API}/auditoria?${params.toString()}`, {
-        headers: getAuthHeader(),
-      });
+      const response = await apiGet(`${API}/auditoria?${params.toString()}`);
       
       const data = response.data;
       setRegistros(data.data || data);
@@ -88,7 +90,7 @@ const Auditoria = () => {
       setLoading(false);
       setLoadingPage(false);
     }
-  }, [filters, getAuthHeader]);
+  }, [filters]);
 
   fetchRegistrosRef.current = fetchRegistros;
 
