@@ -13,61 +13,58 @@ const PaginaCatalogo = () => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
   const [page, setPage] = useState(1);
   const loaderRef = useRef(null);
 
-  useEffect(() => {
-    const fetchProductos = async () => {
-      try {
-        const response = await apiGetPublic(`${API}/public/catalogo`);
-        setAllProductos(response.data);
-      } catch (err) {
-        console.error("Error fetching productos:", err);
-        setError("Error al cargar el catálogo");
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchProductos = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (searchTerm) params.append("search", searchTerm);
+      if (minPrice) params.append("min_price", minPrice);
+      if (maxPrice) params.append("max_price", maxPrice);
+      
+      const response = await apiGetPublic(`${API}/public/catalogo?${params.toString()}`);
+      setAllProductos(response.data);
+    } catch (err) {
+      console.error("Error fetching productos:", err);
+      setError("Error al cargar el catálogo");
+    } finally {
+      setLoading(false);
+    }
+  }, [searchTerm, minPrice, maxPrice]);
 
-    fetchProductos();
-  }, []);
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      fetchProductos();
+    }, 300);
+    return () => clearTimeout(timeoutId);
+  }, [fetchProductos]);
 
   useEffect(() => {
-    const filtered = allProductos.filter((p) =>
-      p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (p.categoria && p.categoria.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
-    setDisplayedProductos(filtered.slice(0, ITEMS_PER_PAGE));
+    setDisplayedProductos(allProductos.slice(0, ITEMS_PER_PAGE));
     setPage(1);
-  }, [searchTerm, allProductos]);
+  }, [allProductos]);
 
   const loadMore = useCallback(() => {
-    const filtered = allProductos.filter((p) =>
-      p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (p.categoria && p.categoria.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
-    
     const nextPage = page + 1;
     const start = ITEMS_PER_PAGE * (nextPage - 1);
     const end = start + ITEMS_PER_PAGE;
-    const newItems = filtered.slice(start, end);
+    const newItems = allProductos.slice(start, end);
     
     if (newItems.length > 0) {
       setDisplayedProductos((prev) => [...prev, ...newItems]);
       setPage(nextPage);
     }
-  }, [allProductos, searchTerm, page]);
+  }, [allProductos, page]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && !loadingMore) {
-          const filtered = allProductos.filter((p) =>
-            p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (p.categoria && p.categoria.toLowerCase().includes(searchTerm.toLowerCase()))
-          );
-          
-          if (displayedProductos.length < filtered.length) {
+          if (displayedProductos.length < allProductos.length) {
             setLoadingMore(true);
             setTimeout(() => {
               loadMore();
@@ -84,7 +81,7 @@ const PaginaCatalogo = () => {
     }
 
     return () => observer.disconnect();
-  }, [loadMore, loadingMore, displayedProductos.length, allProductos, searchTerm]);
+  }, [loadMore, loadingMore, displayedProductos.length, allProductos.length]);
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat("es-AR", {
@@ -93,32 +90,64 @@ const PaginaCatalogo = () => {
     }).format(price);
   };
 
-  const filteredCount = allProductos.filter((p) =>
-    p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (p.categoria && p.categoria.toLowerCase().includes(searchTerm.toLowerCase()))
-  ).length;
+  const clearFilters = () => {
+    setSearchTerm("");
+    setMinPrice("");
+    setMaxPrice("");
+  };
 
   return (
     <div className="min-h-screen bg-white">
       <NavbarPublico />
 
-      <section className="py-12 sm:py-16 bg-gray-50">
+      <section className="py-8 sm:py-12 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h1 className="font-marthin text-3xl sm:text-4xl font-bold text-center text-primary mb-2">
             Catálogo
           </h1>
-          <p className="text-center text-gray-500 mb-8">
+          <p className="text-center text-gray-500 mb-6">
             Explora nuestra colección completa
           </p>
 
-          <div className="max-w-md mx-auto mb-8">
-            <input
-              type="text"
-              placeholder="Buscar por nombre o categoría..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-            />
+          {/* Filtros */}
+          <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="md:col-span-2">
+                <input
+                  type="text"
+                  placeholder="Buscar por nombre o categoría..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                />
+              </div>
+              <div>
+                <input
+                  type="number"
+                  placeholder="Precio mínimo"
+                  value={minPrice}
+                  onChange={(e) => setMinPrice(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                />
+              </div>
+              <div>
+                <input
+                  type="number"
+                  placeholder="Precio máximo"
+                  value={maxPrice}
+                  onChange={(e) => setMaxPrice(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                />
+              </div>
+            </div>
+            {(searchTerm || minPrice || maxPrice) && (
+              <button
+                onClick={clearFilters}
+                className="mt-2 text-sm text-primary hover:underline"
+              >
+                Limpiar filtros
+              </button>
+            )}
           </div>
 
           {loading && (
@@ -136,6 +165,7 @@ const PaginaCatalogo = () => {
           {!loading && !error && displayedProductos.length === 0 && (
             <div className="text-center py-12 text-gray-500 bg-white rounded-lg shadow-sm">
               <p className="text-lg">No se encontraron productos.</p>
+              <p className="text-sm mt-2">Probá cambiando los filtros de búsqueda.</p>
             </div>
           )}
 
@@ -170,7 +200,7 @@ const PaginaCatalogo = () => {
                 ))}
               </div>
 
-              {displayedProductos.length < filteredCount && (
+              {displayedProductos.length < allProductos.length && (
                 <div ref={loaderRef} className="flex justify-center py-8">
                   {loadingMore ? (
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -179,14 +209,14 @@ const PaginaCatalogo = () => {
                       onClick={loadMore}
                       className="bg-primary hover:bg-primary/90 text-white px-6 py-2 rounded-md font-medium transition-colors"
                     >
-                      Cargar más ({filteredCount - displayedProductos.length} restantes)
+                      Cargar más ({allProductos.length - displayedProductos.length} restantes)
                     </button>
                   )}
                 </div>
               )}
 
               <div className="text-center mt-4 text-gray-500">
-                <p>Mostrando {displayedProductos.length} de {filteredCount} productos</p>
+                <p>Mostrando {displayedProductos.length} de {allProductos.length} productos</p>
               </div>
             </>
           )}

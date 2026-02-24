@@ -382,9 +382,41 @@ async def get_productos_destacados():
     return productos
 
 @public_router.get("/public/catalogo", response_model=List[ProductoCatalogo])
-async def get_catalogo():
+async def get_catalogo(
+    search: str = None,
+    min_price: float = None,
+    max_price: float = None
+):
+    # Construir filtro base: productos destacados o públicos
+    filter_query = {'$or': [{'is_featured': True}, {'is_public': True}]}
+    
+    # Búsqueda por texto
+    if search:
+        search_terms = search.split()
+        if len(search_terms) > 1:
+            # Búsqueda múltiple: todos los términos deben estar en nombre o categoría
+            or_conditions = []
+            for term in search_terms:
+                or_conditions.append({"nombre": {"$regex": term, "$options": "i"}})
+                or_conditions.append({"categoria": {"$regex": term, "$options": "i"}})
+            filter_query["$and"] = [{"$or": or_conditions}]
+        else:
+            filter_query["$or"] = [
+                {"nombre": {"$regex": search, "$options": "i"}},
+                {"categoria": {"$regex": search, "$options": "i"}}
+            ]
+    
+    # Filtro de precio
+    if min_price is not None or max_price is not None:
+        precio_filter = {}
+        if min_price is not None:
+            precio_filter["$gte"] = min_price
+        if max_price is not None:
+            precio_filter["$lte"] = max_price
+        filter_query["precio_unitario"] = precio_filter
+    
     productos = await db.productos.find(
-        {},
+        filter_query,
         {'_id': 0, 'id': 1, 'nombre': 1, 'precio_unitario': 1, 'image_url': 1, 'categoria': 1}
     ).sort('nombre', 1).to_list(500)
     
