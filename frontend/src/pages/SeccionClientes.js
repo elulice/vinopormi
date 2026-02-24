@@ -113,7 +113,7 @@ const SeccionClientes = () => {
               {/* Tarjeta de miembro con gradiente burdeos */}
               <div className="mt-6 rounded-xl overflow-hidden shadow-lg">
                 <div className="bg-gradient-to-br from-[#722F37] to-[#8B3A44] p-6 text-white">
-                  <h2 className="font-marthin text-xl mb-1">
+                  <h2 className="font-sans text-2xl mb-1">
                     ¡Bienvenido{cliente.apellido ? ` ${cliente.apellido}` : ""}, {cliente.nombre}!
                   </h2>
                   <p className="text-white/70 text-sm">Miembro VIP</p>
@@ -151,7 +151,7 @@ const SeccionClientes = () => {
               {/* Si tiene cuenta corriente, mostrar movimientos de CTA CTE */}
               {tieneCuentaCorriente && movimientos.length > 0 && (
                 <div className="mt-6">
-                  <h3 className="font-marthin text-lg text-[#722F37] mb-3">
+                  <h3 className="font-sans text-lg font-semibold text-[#722F37] mb-3">
                     Movimientos de Cuenta Corriente
                   </h3>
                   <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">

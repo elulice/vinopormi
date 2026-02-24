@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import Login from "@/pages/Login";
 import LandingPage from "@/pages/LandingPage";
+import PaginaCatalogo from "@/pages/PaginaCatalogo";
 import SeccionClientes from "@/pages/SeccionClientes";
 import Dashboard from "@/pages/Dashboard";
 import Productos from "@/pages/Productos";
@@ -30,6 +31,7 @@ function App() {
       <Routes>
         {/* RUTAS PÚBLICAS - Sin AuthProvider ni ConfigProvider */}
         <Route path="/Landing" element={<LandingPage />} />
+        <Route path="/catalogo" element={<PaginaCatalogo />} />
         <Route path="/miembros" element={<SeccionClientes />} />
         
         {/* LOGIN - Con AuthProvider pero sin ProtectedRoute */}

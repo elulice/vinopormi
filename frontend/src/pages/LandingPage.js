@@ -55,7 +55,7 @@ const LandingPage = () => {
             Calidad, tradición y los mejores productores en un solo lugar.
           </p>
           <Link
-            to="/Landing#catalogo"
+            to="/catalogo"
             className="inline-block bg-primary hover:bg-primary/90 text-white px-8 py-3.5 rounded-md text-lg font-medium transition-all shadow-md hover:shadow-lg"
           >
             Ver Catálogo
@@ -120,6 +120,17 @@ const LandingPage = () => {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {!loading && !error && productos.length > 0 && (
+            <div className="text-center mt-6">
+              <Link
+                to="/catalogo"
+                className="inline-block bg-primary hover:bg-primary/90 text-white px-6 py-2.5 rounded-md font-medium transition-all shadow-md hover:shadow-lg"
+              >
+                Ver más
+              </Link>
             </div>
           )}
         </div>

@@ -96,6 +96,32 @@ class Producto(BaseModel):
     descuento_cantidad_minima: Optional[int] = None
     descuento_precio_unitario: Optional[float] = None
     is_public: bool = False
+    is_featured: bool = False
+    image_url: Optional[str] = None
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class ProductoCreate(BaseModel):
+    nombre: str
+    precio_unitario: float
+    stock: Optional[int] = 0
+    tipo: str = "normal"
+    productos_incluidos: Optional[List[ProductoIncluido]] = None
+    descuento_cantidad_minima: Optional[int] = None
+    descuento_precio_unitario: Optional[float] = None
+    is_public: bool = False
+    is_featured: bool = False
+    image_url: Optional[str] = None
+
+class ProductoUpdate(BaseModel):
+    nombre: Optional[str] = None
+    precio_unitario: Optional[float] = None
+    stock: Optional[int] = None
+    tipo: Optional[str] = None
+    productos_incluidos: Optional[List[ProductoIncluido]] = None
+    descuento_cantidad_minima: Optional[int] = None
+    descuento_precio_unitario: Optional[float] = None
+    is_public: Optional[bool] = None
+    is_featured: Optional[bool] = None
     image_url: Optional[str] = None
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -119,6 +145,7 @@ class ProductoUpdate(BaseModel):
     descuento_cantidad_minima: Optional[int] = None
     descuento_precio_unitario: Optional[float] = None
     is_public: Optional[bool] = None
+    is_featured: Optional[bool] = None
     image_url: Optional[str] = None
 
 class Cliente(BaseModel):
@@ -321,16 +348,47 @@ class MovimientoPublico(BaseModel):
     monto: float
     tipo: str  # "pago" or "cargo"
 
+class ProductoCatalogo(BaseModel):
+    id: str
+    nombre: str
+    precio_unitario: float
+    image_url: Optional[str] = None
+    categoria: Optional[str] = None
+
 public_router = APIRouter()
 
 @public_router.get("/public/destacados", response_model=List[ProductoPublico])
 async def get_productos_destacados():
+    # Primero buscar productos destacados
     productos = await db.productos.find(
-        {'$or': [{'is_public': True}, {'is_public': {'$exists': False}}]},
+        {'is_featured': True},
         {'_id': 0, 'nombre': 1, 'precio_unitario': 1, 'image_url': 1}
-    ).to_list(100)
+    ).to_list(20)
     
-    return [ProductoPublico(**p) for p in productos]
+    # Si no hay destacados, buscar los públicos
+    if not productos:
+        productos = await db.productos.find(
+            {'is_public': True},
+            {'_id': 0, 'nombre': 1, 'precio_unitario': 1, 'image_url': 1}
+        ).to_list(20)
+    
+    # Si tampoco hay públicos, traer los últimos 6
+    if not productos:
+        productos = await db.productos.find(
+            {},
+            {'_id': 0, 'nombre': 1, 'precio_unitario': 1, 'image_url': 1}
+        ).sort('timestamp', -1).limit(6).to_list(6)
+    
+    return productos
+
+@public_router.get("/public/catalogo", response_model=List[ProductoCatalogo])
+async def get_catalogo():
+    productos = await db.productos.find(
+        {},
+        {'_id': 0, 'id': 1, 'nombre': 1, 'precio_unitario': 1, 'image_url': 1, 'categoria': 1}
+    ).sort('nombre', 1).to_list(500)
+    
+    return [ProductoCatalogo(**p) for p in productos]
 
 @public_router.get("/public/cliente/{dni}", response_model=ClientePublico)
 async def get_cliente_por_dni(dni: str):

@@ -13,7 +13,7 @@ import {
   DialogDescription,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash2, Package, Info, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Package, Info, X, Eye, EyeOff, Star } from 'lucide-react';
 import { toast } from 'sonner';
 import ResponsiveTable from '@/components/ResponsiveTable';
 import { formatCurrency } from '@/lib/currency';
@@ -55,6 +55,9 @@ const Productos = () => {
     productos_incluidos: [],
     descuento_cantidad_minima: '',
     descuento_precio_unitario: '',
+    is_public: false,
+    is_featured: false,
+    image_url: '',
   });
   const [productosNormales, setProductosNormales] = useState([]);
   const [showProductoSelect, setShowProductoSelect] = useState(false);
@@ -189,6 +192,9 @@ const Productos = () => {
       productos_incluidos: [],
       descuento_cantidad_minima: '',
       descuento_precio_unitario: '',
+      is_public: false,
+      is_featured: false,
+      image_url: '',
     });
     setEditingProducto(null);
     setShowProductoSelect(false);
@@ -203,6 +209,9 @@ const Productos = () => {
       precio_unitario: Number(formData.precio_unitario),
       stock: formData.stock ? Number(formData.stock) : 0,
       tipo: formData.tipo,
+      is_public: formData.is_public,
+      is_featured: formData.is_featured,
+      image_url: formData.image_url || null,
       ...(formData.tipo === 'promo' && formData.productos_incluidos.length > 0 ? {
         productos_incluidos: formData.productos_incluidos
       } : {}),
@@ -252,6 +261,9 @@ const Productos = () => {
       productos_incluidos: productosInc,
       descuento_cantidad_minima: producto.descuento_cantidad_minima ? String(producto.descuento_cantidad_minima) : '',
       descuento_precio_unitario: producto.descuento_precio_unitario ? String(producto.descuento_precio_unitario) : '',
+      is_public: producto.is_public || false,
+      is_featured: producto.is_featured || false,
+      image_url: producto.image_url || '',
     });
     setDialogOpen(true);
   }, []);
@@ -559,9 +571,52 @@ const Productos = () => {
                     />
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">
+              <p className="text-xs text-muted-foreground mt-2">
                   Si se vende {formData.descuento_cantidad_minima || 'X'} o más unidades, se aplicará el precio de ${formData.descuento_precio_unitario || 'X'} por unidad
                 </p>
+              </div>
+
+              {/* Visibilidad Pública */}
+              <div className="border-t pt-3 space-y-3">
+                <Label className="text-xs font-medium block">Visibilidad</Label>
+                
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="is_public"
+                    checked={formData.is_public}
+                    onChange={(e) => setFormData({ ...formData, is_public: e.target.checked })}
+                    className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <Label htmlFor="is_public" className="text-xs cursor-pointer">
+                    Mostrar en Catálogo Público
+                  </Label>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="is_featured"
+                    checked={formData.is_featured}
+                    onChange={(e) => setFormData({ ...formData, is_featured: e.target.checked })}
+                    className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <Label htmlFor="is_featured" className="text-xs cursor-pointer">
+                    Producto Destacado (Home)
+                  </Label>
+                </div>
+
+                <div>
+                  <Label className="text-xs">URL de Imagen</Label>
+                  <Input
+                    value={formData.image_url}
+                    onChange={(e) =>
+                      setFormData({ ...formData, image_url: e.target.value })
+                    }
+                    placeholder="https://..."
+                    className="h-7 text-xs"
+                  />
+                </div>
               </div>
 
               <div className="flex gap-2 pt-2">
@@ -585,11 +640,12 @@ const Productos = () => {
       {/* TABLA */}
       <ResponsiveTable
         headers={[
-          { title: 'Nombre', width: '25%' },
-          { title: 'Tipo', width: '10%' },
-          { title: 'Stock', width: '12%' },
-          { title: 'Precio', width: '13%' },
-          { title: 'Descuento', width: '20%' },
+          { title: 'Nombre', width: '20%' },
+          { title: 'Tipo', width: '8%' },
+          { title: 'Stock', width: '10%' },
+          { title: 'Precio', width: '12%' },
+          { title: 'Descuento', width: '15%' },
+          { title: 'Visible', width: '15%' },
           { title: 'Acciones', width: '20%' }
         ]}
         rows={productos}
@@ -621,6 +677,20 @@ const Productos = () => {
               ) : (
                 <span className="text-muted-foreground text-xs">-</span>
               )}
+            </td>
+            <td className="p-2">
+              <div className="flex items-center gap-1">
+                {p.is_public ? (
+                  <Eye className="w-4 h-4 text-green-600" title="Visible en público" />
+                ) : (
+                  <EyeOff className="w-4 h-4 text-gray-300" title="No visible" />
+                )}
+                {p.is_featured ? (
+                  <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" title="Destacado" />
+                ) : (
+                  <Star className="w-4 h-4 text-gray-300" title="No destacado" />
+                )}
+              </div>
             </td>
             <td className="p-2 text-right">
               <div className="flex justify-end gap-1">
