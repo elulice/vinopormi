@@ -47,8 +47,8 @@ const LandingPage = () => {
         </div>
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl font-bold text-primary mb-6">
-            Vino Por Mi
+          <h1 className="font-marthin text-4xl sm:text-5xl lg:text-6xl font-bold text-primary mb-6">
+            Vino por Mí
           </h1>
           <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto mb-8 leading-relaxed">
             Descubrí nuestra selección exclusiva de vinos premium para los paladares más exigentes.
@@ -66,7 +66,7 @@ const LandingPage = () => {
       {/* Productos Destacados */}
       <section id="catalogo" className="py-12 sm:py-16 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="font-serif text-2xl sm:text-3xl font-bold text-center text-foreground mb-2">
+          <h2 className="font-marthin text-2xl sm:text-3xl font-bold text-center text-foreground mb-2">
             Productos Destacados
           </h2>
           <p className="text-center text-gray-500 mb-8">
@@ -133,7 +133,7 @@ const LandingPage = () => {
               <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-2xl">🎯</span>
               </div>
-              <h3 className="font-serif text-xl font-semibold text-foreground mb-2">
+              <h3 className="font-marthin text-xl font-semibold text-foreground mb-2">
                 Variedad Premium
               </h3>
               <p className="text-gray-500">
@@ -144,7 +144,7 @@ const LandingPage = () => {
               <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-2xl">🚚</span>
               </div>
-              <h3 className="font-serif text-xl font-semibold text-foreground mb-2">
+              <h3 className="font-marthin text-xl font-semibold text-foreground mb-2">
                 Entrega Rápida
               </h3>
               <p className="text-gray-500">
@@ -155,7 +155,7 @@ const LandingPage = () => {
               <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-2xl">💬</span>
               </div>
-              <h3 className="font-serif text-xl font-semibold text-foreground mb-2">
+              <h3 className="font-marthin text-xl font-semibold text-foreground mb-2">
                 Atención Personalizada
               </h3>
               <p className="text-gray-500">
@@ -171,7 +171,7 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-2">
-              <span className="font-bold text-lg text-foreground">Vino Por Mi</span>
+              <span className="font-marthin font-bold text-lg text-foreground">Vino por Mí</span>
             </div>
             <p className="text-gray-500 text-sm">
               © {new Date().getFullYear()} Todos los derechos reservados

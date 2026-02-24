@@ -38,6 +38,8 @@ const Clientes = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     nombre: '',
+    apellido: '',
+    dni: '',
     telefono: '',
     email: ''
   });
@@ -89,8 +91,10 @@ const Clientes = () => {
     
     const data = {
       nombre: formData.nombre,
-      telefono: formData.telefono,
-      email: formData.email
+      apellido: formData.apellido || null,
+      dni: formData.dni || null,
+      telefono: formData.telefono || null,
+      email: formData.email || null
     };
 
     try {
@@ -106,7 +110,12 @@ const Clientes = () => {
       resetForm();
       fetchClientes();
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Error al guardar cliente');
+      const errorMsg = error.response?.data?.detail || 'Error al guardar cliente';
+      if (errorMsg.includes('DNI')) {
+        toast.error('Ya existe un cliente con ese DNI');
+      } else {
+        toast.error(errorMsg);
+      }
     }
   };
 
@@ -114,7 +123,9 @@ const Clientes = () => {
     setEditingCliente(cliente);
     setFormData({
       nombre: cliente.nombre,
-      telefono: cliente.telefono,
+      apellido: cliente.apellido || '',
+      dni: cliente.dni || '',
+      telefono: cliente.telefono || '',
       email: cliente.email || ''
     });
     setDialogOpen(true);
@@ -141,7 +152,7 @@ const Clientes = () => {
   };
 
   const resetForm = () => {
-    setFormData({ nombre: '', telefono: '', email: '' });
+    setFormData({ nombre: '', apellido: '', dni: '', telefono: '', email: '' });
     setEditingCliente(null);
   };
 
@@ -169,7 +180,9 @@ const Clientes = () => {
 
   const hasChanges = editingCliente && (
     formData.nombre !== editingCliente.nombre ||
-    formData.telefono !== editingCliente.telefono ||
+    formData.apellido !== (editingCliente.apellido || '') ||
+    formData.dni !== (editingCliente.dni || '') ||
+    formData.telefono !== (editingCliente.telefono || '') ||
     formData.email !== (editingCliente.email || '')
   );
 
@@ -281,7 +294,7 @@ const Clientes = () => {
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-3">
               <div>
-                <Label htmlFor="nombre" className="text-xs">Nombre</Label>
+                <Label htmlFor="nombre" className="text-xs">Nombre *</Label>
                 <Input
                   id="nombre"
                   value={formData.nombre}
@@ -292,7 +305,30 @@ const Clientes = () => {
                 />
               </div>
               <div>
-                <Label htmlFor="teléfono" className="text-xs">Teléfono (opcional)</Label>
+                <Label htmlFor="apellido" className="text-xs">Apellido (opcional)</Label>
+                <Input
+                  id="apellido"
+                  value={formData.apellido}
+                  onChange={(e) => setFormData({ ...formData, apellido: e.target.value })}
+                  className="h-8"
+                  data-testid="cliente-apellido-input"
+                />
+              </div>
+              <div>
+                <Label htmlFor="dni" className="text-xs">DNI (para acceso web) *</Label>
+                <Input
+                  id="dni"
+                  value={formData.dni}
+                  onChange={(e) => setFormData({ ...formData, dni: e.target.value })}
+                  required
+                  className="h-8"
+                  placeholder="12345678"
+                  data-testid="cliente-dni-input"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">DNI es requerido para acceso de miembros</p>
+              </div>
+              <div>
+                <Label htmlFor="telefono" className="text-xs">Teléfono (opcional)</Label>
                 <Input
                   id="telefono"
                   value={formData.telefono}
@@ -345,9 +381,11 @@ const Clientes = () => {
         <TabsContent value="clientes">
           <ResponsiveTable
         headers={[
-          { title: 'Cliente', width: '40%' },
-          { title: 'Saldo', width: '35%' },
-          { title: 'Acciones', width: '25%' }
+          { title: 'Cliente', width: '30%' },
+          { title: 'DNI', width: '15%' },
+          { title: 'Puntos', width: '10%' },
+          { title: 'Saldo', width: '25%' },
+          { title: 'Acciones', width: '20%' }
         ]}
         rows={filteredClientes}
         renderDesktopRow={(cliente, index) => (
@@ -355,8 +393,19 @@ const Clientes = () => {
             <td className="p-2">
               <div className="flex items-center gap-2 text-sm">
                 <Users className="w-3 h-3 text-secondary" />
-                <span className="truncate">{cliente.nombre}</span>
+                <div>
+                  <span className="truncate block">{cliente.nombre}</span>
+                  {cliente.apellido && (
+                    <span className="text-xs text-muted-foreground truncate block">{cliente.apellido}</span>
+                  )}
+                </div>
               </div>
+            </td>
+            <td className="p-2">
+              <span className="text-sm font-mono">{cliente.dni || '—'}</span>
+            </td>
+            <td className="p-2">
+              <span className="text-sm font-semibold text-primary">{cliente.puntos || 0}</span>
             </td>
             <td className="p-2">
               <div className={`text-sm font-semibold ${
@@ -411,7 +460,13 @@ const Clientes = () => {
                 <Users className="w-4 h-4 text-secondary" />
               </div>
               <div className="flex-1">
-                <h3 className="font-medium text-sm truncate">{cliente.nombre}</h3>
+                <h3 className="font-medium text-sm truncate">{cliente.nombre} {cliente.apellido}</h3>
+                {cliente.dni && (
+                  <p className="text-xs text-muted-foreground">DNI: {cliente.dni}</p>
+                )}
+              </div>
+              <div className="text-right">
+                <span className="text-xs font-semibold text-primary">{cliente.puntos || 0} pts</span>
               </div>
             </div>
             

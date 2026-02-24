@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import Login from "@/pages/Login";
 import LandingPage from "@/pages/LandingPage";
+import SeccionClientes from "@/pages/SeccionClientes";
 import Dashboard from "@/pages/Dashboard";
 import Productos from "@/pages/Productos";
 import Clientes from "@/pages/Clientes";
@@ -29,7 +30,7 @@ function App() {
       <Routes>
         {/* RUTAS PÚBLICAS - Sin AuthProvider ni ConfigProvider */}
         <Route path="/Landing" element={<LandingPage />} />
-        <Route path="/clientes" element={<LandingPage />} />
+        <Route path="/miembros" element={<SeccionClientes />} />
         <Route path="/login" element={<Login />} />
 
         {/* RUTAS PROTEGIDAS CON CONTEXTOS */}

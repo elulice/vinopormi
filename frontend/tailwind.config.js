@@ -9,6 +9,7 @@ module.exports = {
       fontFamily: {
         sans: ['Manrope', 'sans-serif'],
         serif: ['Playfair Display', 'serif'],
+        display: ['Marthin Slant', 'cursive'],
       },
       colors: {
         border: 'hsl(var(--border))',

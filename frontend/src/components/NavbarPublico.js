@@ -11,10 +11,10 @@ const NavbarPublico = () => {
               <img 
                 src={logoImage} 
                 alt="Vino Por Mi" 
-                className="w-8 h-8"
+                className="w-12 h-12"
               />
-              <span className="font-bold text-xl text-foreground">
-                Vino Por Mi
+              <span className="font-marthin-lg text-foreground text-primary">
+                Vino por Mí
               </span>
             </Link>
           </div>
@@ -27,10 +27,10 @@ const NavbarPublico = () => {
               Inicio
             </Link>
             <Link
-              to="/clientes"
+              to="/miembros"
               className="bg-primary hover:bg-primary/90 text-white px-5 py-2.5 rounded-md font-medium transition-colors shadow-sm"
             >
-              Acceso Clientes
+              Acceso Miembros
             </Link>
           </div>
         </div>

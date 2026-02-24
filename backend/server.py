@@ -125,17 +125,24 @@ class Cliente(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     nombre: str
+    apellido: Optional[str] = None
+    dni: Optional[str] = None
     telefono: Optional[str] = None
     email: Optional[str] = None
+    puntos: int = 0
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class ClienteCreate(BaseModel):
     nombre: str
+    apellido: Optional[str] = None
+    dni: Optional[str] = None
     telefono: Optional[str] = None
     email: Optional[str] = None
 
 class ClienteUpdate(BaseModel):
     nombre: Optional[str] = None
+    apellido: Optional[str] = None
+    dni: Optional[str] = None
     telefono: Optional[str] = None
     email: Optional[str] = None
 
@@ -297,6 +304,17 @@ class ProductoPublico(BaseModel):
     precio_unitario: float
     image_url: Optional[str] = None
 
+class ClientePublico(BaseModel):
+    nombre: str
+    apellido: Optional[str] = None
+    puntos: int = 0
+    saldo: float = 0
+
+class VentaPublica(BaseModel):
+    fecha: datetime
+    total: float
+    estado_pago: str
+
 public_router = APIRouter()
 
 @public_router.get("/public/destacados", response_model=List[ProductoPublico])
@@ -307,6 +325,51 @@ async def get_productos_destacados():
     ).to_list(100)
     
     return [ProductoPublico(**p) for p in productos]
+
+@public_router.get("/public/cliente/{dni}", response_model=ClientePublico)
+async def get_cliente_por_dni(dni: str):
+    cliente = await db.clientes.find_one({'dni': dni}, {'_id': 0, 'id': 1, 'nombre': 1, 'apellido': 1, 'puntos': 1, 'dni': 1})
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+    
+    movimientos = await db.movimientos.find({'cliente_id': cliente.get('id')}, {'_id': 0, 'monto': 1}).to_list(1000)
+    saldo = sum(m['monto'] for m in movimientos) if movimientos else 0
+    
+    return ClientePublico(
+        nombre=cliente.get('nombre', ''),
+        apellido=cliente.get('apellido'),
+        puntos=cliente.get('puntos', 0),
+        saldo=saldo
+    )
+
+@public_router.get("/public/cliente/{dni}/ventas", response_model=List[VentaPublica])
+async def get_ventas_por_dni(dni: str):
+    cliente = await db.clientes.find_one({'dni': dni}, {'_id': 0, 'id': 1})
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+    
+    ventas = await db.ventas.find(
+        {'cliente_id': cliente['id']},
+        {'_id': 0, 'fecha': 1, 'total': 1, 'medio_pago': 1}
+    ).sort('fecha', -1).to_list(50)
+    
+    resultado = []
+    for v in ventas:
+        estado_pago = 'cancelado'
+        if v.get('medio_pago') == 'cuenta_corriente':
+            estado_pago = 'pendiente'
+        
+        fecha = v.get('fecha')
+        if isinstance(fecha, str):
+            fecha = datetime.fromisoformat(fecha)
+        
+        resultado.append(VentaPublica(
+            fecha=fecha,
+            total=v.get('total', 0),
+            estado_pago=estado_pago
+        ))
+    
+    return resultado
 
 # ===== AUDITORÍA HELPER =====
 
@@ -866,7 +929,18 @@ async def create_cliente(
     input: ClienteCreate, 
     current_user: Usuario = Depends(get_current_user)
 ):
-    cliente_obj = Cliente(**input.model_dump())
+    if input.dni:
+        existing = await db.clientes.find_one({"dni": input.dni})
+        if existing:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Ya existe un cliente con el DNI '{input.dni}'"
+            )
+    
+    cliente_obj = Cliente(
+        **input.model_dump(),
+        puntos=0
+    )
     doc = cliente_obj.model_dump()
     doc['timestamp'] = doc['timestamp'].isoformat()
     
@@ -923,9 +997,20 @@ async def update_cliente(
     if not cliente:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
     
+    # Validar DNI duplicado
+    if input.dni and input.dni != cliente.get('dni'):
+        existing = await db.clientes.find_one({"dni": input.dni, "id": {"$ne": cliente_id}})
+        if existing:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Ya existe otro cliente con el DNI '{input.dni}'"
+            )
+    
     # Guardar valores anteriores
     valores_anteriores = {
         'nombre': cliente.get('nombre'),
+        'apellido': cliente.get('apellido'),
+        'dni': cliente.get('dni'),
         'telefono': cliente.get('telefono'),
         'email': cliente.get('email')
     }
