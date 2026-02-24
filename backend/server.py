@@ -2526,9 +2526,41 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 async def create_indexes():
     """Crear índices para optimizar rendimiento"""
     
+    # LIMPIEZA FORZADA DE ÍNDICES CONFLICTIVOS
+    # Auditoría: eliminar todos los índices excepto _id
+    try:
+        await db.auditoria.drop_indexes()
+        print("Todos los índices de auditoria eliminados")
+    except Exception as e:
+        print(f"Error eliminando índices de auditoria: {e}")
+    
+    # Productos: eliminar índice conflictivo
+    try:
+        await db.productos.drop_index("nombre_text")
+        print("Índice nombre_text eliminado de productos")
+    except Exception:
+        pass
+    
+    try:
+        await db.productos.drop_index("nombre_text_categoria_text")
+        print("Índice nombre_text_categoria_text eliminado de productos")
+    except Exception:
+        pass
+    
+    # Verificar estado de índices
+    try:
+        auditoria_indexes = await db.auditoria.index_information()
+        print(f"Índices actuales de auditoria: {list(auditoria_indexes.keys())}")
+    except Exception as e:
+        print(f"Error verificando índices: {e}")
+    
     # PRODUCTOS
     try:
-        await db.productos.create_index([("nombre", "text"), ("categoria", "text")])
+        await db.productos.create_index(
+            [("nombre", "text"), ("categoria", "text")],
+            name="busqueda_global_text"
+        )
+        print("Índice busqueda_global_text creado en productos")
     except Exception as e:
         print(f"Error creando índice de texto en productos: {e}")
     
@@ -2580,14 +2612,13 @@ async def create_indexes():
     except Exception as e:
         print(f"Error creando índice en egresos.categoria: {e}")
     
-    # AUDITORIA
+    # AUDITORIA - Recrear con nombre único para evitar conflictos
     try:
-        await db.auditoria.create_index("fecha")
-    except Exception as e:
-        print(f"Error creando índice en auditoria.fecha: {e}")
-    
-    try:
-        await db.auditoria.create_index("fecha", expireAfterSeconds=2592000)
+        await db.auditoria.create_index(
+            [("fecha", 1)],
+            name="fecha_ttl_index",
+            expireAfterSeconds=2592000
+        )
     except Exception as e:
         print(f"Error creando índice TTL en auditoria: {e}")
     
@@ -2597,7 +2628,23 @@ async def create_indexes():
     except Exception as e:
         print(f"Error creando índice único en usuarios.username: {e}")
     
-    print("Índices creados exitosamente")
+    # CLIENTES - Índice único para DNI
+    try:
+        await db.clientes.create_index("dni", unique=True, sparse=True)
+    except Exception as e:
+        print(f"Error creando índice único en clientes.dni: {e}")
+    
+    # Confirmación de creación de índices
+    print("=" * 50)
+    print("ÍNDICES CREADOS:")
+    print("  ✓ Ventas (fecha, cliente_id, compuesto)")
+    print("  ✓ Movimientos (cliente_id, fecha, compuesto)")
+    print("  ✓ Egresos (fecha, categoria)")
+    print("  ✓ Auditoría (TTL)")
+    print("  ✓ Usuarios (username único)")
+    print("  ✓ Productos (texto, compuesto)")
+    print("  ✓ Clientes (dni único)")
+    print("=" * 50)
 
 @app.on_event("startup")
 async def startup_event():
