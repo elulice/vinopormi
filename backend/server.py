@@ -95,6 +95,8 @@ class Producto(BaseModel):
     productos_incluidos: Optional[List[ProductoIncluido]] = None  # solo si es promo
     descuento_cantidad_minima: Optional[int] = None
     descuento_precio_unitario: Optional[float] = None
+    is_public: bool = False
+    image_url: Optional[str] = None
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class ProductoCreate(BaseModel):
@@ -105,6 +107,8 @@ class ProductoCreate(BaseModel):
     productos_incluidos: Optional[List[ProductoIncluido]] = None
     descuento_cantidad_minima: Optional[int] = None
     descuento_precio_unitario: Optional[float] = None
+    is_public: bool = False
+    image_url: Optional[str] = None
 
 class ProductoUpdate(BaseModel):
     nombre: Optional[str] = None
@@ -114,6 +118,8 @@ class ProductoUpdate(BaseModel):
     productos_incluidos: Optional[List[ProductoIncluido]] = None
     descuento_cantidad_minima: Optional[int] = None
     descuento_precio_unitario: Optional[float] = None
+    is_public: Optional[bool] = None
+    image_url: Optional[str] = None
 
 class Cliente(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -285,6 +291,22 @@ class StickyNoteUpdate(BaseModel):
     texto: Optional[str] = None
     color: Optional[str] = None
     fijada: Optional[bool] = None
+
+class ProductoPublico(BaseModel):
+    nombre: str
+    precio_unitario: float
+    image_url: Optional[str] = None
+
+public_router = APIRouter()
+
+@public_router.get("/public/destacados", response_model=List[ProductoPublico])
+async def get_productos_destacados():
+    productos = await db.productos.find(
+        {'$or': [{'is_public': True}, {'is_public': {'$exists': False}}]},
+        {'_id': 0, 'nombre': 1, 'precio_unitario': 1, 'image_url': 1}
+    ).to_list(100)
+    
+    return [ProductoPublico(**p) for p in productos]
 
 # ===== AUDITORÍA HELPER =====
 
@@ -2165,6 +2187,8 @@ async def set_configuracion_mercadopago(
         raise HTTPException(status_code=500, detail=str(e))
 
 app.include_router(api_router)
+app.include_router(public_router)
+
 async def limpiar_base_de_datos(current_user: Usuario = Depends(get_admin_user)):
     """Elimina todos los datos excepto productos y usuarios"""
     try:

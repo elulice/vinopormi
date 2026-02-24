@@ -16,6 +16,10 @@ export const apiGet = async (url, config = {}) => {
   return api.get(url, { ...config, headers: { ...getAuthHeader(), ...config.headers } });
 };
 
+export const apiGetPublic = async (url, config = {}) => {
+  return api.get(url, { ...config, headers: { ...config.headers } });
+};
+
 export const apiPost = async (url, data, config = {}) => {
   return api.post(url, data, { ...config, headers: { ...getAuthHeader(), ...config.headers } });
 };

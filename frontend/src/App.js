@@ -2,6 +2,7 @@ import "@/App.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import Login from "@/pages/Login";
+import LandingPage from "@/pages/LandingPage";
 import Dashboard from "@/pages/Dashboard";
 import Productos from "@/pages/Productos";
 import Clientes from "@/pages/Clientes";
@@ -24,61 +25,62 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 
 function App() {
   return (
-    <AuthProvider>
-      <ConfigProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* LOGIN */}
-          <Route path="/login" element={<Login />} />
+    <BrowserRouter>
+      <Routes>
+        {/* RUTAS PÚBLICAS - Sin AuthProvider ni ConfigProvider */}
+        <Route path="/Landing" element={<LandingPage />} />
+        <Route path="/clientes" element={<LandingPage />} />
+        <Route path="/login" element={<Login />} />
 
-          {/* RUTAS PROTEGIDAS CON LAYOUT */}
-          <Route
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/nueva-venta" element={<NuevaVenta />} />
-            <Route path="/productos" element={<Productos />} />
-            <Route path="/clientes" element={<Clientes />} />
-            <Route path="/proveedores" element={<Proveedores />} />
-            <Route path="/ventas" element={<Ventas />} />
-            <Route path="/egresos" element={<Egresos />} />
-            <Route path="/usuarios" element={
-              <AdminRoute>
-                <Usuarios />
-              </AdminRoute>
-            } />
-            <Route path="/login-registros" element={
-              <AdminRoute>
-                <LoginRegistros />
-              </AdminRoute>
-            } />
-            <Route path="/auditoria" element={
-              <AdminRoute>
-                <Auditoria />
-              </AdminRoute>
-            } />
-            <Route path="/herramientas" element={
-              <AdminRoute>
-                <Herramientas />
-              </AdminRoute>
-            } />
-            <Route path="/mercadopago" element={
-              <Mercadopago />
-            } />
-            <Route path="/configuracion" element={<Configuracion />} />
+        {/* RUTAS PROTEGIDAS CON CONTEXTOS */}
+        <Route
+          element={
+            <AuthProvider>
+              <ConfigProvider>
+                <ProtectedRoute>
+                  <Layout />
+                </ProtectedRoute>
+              </ConfigProvider>
+            </AuthProvider>
+          }
+        >
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/nueva-venta" element={<NuevaVenta />} />
+          <Route path="/productos" element={<Productos />} />
+          <Route path="/proveedores" element={<Proveedores />} />
+          <Route path="/ventas" element={<Ventas />} />
+          <Route path="/egresos" element={<Egresos />} />
+          <Route path="/usuarios" element={
+            <AdminRoute>
+              <Usuarios />
+            </AdminRoute>
+          } />
+          <Route path="/login-registros" element={
+            <AdminRoute>
+              <LoginRegistros />
+            </AdminRoute>
+          } />
+          <Route path="/auditoria" element={
+            <AdminRoute>
+              <Auditoria />
+            </AdminRoute>
+          } />
+          <Route path="/herramientas" element={
+            <AdminRoute>
+              <Herramientas />
+            </AdminRoute>
+          } />
+          <Route path="/mercadopago" element={
+            <Mercadopago />
+          } />
+          <Route path="/configuracion" element={<Configuracion />} />
+          <Route path="/clientes" element={<Clientes />} />
+        </Route>
+      </Routes>
 
-          </Route>
-        </Routes>
-
-        <Toaster position="top-right" />
-      </BrowserRouter>
-      </ConfigProvider>
-    </AuthProvider>
+      <Toaster position="top-right" />
+    </BrowserRouter>
   );
 }
 
