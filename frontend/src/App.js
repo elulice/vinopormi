@@ -31,7 +31,15 @@ function App() {
         {/* RUTAS PÚBLICAS - Sin AuthProvider ni ConfigProvider */}
         <Route path="/Landing" element={<LandingPage />} />
         <Route path="/miembros" element={<SeccionClientes />} />
-        <Route path="/login" element={<Login />} />
+        
+        {/* LOGIN - Con AuthProvider pero sin ProtectedRoute */}
+        <Route path="/login" element={
+          <AuthProvider>
+            <ConfigProvider>
+              <Login />
+            </ConfigProvider>
+          </AuthProvider>
+        } />
 
         {/* RUTAS PROTEGIDAS CON CONTEXTOS */}
         <Route

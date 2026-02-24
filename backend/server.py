@@ -313,7 +313,13 @@ class ClientePublico(BaseModel):
 class VentaPublica(BaseModel):
     fecha: datetime
     total: float
-    estado_pago: str
+    estado: str
+
+class MovimientoPublico(BaseModel):
+    fecha: datetime
+    concepto: str
+    monto: float
+    tipo: str  # "pago" or "cargo"
 
 public_router = APIRouter()
 
@@ -332,8 +338,30 @@ async def get_cliente_por_dni(dni: str):
     if not cliente:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
     
-    movimientos = await db.movimientos.find({'cliente_id': cliente.get('id')}, {'_id': 0, 'monto': 1}).to_list(1000)
+    # Calcular saldo desde movimientos (es la fuente de verdad)
+    movimientos = await db.movimientos.find(
+        {'cliente_id': cliente.get('id')},
+        {'_id': 0, 'monto': 1, 'venta_id': 1}
+    ).to_list(1000)
+    
+    # Obtener IDs de ventas que ya tienen movimiento
+    ventas_con_movimiento = {m.get('venta_id') for m in movimientos if m.get('venta_id')}
+    
+    # Sumar solo movimientos (pagos y abonos)
     saldo = sum(m['monto'] for m in movimientos) if movimientos else 0
+    
+    # Agregar ventas con CC que NO tienen movimiento (para mantener consistencia)
+    ventas_cc = await db.ventas.find(
+        {'cliente_id': cliente.get('id'), 'medio_pago': 'cuenta_corriente'},
+        {'_id': 0, 'total': 1, 'id': 1}
+    ).to_list(1000)
+    
+    for v in ventas_cc:
+        if v.get('id') not in ventas_con_movimiento:
+            saldo += v.get('total', 0)
+    
+    # Verificar si tiene cuenta corriente activa
+    tiene_cta_cte = saldo != 0 or len(movimientos) > 0
     
     return ClientePublico(
         nombre=cliente.get('nombre', ''),
@@ -341,6 +369,61 @@ async def get_cliente_por_dni(dni: str):
         puntos=cliente.get('puntos', 0),
         saldo=saldo
     )
+
+@public_router.get("/public/cliente/{dni}/movimientos", response_model=List[MovimientoPublico])
+async def get_movimientos_por_dni(dni: str):
+    cliente = await db.clientes.find_one({'dni': dni}, {'_id': 0, 'id': 1})
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+    
+    # Obtener TODOS los movimientos de la colección movimientos
+    movimientos = await db.movimientos.find(
+        {'cliente_id': cliente['id']},
+        {'_id': 0, 'fecha': 1, 'concepto': 1, 'monto': 1, 'venta_id': 1}
+    ).sort('fecha', -1).to_list(100)
+    
+    # Obtener ventas con cuenta corriente que NO tienen movimiento asociado
+    ventas_cc = await db.ventas.find(
+        {'cliente_id': cliente['id'], 'medio_pago': 'cuenta_corriente'},
+        {'_id': 0, 'fecha': 1, 'total': 1, 'id': 1}
+    ).sort('fecha', -1).to_list(100)
+    
+    # Crear set de IDs de ventas que ya tienen movimiento
+    ventas_con_movimiento = {m.get('venta_id') for m in movimientos if m.get('venta_id')}
+    
+    resultado = []
+    
+    # Agregar todos los movimientos
+    for m in movimientos:
+        fecha = m.get('fecha')
+        if isinstance(fecha, str):
+            fecha = datetime.fromisoformat(fecha)
+        
+        resultado.append(MovimientoPublico(
+            fecha=fecha,
+            concepto=m.get('concepto', 'Movimiento'),
+            monto=abs(m.get('monto', 0)),
+            tipo='pago' if m.get('monto', 0) > 0 else 'cargo'
+        ))
+    
+    # Agregar ventas con CC que NO tienen movimiento asociado
+    for v in ventas_cc:
+        if v.get('id') not in ventas_con_movimiento:
+            fecha = v.get('fecha')
+            if isinstance(fecha, str):
+                fecha = datetime.fromisoformat(fecha)
+            
+            resultado.append(MovimientoPublico(
+                fecha=fecha,
+                concepto=f"Venta #{v.get('id', '')[:8]}",
+                monto=v.get('total', 0),
+                tipo='cargo'
+            ))
+    
+    # Ordenar por fecha descendente
+    resultado.sort(key=lambda x: x.fecha, reverse=True)
+    
+    return resultado[:20]  # Últimos 20
 
 @public_router.get("/public/cliente/{dni}/ventas", response_model=List[VentaPublica])
 async def get_ventas_por_dni(dni: str):
@@ -355,9 +438,9 @@ async def get_ventas_por_dni(dni: str):
     
     resultado = []
     for v in ventas:
-        estado_pago = 'cancelado'
+        estado = 'Pagado'
         if v.get('medio_pago') == 'cuenta_corriente':
-            estado_pago = 'pendiente'
+            estado = 'Pendiente'
         
         fecha = v.get('fecha')
         if isinstance(fecha, str):
@@ -366,7 +449,7 @@ async def get_ventas_por_dni(dni: str):
         resultado.append(VentaPublica(
             fecha=fecha,
             total=v.get('total', 0),
-            estado_pago=estado_pago
+            estado=estado
         ))
     
     return resultado

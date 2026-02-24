@@ -111,7 +111,7 @@ const LandingPage = () => {
                     )}
                   </div>
                   <div className="p-2">
-                    <h3 className="font-medium text-gray-800 truncate text-xs leading-tight">
+                    <h3 className="font-sans text-gray-800 truncate text-xs leading-tight">
                       {producto.nombre}
                     </h3>
                     <p className="text-sm font-bold text-primary mt-1">
