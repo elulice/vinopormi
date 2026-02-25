@@ -119,7 +119,7 @@ const Ventas = () => {
   // Estados de paginación
   const [pagination, setPagination] = useState({
     currentPage: 1,
-    itemsPerPage: 50,
+    itemsPerPage: 100,
     totalItems: 0
   });
 
@@ -356,9 +356,9 @@ const fetchVentas = useCallback(async () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="25">25</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
                   <SelectItem value="100">100</SelectItem>
+                  <SelectItem value="250">250</SelectItem>
+                  <SelectItem value="500">500</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -993,12 +993,6 @@ const clearFilters = () => {
                   </div>
                 ))}
                 
-                {sortedVentas.length > 50 && (
-                  <div className="text-center text-muted-foreground text-sm">
-                    Mostrando las primeras 50 ventas de {sortedVentas.length} totales.
-                    En desktop se muestran todas con virtual scrolling.
-                  </div>
-                )}
               </div>
             </>
           )}

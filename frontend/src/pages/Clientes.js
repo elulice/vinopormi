@@ -708,12 +708,12 @@ const Clientes = () => {
                           return (
                           <div
                             key={mov.id}
-                            className={`flex justify-between items-center p-2 bg-muted/50 rounded-md ${
+                            className={`grid grid-cols-12 gap-2 items-center p-2 bg-muted/50 rounded-md ${
                               esVenta ? 'cursor-pointer hover:bg-accent/50' : ''
                             }`}
                             onClick={() => esVenta && handleViewVenta(mov)}
                           >
-                            <div className="flex items-center gap-2">
+                            <div className="col-span-6 flex items-center gap-2">
                               {esVenta ? (
                                 <ShoppingCart className="w-3 h-3 text-primary" />
                               ) : mov.monto > 0 ? (
@@ -733,20 +733,22 @@ const Clientes = () => {
                                 )}
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="col-span-3 text-right">
                               <div className={`text-xs font-semibold ${
                                 mov.monto > 0 ? 'text-green-600' : 'text-red-600'
                               }`}>
                                 {mov.monto > 0 ? '+' : ''}
                                 {formatCurrency(mov.monto, showCents)}
                               </div>
-                              {esVenta && (
-                                <div className="w-3 h-3 rounded-full bg-primary/10 flex items-center justify-center">
-                                  <div className="w-1.5 h-1.5 rounded-full bg-primary"></div>
-                               </div>
-                             )}
-                           </div>
-                         </div>
+                            </div>
+                            <div className="col-span-3 text-right">
+                              <div className={`text-xs px-1.5 py-0.5 rounded inline-block ${
+                                mov.saldo_hasta_movimiento < 0 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                              }`}>
+                                {formatCurrency(mov.saldo_hasta_movimiento, showCents)}
+                              </div>
+                            </div>
+                          </div>
                          );
                        })}
                     </div>

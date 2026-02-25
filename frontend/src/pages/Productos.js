@@ -45,6 +45,12 @@ const Productos = () => {
   const [editingProducto, setEditingProducto] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [loadingPage, setLoadingPage] = useState(false);
+  const [filters, setFilters] = useState({
+    tipo: '',
+    is_public: '',
+    is_featured: '',
+    has_discount: ''
+  });
   const searchInputRef = useRef(null);
 
   const [formData, setFormData] = useState({
@@ -63,6 +69,7 @@ const Productos = () => {
   const [showProductoSelect, setShowProductoSelect] = useState(false);
   const [productoSearch, setProductoSearch] = useState('');
   const [filteredProductos, setFilteredProductos] = useState([]);
+  const [localToggleUpdate, setLocalToggleUpdate] = useState({});
 
   /* =============================
      FETCH
@@ -70,13 +77,15 @@ const Productos = () => {
   // Referencia estable para fetchProductos
   const fetchProductosRef = useRef();
   
-  const fetchProductos = useCallback(async (page = 1, search = null) => {
+  const fetchProductos = useCallback(async (page = 1, search = null, currentFilters = null) => {
     try {
       if (page === 1) {
         setLoading(true);
       } else {
         setLoadingPage(true);
       }
+
+      const filtros = currentFilters || filters;
 
       const params = new URLSearchParams({
         page: page.toString(),
@@ -85,6 +94,19 @@ const Productos = () => {
       
       if (search) {
         params.append('search', search);
+      }
+      
+      if (filtros.tipo) {
+        params.append('tipo', filtros.tipo);
+      }
+      if (filtros.is_public) {
+        params.append('is_public', filtros.is_public);
+      }
+      if (filtros.is_featured) {
+        params.append('is_featured', filtros.is_featured);
+      }
+      if (filtros.has_discount) {
+        params.append('has_discount', filtros.has_discount);
       }
 
       const res = await apiGet(`${API}/productos-paginados?${params}`);
@@ -115,6 +137,11 @@ const Productos = () => {
   useEffect(() => {
     fetchProductosRef.current?.(1);
   }, []);
+
+  // Recargar cuando cambian los filtros
+  useEffect(() => {
+    fetchProductosRef.current?.(1, searchTerm, filters);
+  }, [filters]);
 
   useEffect(() => {
     if (dialogOpen && formData.tipo === 'promo') {
@@ -232,11 +259,11 @@ const Productos = () => {
 
       setDialogOpen(false);
       resetForm();
-      fetchProductosRef.current?.(pagination.page, searchTerm);
+      fetchProductosRef.current?.(pagination.page, searchTerm, filters);
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Error al guardar producto');
     }
-  }, [editingProducto, formData, pagination.page, resetForm, searchTerm]);
+  }, [editingProducto, formData, pagination.page, resetForm, searchTerm, filters]);
 
   const handleEdit = useCallback(async (producto) => {
     setEditingProducto(producto);
@@ -279,18 +306,71 @@ const Productos = () => {
     try {
       await apiDelete(`${API}/productos/${deletingId}`);
       toast.success('Producto eliminado');
-      fetchProductosRef.current?.(pagination.page, searchTerm);
+      fetchProductosRef.current?.(pagination.page, searchTerm, filters);
     } catch {
       toast.error('Error al eliminar producto');
     } finally {
       setDeleteDialogOpen(false);
       setDeletingId(null);
     }
-  }, [deletingId, pagination.page, searchTerm]);
+  }, [deletingId, pagination.page, searchTerm, filters]);
+
+  const togglePublic = useCallback(async (producto) => {
+    const currentValue = localToggleUpdate[producto.id]?.is_public ?? producto.is_public;
+    const newValue = !currentValue;
+    // Actualizar estado local inmediatamente
+    setLocalToggleUpdate(prev => ({
+      ...prev,
+      [producto.id]: { ...prev[producto.id], is_public: newValue }
+    }));
+    
+    try {
+      await apiPut(`${API}/productos/${producto.id}`, {
+        is_public: newValue
+      });
+      toast.success(newValue ? 'Producto publicado' : 'Producto ocultado');
+    } catch (error) {
+      // Revertir cambio si hay error
+      setLocalToggleUpdate(prev => ({
+        ...prev,
+        [producto.id]: { ...prev[producto.id], is_public: producto.is_public }
+      }));
+      toast.error(error.response?.data?.detail || 'Error al actualizar visibilidad');
+    }
+  }, [localToggleUpdate]);
+
+  const toggleFeatured = useCallback(async (producto) => {
+    const currentValue = localToggleUpdate[producto.id]?.is_featured ?? producto.is_featured;
+    const newValue = !currentValue;
+    // Actualizar estado local inmediatamente
+    setLocalToggleUpdate(prev => ({
+      ...prev,
+      [producto.id]: { ...prev[producto.id], is_featured: newValue }
+    }));
+    
+    try {
+      await apiPut(`${API}/productos/${producto.id}`, {
+        is_featured: newValue
+      });
+      toast.success(newValue ? 'Producto marcado como destacado' : 'Producto quitado de destacados');
+    } catch (error) {
+      // Revertir cambio si hay error
+      setLocalToggleUpdate(prev => ({
+        ...prev,
+        [producto.id]: { ...prev[producto.id], is_featured: producto.is_featured }
+      }));
+      toast.error(error.response?.data?.detail || 'Error al actualizar destacado');
+    }
+  }, [localToggleUpdate]);
+
+  // Función helper para obtener el valor del toggle (local o del producto)
+  const getToggleValue = (producto, field) => {
+    return localToggleUpdate[producto.id]?.[field] ?? producto[field];
+  };
 
   // Manejador de cambio de página
   const handlePageChange = useCallback((newPage) => {
-    fetchProductosRef.current?.(newPage, searchTerm);
+    fetchProductosRef.current?.(newPage, searchTerm, filters);
     setPagination(prev => ({ ...prev, page: newPage }));
     
     // Múltiples métodos para asegurar el scroll hacia arriba
@@ -317,7 +397,7 @@ const Productos = () => {
       window.scroll({ top: 0, left: 0, behavior: 'instant' });
       document.documentElement.scroll({ top: 0, left: 0 });
     }, 200); // Mayor delay para asegurar que el contenido se renderizó
-  }, [searchTerm]);
+  }, [searchTerm, filters]);
 
   if (loading) {
     return <div className="text-center py-8">Cargando...</div>;
@@ -334,7 +414,7 @@ const Productos = () => {
       </div>
 
       {/* BUSCADOR + BOTÓN AGREGAR */}
-      <div className="flex gap-2 items-center">
+      <div className="flex gap-2 items-center flex-wrap">
         <SearchInput
           ref={searchInputRef}
           value={searchTerm}
@@ -349,6 +429,110 @@ const Productos = () => {
             setTimeout(() => searchInputRef.current?.focus(), 100);
           }}
         />
+
+        {/* Filtros como toggles */}
+        <div className="flex gap-1">
+          <button
+            onClick={() => setFilters({ ...filters, tipo: filters.tipo === 'normal' ? '' : 'normal' })}
+            className={`px-2 py-1 text-xs rounded border ${
+              filters.tipo === 'normal' 
+                ? 'bg-primary text-white border-primary' 
+                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            Normal
+          </button>
+          <button
+            onClick={() => setFilters({ ...filters, tipo: filters.tipo === 'promo' ? '' : 'promo' })}
+            className={`px-2 py-1 text-xs rounded border ${
+              filters.tipo === 'promo' 
+                ? 'bg-orange-500 text-white border-orange-500' 
+                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            Promo
+          </button>
+        </div>
+
+        <div className="flex gap-1">
+          <button
+            onClick={() => setFilters({ ...filters, is_public: filters.is_public === 'true' ? '' : 'true' })}
+            className={`px-2 py-1 text-xs rounded border ${
+              filters.is_public === 'true' 
+                ? 'bg-green-600 text-white border-green-600' 
+                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            Público
+          </button>
+          <button
+            onClick={() => setFilters({ ...filters, is_public: filters.is_public === 'false' ? '' : 'false' })}
+            className={`px-2 py-1 text-xs rounded border ${
+              filters.is_public === 'false' 
+                ? 'bg-gray-500 text-white border-gray-500' 
+                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            Oculto
+          </button>
+        </div>
+
+        <div className="flex gap-1">
+          <button
+            onClick={() => setFilters({ ...filters, is_featured: filters.is_featured === 'true' ? '' : 'true' })}
+            className={`px-2 py-1 text-xs rounded border ${
+              filters.is_featured === 'true' 
+                ? 'bg-yellow-500 text-white border-yellow-500' 
+                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            ★ Destacado
+          </button>
+          <button
+            onClick={() => setFilters({ ...filters, is_featured: filters.is_featured === 'false' ? '' : 'false' })}
+            className={`px-2 py-1 text-xs rounded border ${
+              filters.is_featured === 'false' 
+                ? 'bg-gray-400 text-white border-gray-400' 
+                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            Normal
+          </button>
+        </div>
+
+        <div className="flex gap-1">
+          <button
+            onClick={() => setFilters({ ...filters, has_discount: filters.has_discount === 'true' ? '' : 'true' })}
+            className={`px-2 py-1 text-xs rounded border ${
+              filters.has_discount === 'true' 
+                ? 'bg-green-600 text-white border-green-600' 
+                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            Con Desc
+          </button>
+          <button
+            onClick={() => setFilters({ ...filters, has_discount: filters.has_discount === 'false' ? '' : 'false' })}
+            className={`px-2 py-1 text-xs rounded border ${
+              filters.has_discount === 'false' 
+                ? 'bg-gray-400 text-white border-gray-400' 
+                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            Sin Desc
+          </button>
+        </div>
+
+        {(filters.tipo || filters.is_public || filters.is_featured || filters.has_discount) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs text-muted-foreground"
+            onClick={() => setFilters({ tipo: '', is_public: '', is_featured: '', has_discount: '' })}
+          >
+            Limpiar
+          </Button>
+        )}
 
         <Dialog open={dialogOpen} onOpenChange={(open) => {
           if (!open) {
@@ -680,16 +864,28 @@ const Productos = () => {
             </td>
             <td className="p-2">
               <div className="flex items-center gap-1">
-                {p.is_public ? (
-                  <Eye className="w-4 h-4 text-green-600" title="Visible en público" />
-                ) : (
-                  <EyeOff className="w-4 h-4 text-gray-300" title="No visible" />
-                )}
-                {p.is_featured ? (
-                  <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" title="Destacado" />
-                ) : (
-                  <Star className="w-4 h-4 text-gray-300" title="No destacado" />
-                )}
+                <button
+                  onClick={() => togglePublic(p)}
+                  className="p-1 hover:bg-gray-100 rounded"
+                  title={getToggleValue(p, 'is_public') ? "Ocultar del público" : "Mostrar al público"}
+                >
+                  {getToggleValue(p, 'is_public') ? (
+                    <Eye className="w-4 h-4 text-green-600" />
+                  ) : (
+                    <EyeOff className="w-4 h-4 text-gray-300" />
+                  )}
+                </button>
+                <button
+                  onClick={() => toggleFeatured(p)}
+                  className="p-1 hover:bg-gray-100 rounded"
+                  title={getToggleValue(p, 'is_featured') ? "Quitar de destacados" : "Marcar como destacado"}
+                >
+                  {getToggleValue(p, 'is_featured') ? (
+                    <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                  ) : (
+                    <Star className="w-4 h-4 text-gray-300" />
+                  )}
+                </button>
               </div>
             </td>
             <td className="p-2 text-right">

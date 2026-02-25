@@ -237,6 +237,7 @@ class MovimientoCuentaCorriente(BaseModel):
     venta_id: Optional[str] = None  # ID completo de la venta asociada
     usuario_id: Optional[str] = None  # ID del usuario que creó el movimiento
     usuario_nombre: Optional[str] = None  # Nombre del usuario que creó el movimiento
+    saldo_hasta_movimiento: Optional[float] = None  # Saldo acumulado
 
 class DashboardStats(BaseModel):
     total_vendido_hoy: float
@@ -387,8 +388,9 @@ async def get_catalogo(
     min_price: float = None,
     max_price: float = None
 ):
-    # Construir filtro base: productos destacados o públicos
-    filter_query = {'$or': [{'is_featured': True}, {'is_public': True}]}
+    filter_conditions = [
+        {'$or': [{'is_featured': True}, {'is_public': True}]}
+    ]
     
     # Búsqueda por texto
     if search:
@@ -399,12 +401,14 @@ async def get_catalogo(
             for term in search_terms:
                 or_conditions.append({"nombre": {"$regex": term, "$options": "i"}})
                 or_conditions.append({"categoria": {"$regex": term, "$options": "i"}})
-            filter_query["$and"] = [{"$or": or_conditions}]
+            filter_conditions.append({"$or": or_conditions})
         else:
-            filter_query["$or"] = [
-                {"nombre": {"$regex": search, "$options": "i"}},
-                {"categoria": {"$regex": search, "$options": "i"}}
-            ]
+            filter_conditions.append({
+                "$or": [
+                    {"nombre": {"$regex": search, "$options": "i"}},
+                    {"categoria": {"$regex": search, "$options": "i"}}
+                ]
+            })
     
     # Filtro de precio
     if min_price is not None or max_price is not None:
@@ -413,7 +417,9 @@ async def get_catalogo(
             precio_filter["$gte"] = min_price
         if max_price is not None:
             precio_filter["$lte"] = max_price
-        filter_query["precio_unitario"] = precio_filter
+        filter_conditions.append({"precio_unitario": precio_filter})
+    
+    filter_query = {"$and": filter_conditions}
     
     productos = await db.productos.find(
         filter_query,
@@ -935,26 +941,68 @@ async def get_productos_paginated(
     current_user: Usuario = Depends(get_current_user),
     page: int = 1,
     limit: int = 50,
-    search: str = None
+    search: str = None,
+    tipo: str = None,
+    is_public: str = None,
+    is_featured: str = None,
+    has_discount: str = None
 ):
-    """Endpoint optimizado con paginación y búsqueda"""
+    """Endpoint optimizado con paginación, búsqueda y filtros"""
     try:
         skip = (page - 1) * limit
         filter_query = {}
         
-        # Búsqueda optimizada - buscar palabras individuales
+        # Búsqueda por nombre
         if search:
-            # Dividir la búsqueda en términos individuales
             search_terms = search.split()
             if len(search_terms) > 1:
-                # Búsqueda múltiple: todos los términos deben estar presentes
                 regex_patterns = [{"nombre": {"$regex": term, "$options": "i"}} for term in search_terms]
-                filter_query = {"$and": regex_patterns}
+                filter_query["$and"] = regex_patterns
             else:
-                # Búsqueda simple para un solo término
-                filter_query = {
-                    "nombre": {"$regex": search, "$options": "i"}
-                }
+                filter_query["nombre"] = {"$regex": search, "$options": "i"}
+        
+        # Construir filter condiciones en un $and para evitar conflictos
+        filter_conditions = []
+        
+        # Filtro por tipo (incluye productos sin tipo definido como "normal")
+        if tipo == "normal":
+            filter_conditions.append({
+                "$or": [{"tipo": "normal"}, {"tipo": {"$exists": False}}, {"tipo": None}]
+            })
+        elif tipo == "promo":
+            filter_conditions.append({"tipo": "promo"})
+        
+        # Filtro por is_public
+        if is_public == "true":
+            filter_conditions.append({"is_public": True})
+        elif is_public == "false":
+            filter_conditions.append({"is_public": {"$ne": True}})
+        
+        # Filtro por is_featured
+        if is_featured == "true":
+            filter_conditions.append({"is_featured": True})
+        elif is_featured == "false":
+            filter_conditions.append({"is_featured": {"$ne": True}})
+        
+        # Filtro por descuento
+        if has_discount == "true":
+            filter_conditions.append({
+                "descuento_cantidad_minima": {"$exists": True, "$ne": None},
+                "descuento_precio_unitario": {"$exists": True, "$ne": None}
+            })
+        elif has_discount == "false":
+            filter_conditions.append({
+                "$or": [
+                    {"descuento_cantidad_minima": {"$exists": False}},
+                    {"descuento_cantidad_minima": None},
+                    {"descuento_precio_unitario": {"$exists": False}},
+                    {"descuento_precio_unitario": None}
+                ]
+            })
+        
+        # Aplicar todas las condiciones con $and
+        if filter_conditions:
+            filter_query["$and"] = filter_conditions
         
         # Query con paginación
         cursor = db.productos.find(
@@ -1360,7 +1408,7 @@ async def create_venta(input: VentaCreate, current_user: Usuario = Depends(get_c
 
 @api_router.get("/ventas", response_model=List[Venta])
 async def get_ventas(current_user: Usuario = Depends(get_current_user)):
-    ventas = await db.ventas.find({}, {'_id': 0}).sort('fecha', -1).to_list(1000)
+    ventas = await db.ventas.find({}, {'_id': 0}).sort('fecha', -1).to_list(None)
     
     for v in ventas:
         if isinstance(v.get('fecha'), str):
@@ -1670,6 +1718,14 @@ async def get_cuenta_corriente_cliente(cliente_id: str, current_user: Usuario = 
             m['fecha'] = datetime.fromisoformat(m['fecha'])
     
     saldo = sum(m['monto'] for m in movimientos)
+    
+    movimientos_asc = sorted(movimientos, key=lambda x: x.get('fecha', datetime.min))
+    saldo_acumulado = 0
+    for m in movimientos_asc:
+        saldo_acumulado += m.get('monto', 0)
+        m['saldo_hasta_movimiento'] = saldo_acumulado
+    
+    movimientos = sorted(movimientos, key=lambda x: x.get('fecha', datetime.min), reverse=True)
     
     return CuentaCorrienteInfo(
         cliente=Cliente(**cliente),
