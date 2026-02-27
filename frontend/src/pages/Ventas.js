@@ -14,6 +14,7 @@ import { es } from 'date-fns/locale';
 import { formatCurrency, formatNumber } from '@/lib/currency';
 import { capitalizeWords } from '@/lib/utils';
 import ResponsiveTable from '@/components/ResponsiveTable';
+import MobileCard from '@/components/MobileCard';
 import { API } from '@/lib/config';
 import { apiGet } from '@/lib/api';
 
@@ -345,8 +346,8 @@ const fetchVentas = useCallback(async () => {
     return (
       <Card className="py-2">
         <CardContent className="p-0">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-4 py-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-2 sm:px-4 py-3 sm:py-4">
+            <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground order-2 sm:order-1">
               <span>{(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, totalItems)} de {totalItems}</span>
               <Select
                 value={itemsPerPage.toString()}
@@ -362,24 +363,24 @@ const fetchVentas = useCallback(async () => {
                 </SelectContent>
               </Select>
             </div>
-        
-          <div className="flex items-center space-x-2">
+          
+          <div className="flex items-center justify-center space-x-1 sm:space-x-2 order-1 sm:order-2">
             <Button
               variant="outline"
-              size="sm"
+              size="icon"
               onClick={() => onPageChange(1)}
               disabled={currentPage === 1}
-              className="h-8 rounded-md px-3"
+              className="h-8 w-8"
             >
               <ChevronsLeft className="w-4 h-4" />
             </Button>
             
             <Button
               variant="outline"
-              size="sm"
+              size="icon"
               onClick={() => onPageChange(currentPage - 1)}
               disabled={currentPage === 1}
-              className="h-8 rounded-md px-3"
+              className="h-8 w-8"
             >
               <ChevronLeft className="w-4 h-4" />
             </Button>
@@ -387,16 +388,16 @@ const fetchVentas = useCallback(async () => {
             <div className="flex items-center space-x-1">
               {getVisiblePages().map((page, index) => (
                 page === '...' ? (
-                  <span key={`dots-${index}`} className="px-2 text-muted-foreground">
+                  <span key={`dots-${index}`} className="px-1 text-muted-foreground">
                     ...
                   </span>
                 ) : (
                   <Button
                     key={page}
                     variant={currentPage === page ? "default" : "outline"}
-                    size="sm"
+                    size="icon"
                     onClick={() => onPageChange(page)}
-                    className="h-8 rounded-md px-3 text-xs"
+                    className="h-8 w-8"
                   >
                     {page}
                   </Button>
@@ -406,20 +407,20 @@ const fetchVentas = useCallback(async () => {
             
             <Button
               variant="outline"
-              size="sm"
+              size="icon"
               onClick={() => onPageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
-              className="h-8 rounded-md px-3"
+              className="h-8 w-8"
             >
               <ChevronRight className="w-4 h-4" />
             </Button>
             
             <Button
               variant="outline"
-              size="sm"
+              size="icon"
               onClick={() => onPageChange(totalPages)}
               disabled={currentPage === totalPages}
-              className="h-8 rounded-md px-3"
+              className="h-8 w-8"
             >
               <ChevronsRight className="w-4 h-4" />
             </Button>
@@ -862,7 +863,7 @@ const clearFilters = () => {
       </Card>
 
       {/* Estadísticas */}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <Card className="py-2">
           <CardContent className="py-2">
             <div className="text-lg font-bold text-primary">
@@ -934,63 +935,47 @@ const clearFilters = () => {
               {/* Versión móvil - Cards */}
               <div className="lg:hidden space-y-2">
                 {paginatedData.map((venta, index) => (
-                  <div
+                  <MobileCard
                     key={venta.id}
-                    className="cursor-pointer hover:bg-muted/50 transition-colors rounded-lg p-4 border"
                     onClick={() => handleViewDetails(venta)}
                     data-testid={`venta-card-${venta.id}`}
                   >
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                          <ShoppingCart className="w-5 h-5 text-primary" />
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                          <ShoppingCart className="w-4 h-4 text-primary" />
                         </div>
                         <div>
-                          <div className="font-semibold">#{venta.id.slice(0, 8)}</div>
+                          <div className="font-semibold text-xs">#{venta.id.slice(0, 8)}</div>
                           <div className="text-xs text-muted-foreground">
                             {format(safeParseDate(venta.fecha), 'PPP HH:mm', { locale: es })}
                           </div>
                           {venta.cliente_nombre && (
-                            <div className="text-xs text-muted-foreground">{venta.cliente_nombre}</div>
+                            <div className="text-xs text-muted-foreground truncate max-w-[120px]">{venta.cliente_nombre}</div>
                           )}
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-xl font-bold text-primary">
+                        <div className="text-base font-bold text-primary">
                           {formatCurrency(venta.total, showCents)}
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          {venta.detalles.length} producto{venta.detalles.length !== 1 ? 's' : ''}
+                          {venta.detalles.length} prod{venta.detalles.length !== 1 ? 's' : ''}
                         </div>
                       </div>
                     </div>
                     
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <User className="w-4 h-4" />
-                        {venta.usuario_nombre || 'Usuario desconocido'}
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <User className="w-3 h-3" />
+                        <span className="truncate max-w-[80px]">{venta.usuario_nombre || 'Unknown'}</span>
                       </div>
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <CreditCard className="w-4 h-4" />
-                        <span className="capitalize">{venta.medio_pago.replace('_', ' ')}</span>
+                      <div className="flex items-center gap-1">
+                        <CreditCard className="w-3 h-3" />
+                        <span className="capitalize text-xs">{venta.medio_pago.replace('_', ' ')}</span>
                       </div>
                     </div>
-                    
-                    <div className="mt-3 pt-3 border-t">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleViewDetails(venta);
-                        }}
-                        data-testid={`view-details-mobile-${venta.id}`}
-                      >
-                        Ver Detalles
-                      </Button>
-                    </div>
-                  </div>
+                  </MobileCard>
                 ))}
                 
               </div>

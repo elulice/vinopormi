@@ -4,7 +4,8 @@ const ResponsiveTable = ({
   headers, 
   rows, 
   renderDesktopRow, 
-  renderMobileCard 
+  renderMobileCard,
+  useCard = true
 }) => {
   return (
     <>
@@ -33,11 +34,15 @@ const ResponsiveTable = ({
       {/* Mobile: Cards */}
       <div className="lg:hidden space-y-4">
         {rows.map((row, index) => (
-          <Card key={index} className="shadow-sm">
-            <CardContent className="p-4">
-              {renderMobileCard(row, index)}
-            </CardContent>
-          </Card>
+          useCard ? (
+            <Card key={index} className="shadow-sm">
+              <CardContent className="p-4">
+                {renderMobileCard(row, index)}
+              </CardContent>
+            </Card>
+          ) : (
+            renderMobileCard(row, index)
+          )
         ))}
       </div>
     </>

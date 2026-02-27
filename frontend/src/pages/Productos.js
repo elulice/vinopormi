@@ -16,6 +16,7 @@ import {
 import { Plus, Pencil, Trash2, Package, Info, X, Eye, EyeOff, Star } from 'lucide-react';
 import { toast } from 'sonner';
 import ResponsiveTable from '@/components/ResponsiveTable';
+import MobileCard from '@/components/MobileCard';
 import { formatCurrency } from '@/lib/currency';
 import { capitalizeWords } from '@/lib/utils';
 import Pagination from '@/components/Pagination';
@@ -404,7 +405,7 @@ const Productos = () => {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* HEADER */}
       <div>
         <h1 className="text-2xl font-bold text-foreground">Productos</h1>
@@ -564,7 +565,7 @@ const Productos = () => {
                   <select
                     value={formData.tipo}
                     onChange={(e) => setFormData({ ...formData, tipo: e.target.value, productos_incluidos: e.target.value === 'normal' ? [] : formData.productos_incluidos })}
-                    className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex h-7 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm transition-colors file:border-0 file:bg-transparent file:text-xs file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <option value="normal">Normal</option>
                     <option value="promo">Promo</option>
@@ -679,30 +680,30 @@ const Productos = () => {
                 </div>
               )}
 
-              <div>
-                <Label className="text-xs">Nombre</Label>
-                <Input
-                  value={formData.nombre}
-                  onChange={(e) =>
-                    setFormData({ ...formData, nombre: e.target.value })
-                  }
-                  required
-                  className="h-8"
-                  placeholder={formData.tipo === 'promo' ? 'Ej: Combo Verano' : ''}
-                />
-              </div>
+                <div>
+                  <Label className="text-xs">Nombre</Label>
+                  <Input
+                    value={formData.nombre}
+                    onChange={(e) =>
+                      setFormData({ ...formData, nombre: e.target.value })
+                    }
+                    required
+                    className="h-7"
+                    placeholder={formData.tipo === 'promo' ? 'Ej: Combo Verano' : ''}
+                  />
+                </div>
 
-              <div>
-                <Label className="text-xs">Precio Unitario</Label>
-                <Input
-                  type="number"
+                <div>
+                  <Label className="text-xs">Precio Unitario</Label>
+                  <Input
+                    type="number"
                   step="0.01"
                   value={formData.precio_unitario}
                   onChange={(e) =>
                     setFormData({ ...formData, precio_unitario: e.target.value })
                   }
                   required
-                  className="h-8"
+                  className="h-7"
                 />
               </div>
 
@@ -715,7 +716,7 @@ const Productos = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, stock: e.target.value })
                     }
-                    className="h-8"
+                    className="h-7"
                   />
                 </div>
               )}
@@ -804,14 +805,14 @@ const Productos = () => {
               </div>
 
               <div className="flex gap-2 pt-2">
-                <Button type="submit" className="flex-1 h-8">
+                <Button type="submit" className="flex-1 h-7">
                   {editingProducto ? 'Actualizar' : 'Crear'}
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setDialogOpen(false)}
-                  className="h-8"
+                  className="h-7"
                 >
                   Cancelar
                 </Button>
@@ -836,7 +837,7 @@ const Productos = () => {
         renderDesktopRow={(p, index) => (
           <tr key={p.id} className="border-b">
             <td className="p-2">
-              <div className="flex items-center gap-2 text-sm">
+              <div className="flex items-center gap-2 text-xs">
                 <Package className={`w-3 h-3 ${p.tipo === 'promo' ? 'text-orange-500' : 'text-primary'}`} />
                 <span className="truncate">{capitalizeWords(p.nombre)}</span>
               </div>
@@ -845,7 +846,7 @@ const Productos = () => {
               <StatusBadge status={p.tipo === 'promo' ? "Promo" : "Normal"} />
             </td>
             <td className="p-2 text-muted-foreground text-xs">
-              {Number(p.stock) || 0} unid.
+              {Number(p.stock) || 0}
             </td>
             <td className="p-2 font-semibold text-primary text-xs">
               {formatCurrency(p.precio_unitario, showCents)}
@@ -854,9 +855,9 @@ const Productos = () => {
               {p.descuento_cantidad_minima && p.descuento_precio_unitario ? (
                 <div className="text-xs">
                   <div className="text-green-600 font-medium">
-                    ≥{p.descuento_cantidad_minima} unid.
+                    ≥{p.descuento_cantidad_minima}
                   </div>
-                  <div>{formatCurrency(p.descuento_precio_unitario, showCents)} c/u</div>
+                  <div>{formatCurrency(p.descuento_precio_unitario, showCents)}</div>
                 </div>
               ) : (
                 <span className="text-muted-foreground text-xs">-</span>
@@ -870,9 +871,9 @@ const Productos = () => {
                   title={getToggleValue(p, 'is_public') ? "Ocultar del público" : "Mostrar al público"}
                 >
                   {getToggleValue(p, 'is_public') ? (
-                    <Eye className="w-4 h-4 text-green-600" />
+                    <Eye className="w-3 h-3 text-green-600" />
                   ) : (
-                    <EyeOff className="w-4 h-4 text-gray-300" />
+                    <EyeOff className="w-3 h-3 text-gray-300" />
                   )}
                 </button>
                 <button
@@ -881,9 +882,9 @@ const Productos = () => {
                   title={getToggleValue(p, 'is_featured') ? "Quitar de destacados" : "Marcar como destacado"}
                 >
                   {getToggleValue(p, 'is_featured') ? (
-                    <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                    <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
                   ) : (
-                    <Star className="w-4 h-4 text-gray-300" />
+                    <Star className="w-3 h-3 text-gray-300" />
                   )}
                 </button>
               </div>
@@ -911,54 +912,73 @@ const Productos = () => {
           </tr>
         )}
         renderMobileCard={(p, index) => (
-          <div className="p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <div className={`w-8 h-8 ${p.tipo === 'promo' ? 'bg-orange-100' : 'bg-primary/10'} rounded flex items-center justify-center`}>
-                <Package className={`w-4 h-4 ${p.tipo === 'promo' ? 'text-orange-500' : 'text-primary'}`} />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-medium text-sm truncate">{capitalizeWords(p.nombre)}</h3>
-                  {p.tipo === 'promo' && (
-                    <StatusBadge status="promo" size="sm" />
-                  )}
+          <MobileCard>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <div className={`w-8 h-8 ${p.tipo === 'promo' ? 'bg-orange-100' : 'bg-primary/10'} rounded-lg flex items-center justify-center`}>
+                  <Package className={`w-4 h-4 ${p.tipo === 'promo' ? 'text-orange-500' : 'text-primary'}`} />
                 </div>
-                <div className="font-bold text-primary text-sm">
+                <div>
+                  <div className="font-semibold text-xs truncate">{capitalizeWords(p.nombre)}</div>
+                  <div className="text-xs text-muted-foreground">
+                    Stock: {Number(p.stock) || 0}
+                  </div>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-base font-bold text-primary">
                   {formatCurrency(p.precio_unitario, showCents)}
                 </div>
+                {p.descuento_cantidad_minima && p.descuento_precio_unitario ? (
+                  <div className="text-xs text-green-600">
+                    ≥{p.descuento_cantidad_minima}: {formatCurrency(p.descuento_precio_unitario, showCents)}
+                  </div>
+                ) : (
+                  <div className="text-xs text-muted-foreground">Sin dto.</div>
+                )}
               </div>
             </div>
             
-            <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-              <span>Stock: {Number(p.stock) || 0} unid.</span>
-              {p.descuento_cantidad_minima && p.descuento_precio_unitario ? (
-                <span className="text-green-600 font-medium">
-                  ≥{p.descuento_cantidad_minima} unid: {formatCurrency(p.descuento_precio_unitario, showCents)}
-                </span>
-              ) : (
-                <div className="text-sm text-muted-foreground">
-                  Sin descuento
-                </div>
-              )}
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <div className="flex items-center gap-1">
+                {p.tipo === 'promo' ? (
+                  <span className="text-orange-500">Promo</span>
+                ) : (
+                  <span>Normal</span>
+                )}
+              </div>
+              <div className="flex items-center gap-1">
+                {p.is_public ? (
+                  <Eye className="w-3 h-3 text-green-600" />
+                ) : (
+                  <EyeOff className="w-3 h-3 text-gray-300" />
+                )}
+              </div>
             </div>
             
-            <div className="flex gap-2 pt-2 border-t">
-              <Button size="sm" variant="outline" onClick={() => handleEdit(p)} className="flex-1 h-7 text-xs">
+            <div className="flex gap-1 pt-2 border-t mt-2">
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={(e) => { e.stopPropagation(); handleEdit(p); }} 
+                className="flex-1 h-7 text-xs"
+              >
                 <Pencil className="w-3 h-3 mr-1" />
                 Editar
               </Button>
               <Button
                 size="sm"
                 variant="outline"
+                onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }}
                 className="text-destructive flex-1 h-7 text-xs"
-                onClick={() => handleDelete(p.id)}
               >
                 <Trash2 className="w-3 h-3 mr-1" />
                 Eliminar
               </Button>
             </div>
-          </div>
+          </MobileCard>
         )}
+        useCard={false}
       />
       
       {/* Componente de Paginación */}
