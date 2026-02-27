@@ -965,8 +965,7 @@ const NuevaVenta = () => {
                   ))}
                 </div>
               </div>
-            )}
-            </div>
+              )}
             <div className="mt-3 pt-3 border-t">
               <div className="flex flex-wrap items-end gap-2">
                 <div className="flex-1 min-w-[140px]">
