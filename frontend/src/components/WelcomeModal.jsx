@@ -5,12 +5,18 @@ import {
   MessageCircle, 
   Wine, 
   Users,
-  Sparkles
+  Sparkles,
+  Percent
 } from 'lucide-react';
 
-const NEWS_KEY = 'vpm_news_seen_v1';
+const NEWS_KEY = 'vpm_news_seen_v2';
 
 const features = [
+  {
+    icon: Percent,
+    title: 'Descuento/Recargo Global',
+    description: 'En Nueva Venta ahora podés aplicar descuentos o recargos globales a la venta completa, con motivo opcional.'
+  },
   {
     icon: DollarSign,
     title: 'Control de Rentabilidad',
