@@ -966,71 +966,58 @@ const NuevaVenta = () => {
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
-
-        <Card className="py-3">
-          <CardHeader className="py-2 pb-1">
-            <CardTitle className="text-base">Ajustes de Venta</CardTitle>
-          </CardHeader>
-          <CardContent className="py-2">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="ajuste-monto" className="text-xs">
-                  Monto del Ajuste
-                </Label>
-                <div className="relative">
-                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">$</span>
-                  <Input
-                    id="ajuste-monto"
-                    type="number"
-                    step="0.01"
-                    placeholder="0 (negativo = descuento)"
-                    value={ajusteMonto}
-                    onChange={(e) => setAjusteMonto(e.target.value)}
-                    className={`h-8 pl-5 pr-7 text-sm [-moz-appearance:_textfield] [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none ${
-                      ajusteMonto && parseFloat(ajusteMonto) < 0 ? 'border-green-500 text-green-600' : 
-                      ajusteMonto && parseFloat(ajusteMonto) > 0 ? 'border-red-500 text-red-600' : ''
-                    }`}
-                  />
-                  {ajusteMonto && (
-                    <button
-                      type="button"
-                      onClick={() => setAjusteMonto('')}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
+            </div>
+            <div className="mt-3 pt-3 border-t">
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="flex-1 min-w-[140px]">
+                  <Label htmlFor="ajuste-monto" className="text-xs text-muted-foreground">
+                    Ajuste
+                  </Label>
+                  <div className="relative">
+                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">$</span>
+                    <Input
+                      id="ajuste-monto"
+                      type="number"
+                      step="0.01"
+                      placeholder="0"
+                      value={ajusteMonto}
+                      onChange={(e) => setAjusteMonto(e.target.value)}
+                      className={`h-7 pl-5 pr-6 text-xs [-moz-appearance:_textfield] [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none ${
+                        ajusteMonto && parseFloat(ajusteMonto) < 0 ? 'border-green-500 text-green-600' : 
+                        ajusteMonto && parseFloat(ajusteMonto) > 0 ? 'border-red-500 text-red-600' : ''
+                      }`}
+                    />
+                    {ajusteMonto && (
+                      <button
+                        type="button"
+                        onClick={() => { setAjusteMonto(''); setAjusteDetalle(''); }}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Valor negativo = Descuento | Valor positivo = Recargo
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="ajuste-detalle" className="text-xs">
-                  Motivo / Detalle
-                </Label>
-                <Input
-                  id="ajuste-detalle"
-                  type="text"
-                  placeholder="Ej: Pago con tarjeta, Cliente frecuente..."
-                  value={ajusteDetalle}
-                  onChange={(e) => setAjusteDetalle(e.target.value)}
-                  className="h-8 text-sm"
-                />
+                <div className="flex-[2] min-w-[200px]">
+                  <Label htmlFor="ajuste-detalle" className="text-xs text-muted-foreground">
+                    Detalle
+                  </Label>
+                  <Input
+                    id="ajuste-detalle"
+                    type="text"
+                    placeholder="Motivo (opcional)"
+                    value={ajusteDetalle}
+                    onChange={(e) => setAjusteDetalle(e.target.value)}
+                    className="h-7 text-xs"
+                  />
+                </div>
+                {ajusteMonto && parseFloat(ajusteMonto) !== 0 && (
+                  <div className={`flex items-center px-2 py-1 rounded text-xs font-medium ${parseFloat(ajusteMonto) < 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    {parseFloat(ajusteMonto) < 0 ? 'Desc:' : 'Rec:'} {parseFloat(ajusteMonto) < 0 ? '-' : '+'}{formatCurrency(Math.abs(parseFloat(ajusteMonto)), showCents)}
+                  </div>
+                )}
               </div>
             </div>
-            {ajusteMonto && parseFloat(ajusteMonto) !== 0 && (
-              <div className="mt-3 pt-2 border-t text-sm">
-                <span className="text-muted-foreground">Ajuste: </span>
-                <span className={parseFloat(ajusteMonto) < 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
-                  {parseFloat(ajusteMonto) < 0 ? '-' : '+'}
-                  {formatCurrency(Math.abs(parseFloat(ajusteMonto)), showCents)}
-                  {ajusteDetalle && <span className="text-muted-foreground ml-1">({ajusteDetalle})</span>}
-                </span>
-              </div>
-            )}
           </CardContent>
         </Card>
 
