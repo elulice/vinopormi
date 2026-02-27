@@ -46,10 +46,12 @@ const SeccionClientes = () => {
     }
   };
 
-  const formatPrice = (price) => {
+  const formatPrice = (price, showCents = false) => {
     return new Intl.NumberFormat("es-AR", {
       style: "currency",
       currency: "ARS",
+      minimumFractionDigits: showCents ? 2 : 0,
+      maximumFractionDigits: showCents ? 2 : 0,
     }).format(price);
   };
 
@@ -71,12 +73,15 @@ const SeccionClientes = () => {
     
     let saldoAcumulado = 0;
     const movimientosConSaldo = movimientosOrdenados.map((mov) => {
-      saldoAcumulado += mov.monto;
+      if (mov.tipo === 'cargo') {
+        saldoAcumulado -= mov.monto;
+      } else {
+        saldoAcumulado += mov.monto;
+      }
       return { ...mov, saldo_progresivo: saldoAcumulado };
     });
     
     return movimientosConSaldo.reverse();
-  };
   };
 
   const totalCompras = ventas.reduce((sum, v) => sum + v.total, 0);
@@ -87,7 +92,7 @@ const SeccionClientes = () => {
       <NavbarPublico />
 
       <section className="py-12 sm:py-16 bg-gray-50">
-        <div className="max-w-md mx-auto px-4 sm:px-6">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <h1 className="font-marthin text-2xl sm:text-3xl font-bold text-center text-primary mb-2">
             Mi Cuenta
           </h1>
@@ -148,7 +153,7 @@ const SeccionClientes = () => {
                         <span className="text-gray-500">Saldo Cuenta Corriente</span>
                         <span className={`font-bold text-lg ${cliente.saldo < 0 ? 'text-red-500' : 'text-green-500'}`}>
                           {cliente.saldo < 0 
-                            ? formatPrice(Math.abs(cliente.saldo))
+                            ? `-${formatPrice(Math.abs(cliente.saldo))}`
                             : formatPrice(cliente.saldo)
                           }
                         </span>
@@ -172,12 +177,19 @@ const SeccionClientes = () => {
                     Movimientos de Cuenta Corriente
                   </h3>
                   <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                    {movimientos.map((mov, index) => (
+                    {/* Encabezado de tabla */}
+                    <div className="flex items-center justify-between p-3 bg-gray-50 border-b border-gray-200">
+                      <span className="text-gray-500 text-xs font-medium w-20 sm:w-24">Fecha</span>
+                      <span className="text-gray-500 text-xs font-medium flex-1 mx-2">Concepto</span>
+                      <span className="text-gray-500 text-xs font-medium w-24 sm:w-28 text-right">Monto</span>
+                      <span className="text-gray-500 text-xs font-medium w-28 sm:w-32 text-right">Saldo</span>
+                    </div>
+                    {getMovimientosConSaldo().map((mov, index) => (
                       <div 
                         key={index}
                         className="flex items-center justify-between p-3 border-b border-gray-100 last:border-b-0"
                       >
-                        <span className="text-gray-600 text-sm">
+                        <span className="text-gray-600 text-sm w-20 sm:w-24">
                           {formatDate(mov.fecha)}
                         </span>
                         
@@ -185,10 +197,19 @@ const SeccionClientes = () => {
                           {mov.concepto}
                         </span>
                         
-                        <span className={`font-sans font-bold ${
+                        <span className={`font-sans font-medium w-24 sm:w-28 text-right ${
                           mov.tipo === 'pago' ? 'text-green-600' : 'text-red-500'
                         }`}>
-                          {mov.tipo === 'pago' ? '+' : '-'}{formatPrice(mov.monto)}
+                          {mov.tipo === 'pago' ? '+' : '-'}{formatPrice(mov.monto, false)}
+                        </span>
+                        
+                        <span className={`font-sans font-medium w-28 sm:w-32 text-right ${
+                          mov.saldo_progresivo < 0 ? 'text-red-600' : 'text-green-600'
+                        }`}>
+                          {mov.saldo_progresivo < 0 
+                            ? `-${formatPrice(Math.abs(mov.saldo_progresivo), false)}`
+                            : formatPrice(mov.saldo_progresivo, false)
+                          }
                         </span>
                       </div>
                     ))}
