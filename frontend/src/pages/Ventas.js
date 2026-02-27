@@ -41,7 +41,7 @@ const VirtualTable = ({ items, itemHeight, containerHeight, renderItem, headers 
     <div className="border rounded-md overflow-hidden">
       {/* Header fijo */}
       <div className="bg-muted sticky top-0 z-10">
-        <div className="grid grid-cols-6 gap-2 p-2 text-xs font-semibold">
+        <div className="grid grid-cols-7 gap-2 p-2 text-xs font-semibold">
           {headers.map((header, index) => (
             <div key={index} className={`${header.width}`}>
               {header.title}
@@ -250,12 +250,14 @@ const fetchVentas = useCallback(async () => {
           fullDate: date,
           ventas: [],
           total: 0,
+          ganancia_neta: 0,
           count: 0
         };
       }
       
       groups[dateKey].ventas.push(venta);
       groups[dateKey].total += venta.total;
+      groups[dateKey].ganancia_neta += venta.ganancia_neta || 0;
       groups[dateKey].count += 1;
     });
     
@@ -502,6 +504,7 @@ const clearFilters = () => {
       ), 
       width: 'col-span-1' 
     },
+    { title: 'Ganancia', width: 'col-span-1' },
     { title: 'Usuario', width: 'col-span-1' },
     { title: 'Medio Pago', width: 'col-span-1' },
     { title: 'Acciones', width: 'col-span-1' }
@@ -510,7 +513,7 @@ const clearFilters = () => {
   // Renderizado de filas individuales
   const renderRow = (venta, index) => (
     <div
-      className={`grid grid-cols-6 gap-2 px-2 py-1 cursor-pointer hover:bg-muted/50 transition-colors border-b text-sm items-center ${
+      className={`grid grid-cols-7 gap-2 px-2 py-1 cursor-pointer hover:bg-muted/50 transition-colors border-b text-sm items-center ${
         index % 2 === 0 ? 'bg-background' : 'bg-muted/20'
       }`}
       onClick={() => handleViewDetails(venta)}
@@ -529,9 +532,14 @@ const clearFilters = () => {
           </div>
         </div>
       </div>
-      <div className="col-span-1 flex items-center justify-end">
+      <div className="col-span-1 flex items-center">
         <div className="font-semibold text-primary text-xs">
           {formatCurrency(venta.total, showCents)}
+        </div>
+      </div>
+      <div className="col-span-1 flex items-center">
+        <div className={`font-semibold text-xs ${(venta.ganancia_neta || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+          {formatCurrency(venta.ganancia_neta || 0, showCents)}
         </div>
       </div>
       <div className="col-span-1 flex items-center text-xs text-muted-foreground truncate">
@@ -562,7 +570,7 @@ const clearFilters = () => {
           </div>
         )}
       </div>
-      <div className="col-span-1 flex items-center justify-center">
+      <div className="col-span-1 flex items-center">
         <Button
           variant="ghost"
           size="sm"
@@ -587,7 +595,7 @@ const clearFilters = () => {
       <div key={group.date} className="border-b">
         {/* Fila del grupo */}
         <div
-          className={`grid grid-cols-6 gap-2 px-2 py-1 cursor-pointer hover:bg-muted/50 transition-colors text-sm items-center ${
+          className={`grid grid-cols-7 gap-2 px-2 py-1 cursor-pointer hover:bg-muted/50 transition-colors text-sm items-center ${
             index % 2 === 0 ? 'bg-background' : 'bg-muted/20'
           }`}
           onClick={() => toggleGroup(group.date)}
@@ -610,7 +618,15 @@ const clearFilters = () => {
               {formatCurrency(group.total, showCents)}
             </div>
             <div className="text-xs text-muted-foreground">
-              Total día
+              Bruto
+            </div>
+          </div>
+          <div className="col-span-1">
+            <div className={`font-semibold text-xs ${(group.ganancia_neta || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {formatCurrency(group.ganancia_neta || 0, showCents)}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Neto
             </div>
           </div>
           <div className="col-span-1">
@@ -647,7 +663,7 @@ const clearFilters = () => {
             {group.ventas.map((venta, ventaIndex) => (
               <div
                 key={venta.id}
-                className="grid grid-cols-6 gap-2 p-2 cursor-pointer hover:bg-muted/50 transition-colors border-b border-border/50"
+                className="grid grid-cols-7 gap-2 p-2 cursor-pointer hover:bg-muted/50 transition-colors border-b border-border/50"
                 onClick={() => handleViewDetails(venta)}
                 style={{ paddingLeft: '1.5rem' }}
               >
@@ -668,16 +684,21 @@ const clearFilters = () => {
                   </div>
                 </div>
                 <div className="col-span-1">
-                  <div className="font-semibold text-primary">
+                  <div className="font-semibold text-primary text-xs">
                     {formatCurrency(venta.total, showCents)}
                   </div>
                 </div>
-                <div className="col-span-1 text-sm text-muted-foreground">
+                <div className="col-span-1">
+                  <div className={`font-semibold text-xs ${(venta.ganancia_neta || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {formatCurrency(venta.ganancia_neta || 0, showCents)}
+                  </div>
+                </div>
+                <div className="col-span-1 text-xs text-muted-foreground">
                   {venta.usuario_nombre || 'Usuario desconocido'}
                 </div>
                 <div className="col-span-1">
                   {venta.pagos && venta.pagos.length > 0 ? (
-                    <div className="text-sm">
+                    <div className="text-xs">
                       {venta.pagos.map((pago, idx) => (
                         <div key={idx} className="capitalize">
                           {pago.medio_pago?.replace('_', ' ')}
@@ -685,7 +706,7 @@ const clearFilters = () => {
                       ))}
                     </div>
                   ) : (
-                    <span className="text-sm capitalize">{venta.medio_pago.replace('_', ' ')}</span>
+                    <span className="text-xs capitalize">{venta.medio_pago.replace('_', ' ')}</span>
                   )}
                 </div>
                 <div className="col-span-1">
@@ -882,6 +903,9 @@ const clearFilters = () => {
             <div className="text-lg font-bold text-green-600">
               {formatCurrency(sortedVentas.reduce((sum, v) => sum + v.total, 0), showCents)}
             </div>
+            <div className="text-xs text-green-600/80">
+              Neto: {formatCurrency(sortedVentas.reduce((sum, v) => sum + (v.ganancia_neta || 0), 0), showCents)}
+            </div>
             <p className="text-xs text-muted-foreground">
               Total {filters.dateType === 'all' ? 'general' : 'filtrado'}
             </p>
@@ -894,6 +918,13 @@ const clearFilters = () => {
                 ? formatCurrency(sortedVentas.length > 0 ? sortedVentas.reduce((sum, v) => sum + v.total, 0) / sortedVentas.length : 0, showCents)
                 : formatCurrency(groupedVentas.length > 0 ? groupedVentas.reduce((sum, g) => sum + g.total, 0) / groupedVentas.length : 0, showCents)
               }
+            </div>
+            <div className="text-xs text-blue-600/80">
+              Neto: {formatCurrency(
+                viewMode === 'individual'
+                  ? (sortedVentas.length > 0 ? sortedVentas.reduce((sum, v) => sum + (v.ganancia_neta || 0), 0) / sortedVentas.length : 0)
+                  : (groupedVentas.length > 0 ? groupedVentas.reduce((sum, g) => sum + (g.ganancia_neta || 0), 0) / groupedVentas.length : 0)
+                , showCents)}
             </div>
             <p className="text-xs text-muted-foreground">
               {viewMode === 'individual' ? 'Promedio' : 'Promedio día'}
@@ -989,9 +1020,10 @@ const clearFilters = () => {
               <div className="hidden lg:block border rounded-md">
                 {/* Header fijo para vista agrupada */}
                 <div className="bg-muted sticky top-0 z-10">
-                  <div className="grid grid-cols-6 gap-2 p-2 text-xs font-semibold">
+                  <div className="grid grid-cols-7 gap-2 p-2 text-xs font-semibold">
                     <div className="col-span-2">Fecha</div>
-                    <div className="col-span-1">Total Día</div>
+                    <div className="col-span-1">Total Bruto</div>
+                    <div className="col-span-1">Ganancia</div>
                     <div className="col-span-1">Cant.</div>
                     <div className="col-span-1">Promedio</div>
                     <div className="col-span-1">Acción</div>
@@ -1003,7 +1035,7 @@ const clearFilters = () => {
               </div>
               
               {/* Versión móvil - Cards agrupadas */}
-              <div className="lg:hidden space-y-4">
+              <div className="lg:hidden space-y-2">
                 {paginatedData.map((group) => {
                   const isExpanded = expandedGroups.has(group.date);
                   
@@ -1011,24 +1043,27 @@ const clearFilters = () => {
                     <div key={group.date} className="border rounded-lg">
                       {/* Card del grupo */}
                       <div
-                        className="p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+                        className="p-2 cursor-pointer hover:bg-muted/50 transition-colors"
                         onClick={() => toggleGroup(group.date)}
                       >
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                              {isExpanded ? <ChevronDown className="w-5 h-5 text-primary" /> : <ChevronRight className="w-5 h-5 text-primary" />}
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                              {isExpanded ? <ChevronDown className="w-4 h-4 text-primary" /> : <ChevronRight className="w-4 h-4 text-primary" />}
                             </div>
                             <div>
-                              <div className="font-semibold text-lg">{group.dateLabel}</div>
+                              <div className="font-semibold text-sm">{group.dateLabel}</div>
                               <div className="text-xs text-muted-foreground">
-                                {format(group.fullDate, 'PPP', { locale: es })}
+                                {format(group.fullDate, 'dd/MM/yyyy')}
                               </div>
                             </div>
                           </div>
                           <div className="text-right">
-                            <div className="text-xl font-bold text-primary">
+                            <div className="text-base font-bold text-primary">
                               {formatCurrency(group.total, showCents)}
+                            </div>
+                            <div className="text-xs text-green-600">
+                              Neto: {formatCurrency(group.ganancia_neta || 0, showCents)}
                             </div>
                             <div className="text-xs text-muted-foreground">
                               {group.count} venta{group.count !== 1 ? 's' : ''}
@@ -1036,19 +1071,20 @@ const clearFilters = () => {
                           </div>
                         </div>
                         
-                        <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center justify-between text-xs">
                           <span className="text-muted-foreground">
-                            Promedio: {formatCurrency(group.count > 0 ? group.total / group.count : 0, showCents)}
+                            Prom: {formatCurrency(group.count > 0 ? group.total / group.count : 0, showCents)}
                           </span>
                           <Button
                             variant="outline"
                             size="sm"
+                            className="h-6 text-xs px-2"
                             onClick={(e) => {
                               e.stopPropagation();
                               toggleGroup(group.date);
                             }}
                           >
-                            {isExpanded ? 'Ocultar' : 'Ver'} Detalles
+                            {isExpanded ? 'Ocultar' : 'Ver'}
                           </Button>
                         </div>
                       </div>
@@ -1059,32 +1095,31 @@ const clearFilters = () => {
                           {group.ventas.map((venta) => (
                             <div
                               key={venta.id}
-                              className="p-4 border-b border-border/50 last:border-b-0 cursor-pointer hover:bg-muted/50 transition-colors"
+                              className="p-2 border-b border-border/50 last:border-b-0 cursor-pointer hover:bg-muted/50 transition-colors"
                               onClick={() => handleViewDetails(venta)}
                             >
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-6 h-6 bg-primary/5 rounded flex items-center justify-center">
-                                    <ShoppingCart className="w-3 h-3 text-primary" />
+                              <div className="flex items-center justify-between mb-1">
+                                <div className="flex items-center gap-1">
+                                  <div className="w-5 h-5 bg-primary/5 rounded flex items-center justify-center">
+                                    <ShoppingCart className="w-2 h-2 text-primary" />
                                   </div>
-                                  <span className="font-medium text-sm">#{venta.id.slice(0, 8)}</span>
+                                  <span className="font-medium text-xs">#{venta.id.slice(0, 8)}</span>
                                   <span className="text-xs text-muted-foreground">
                                     {format(safeParseDate(venta.fecha), 'HH:mm')}
                                   </span>
                                 </div>
-                                <span className="font-semibold text-primary">
-                                  {formatCurrency(venta.total, showCents)}
-                                </span>
+                                <div className="text-right">
+                                  <span className="font-semibold text-primary text-xs">
+                                    {formatCurrency(venta.total, showCents)}
+                                  </span>
+                                  <span className={`ml-2 text-xs ${(venta.ganancia_neta || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                    {formatCurrency(venta.ganancia_neta || 0, showCents)}
+                                  </span>
+                                </div>
                               </div>
                               
-                              {venta.cliente_nombre && (
-                                <div className="text-xs text-muted-foreground mb-1">
-                                  Cliente: {venta.cliente_nombre}
-                                </div>
-                              )}
-                              
                               <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                <span>{venta.usuario_nombre || 'Usuario desconocido'}</span>
+                                <span>{venta.usuario_nombre || 'User'}</span>
                                 <span className="capitalize">{venta.medio_pago.replace('_', ' ')}</span>
                               </div>
                             </div>

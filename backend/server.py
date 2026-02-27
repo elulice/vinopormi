@@ -90,6 +90,7 @@ class Producto(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     nombre: str
     precio_unitario: float
+    precio_costo: float = 0.0
     stock: int = 0
     tipo: str = "normal"  # "normal" | "promo"
     productos_incluidos: Optional[List[ProductoIncluido]] = None  # solo si es promo
@@ -103,6 +104,7 @@ class Producto(BaseModel):
 class ProductoCreate(BaseModel):
     nombre: str
     precio_unitario: float
+    precio_costo: float = 0.0
     stock: Optional[int] = 0
     tipo: str = "normal"
     productos_incluidos: Optional[List[ProductoIncluido]] = None
@@ -115,6 +117,7 @@ class ProductoCreate(BaseModel):
 class ProductoUpdate(BaseModel):
     nombre: Optional[str] = None
     precio_unitario: Optional[float] = None
+    precio_costo: Optional[float] = 0.0
     stock: Optional[int] = None
     tipo: Optional[str] = None
     productos_incluidos: Optional[List[ProductoIncluido]] = None
@@ -128,24 +131,13 @@ class ProductoUpdate(BaseModel):
 class ProductoCreate(BaseModel):
     nombre: str
     precio_unitario: float
+    precio_costo: float = 0.0
     stock: Optional[int] = 0
     tipo: str = "normal"
     productos_incluidos: Optional[List[ProductoIncluido]] = None
     descuento_cantidad_minima: Optional[int] = None
     descuento_precio_unitario: Optional[float] = None
     is_public: bool = False
-    image_url: Optional[str] = None
-
-class ProductoUpdate(BaseModel):
-    nombre: Optional[str] = None
-    precio_unitario: Optional[float] = None
-    stock: Optional[int] = None
-    tipo: Optional[str] = None
-    productos_incluidos: Optional[List[ProductoIncluido]] = None
-    descuento_cantidad_minima: Optional[int] = None
-    descuento_precio_unitario: Optional[float] = None
-    is_public: Optional[bool] = None
-    is_featured: Optional[bool] = None
     image_url: Optional[str] = None
 
 class Cliente(BaseModel):
@@ -178,6 +170,7 @@ class DetalleVenta(BaseModel):
     producto_nombre: str
     cantidad: int
     precio_unitario: float
+    precio_costo_unitario: float = 0.0
     subtotal: float
 
 class Venta(BaseModel):
@@ -185,6 +178,8 @@ class Venta(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     fecha: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     total: float
+    ganancia_bruta: float = 0.0
+    ganancia_neta: float = 0.0
     medio_pago: str
     cliente_id: Optional[str] = None
     cliente_nombre: Optional[str] = None
@@ -911,7 +906,12 @@ async def create_producto(
             detail=f"Ya existe un producto con el nombre '{input.nombre}'"
         )
     
-    producto_obj = Producto(**input.model_dump())
+    # Asegurar que precio_costo esté presente
+    producto_data = input.model_dump()
+    if 'precio_costo' not in producto_data or producto_data['precio_costo'] is None:
+        producto_data['precio_costo'] = 0.0
+    
+    producto_obj = Producto(**producto_data)
     doc = producto_obj.model_dump()
     doc['timestamp'] = doc['timestamp'].isoformat()
     
@@ -1065,7 +1065,17 @@ async def update_producto(
         'descuento_precio_unitario': producto.get('descuento_precio_unitario')
     }
     
-    update_data = {k: v for k, v in input.model_dump().items() if v is not None}
+    # Obtener todos los datos del input excepto los que son None
+    input_data = input.model_dump()
+    print(f"DEBUG input_data: {input_data}")
+    update_data = {k: v for k, v in input_data.items() if v is not None}
+    print(f"DEBUG update_data before force: {update_data}")
+    
+    # Forzar precio_costo si viene en el payload (inclusive si es 0)
+    if 'precio_costo' in input_data:
+        update_data['precio_costo'] = input_data['precio_costo']
+    
+    print(f"DEBUG update_data after force: {update_data}")
     
     if update_data:
         await db.productos.update_one({'id': producto_id}, {'$set': update_data})
@@ -1297,23 +1307,46 @@ async def delete_cliente(
 
 @api_router.post("/ventas", response_model=Venta)
 async def create_venta(input: VentaCreate, current_user: Usuario = Depends(get_current_user)):
-    # Unificar detalles por producto_id
+    # Unificar detalles por producto_id y buscar precio_costo
     detalles_unificados = {}
     for detalle in input.detalles:
+        # Buscar precio_costo del producto
+        producto = await db.productos.find_one({'id': detalle.producto_id}, {'precio_costo': 1, 'tipo': 1, 'productos_incluidos': 1})
+        precio_costo = 0.0
+        
+        if producto:
+            if producto.get('tipo') == 'promo' and producto.get('productos_incluidos'):
+                # Para promociones, calcular el costo basado en los productos incluidos
+                costo_promo = 0.0
+                for incluido in producto['productos_incluidos']:
+                    prod_incluido = await db.productos.find_one({'id': incluido['producto_id']}, {'precio_costo': 1})
+                    if prod_incluido:
+                        costo_promo += (prod_incluido.get('precio_costo', 0) or 0) * incluido.get('cantidad', 1)
+                precio_costo = costo_promo
+            else:
+                precio_costo = producto.get('precio_costo', 0) or 0
+        
         if detalle.producto_id in detalles_unificados:
             detalles_unificados[detalle.producto_id]['cantidad'] += detalle.cantidad
             detalles_unificados[detalle.producto_id]['subtotal'] += detalle.subtotal
+            detalles_unificados[detalle.producto_id]['precio_costo_unitario'] = precio_costo
+            detalles_unificados[detalle.producto_id]['costo_total'] += precio_costo * detalle.cantidad
         else:
             detalles_unificados[detalle.producto_id] = {
                 'producto_id': detalle.producto_id,
                 'producto_nombre': detalle.producto_nombre,
                 'cantidad': detalle.cantidad,
                 'precio_unitario': detalle.precio_unitario,
+                'precio_costo_unitario': precio_costo,
+                'costo_total': precio_costo * detalle.cantidad,
                 'subtotal': detalle.subtotal
             }
     
     detalles_finales = list(detalles_unificados.values())
     total = sum(d['subtotal'] for d in detalles_finales)
+    total_costos = sum(d.get('costo_total', 0) for d in detalles_finales)
+    ganancia_bruta = total
+    ganancia_neta = total - total_costos
     
     # Determinar medio_pago y pagos
     if input.pagos and len(input.pagos) > 0:
@@ -1340,14 +1373,28 @@ async def create_venta(input: VentaCreate, current_user: Usuario = Depends(get_c
     if input.pagos:
         pagos_guardar = [{"medio_pago": p.medio_pago, "monto": p.monto} for p in input.pagos]
     
+    # Limpiar detalles_finales para crear DetalleVenta (quitar campos temporales)
+    detalles_para_guardar = []
+    for d in detalles_finales:
+        detalles_para_guardar.append({
+            'producto_id': d['producto_id'],
+            'producto_nombre': d['producto_nombre'],
+            'cantidad': d['cantidad'],
+            'precio_unitario': d['precio_unitario'],
+            'precio_costo_unitario': d.get('precio_costo_unitario', 0),
+            'subtotal': d['subtotal']
+        })
+    
     venta_obj = Venta(
         total=total,
+        ganancia_bruta=ganancia_bruta,
+        ganancia_neta=ganancia_neta,
         medio_pago=medio_pago,
         cliente_id=input.cliente_id,
         cliente_nombre=cliente_nombre,
         usuario_id=current_user.id,
         usuario_nombre=current_user.nombre,
-        detalles=[DetalleVenta(**d) for d in detalles_finales],
+        detalles=[DetalleVenta(**d) for d in detalles_para_guardar],
         pagos=pagos_guardar
     )
     

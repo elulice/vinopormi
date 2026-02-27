@@ -215,6 +215,7 @@ const Productos = () => {
     setFormData({ 
       nombre: '', 
       precio_unitario: '', 
+      precio_costo: '',
       stock: '',
       tipo: 'normal',
       productos_incluidos: [],
@@ -235,6 +236,7 @@ const Productos = () => {
     const payload = {
       nombre: formData.nombre,
       precio_unitario: Number(formData.precio_unitario),
+      precio_costo: Number(formData.precio_costo) || 0,
       stock: formData.stock ? Number(formData.stock) : 0,
       tipo: formData.tipo,
       is_public: formData.is_public,
@@ -284,6 +286,7 @@ const Productos = () => {
     setFormData({
       nombre: producto.nombre,
       precio_unitario: String(producto.precio_unitario),
+      precio_costo: producto.precio_costo ? String(producto.precio_costo) : '',
       stock: producto.stock ? String(producto.stock) : '',
       tipo: producto.tipo || 'normal',
       productos_incluidos: productosInc,
@@ -697,15 +700,29 @@ const Productos = () => {
                   <Label className="text-xs">Precio Unitario</Label>
                   <Input
                     type="number"
-                  step="0.01"
-                  value={formData.precio_unitario}
-                  onChange={(e) =>
-                    setFormData({ ...formData, precio_unitario: e.target.value })
-                  }
-                  required
-                  className="h-7"
-                />
-              </div>
+                    step="0.01"
+                    value={formData.precio_unitario}
+                    onChange={(e) =>
+                      setFormData({ ...formData, precio_unitario: e.target.value })
+                    }
+                    required
+                    className="h-7"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs">Precio de Costo</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={formData.precio_costo}
+                    onChange={(e) =>
+                      setFormData({ ...formData, precio_costo: e.target.value })
+                    }
+                    className="h-7"
+                    placeholder="0.00"
+                  />
+                </div>
 
               {formData.tipo === 'normal' && (
                 <div>
