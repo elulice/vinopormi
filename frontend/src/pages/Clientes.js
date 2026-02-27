@@ -827,6 +827,24 @@ const Clientes = () => {
                 </div>
               </div>
 
+              {selectedVenta.ajuste_monto !== 0 && (
+                <div className={`flex justify-between items-center p-2 rounded-md flex-shrink-0 ${selectedVenta.ajuste_monto < 0 ? 'bg-green-50' : 'bg-red-50'}`}>
+                  <div className="flex items-center">
+                    <p className={`font-medium text-xs ${selectedVenta.ajuste_monto < 0 ? 'text-green-700' : 'text-red-700'}`}>
+                      {selectedVenta.ajuste_monto < 0 ? 'Descuento' : 'Recargo'}
+                    </p>
+                    {selectedVenta.ajuste_detalle && (
+                      <p className="text-xs text-muted-foreground ml-1">
+                        ({selectedVenta.ajuste_detalle})
+                      </p>
+                    )}
+                  </div>
+                  <p className={`font-semibold text-xs ${selectedVenta.ajuste_monto < 0 ? 'text-green-700' : 'text-red-700'}`}>
+                    {selectedVenta.ajuste_monto < 0 ? '-' : '+'}{formatCurrency(Math.abs(selectedVenta.ajuste_monto), showCents)}
+                  </p>
+                </div>
+              )}
+
               <div className="flex justify-between items-center p-2 bg-primary/10 rounded-md flex-shrink-0">
                 <span className="font-bold text-sm">Total</span>
                 <span className="text-lg font-bold text-primary">

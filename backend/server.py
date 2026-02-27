@@ -178,6 +178,8 @@ class Venta(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     fecha: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     total: float
+    ajuste_monto: float = 0.0
+    ajuste_detalle: Optional[str] = None
     ganancia_bruta: float = 0.0
     ganancia_neta: float = 0.0
     medio_pago: str
@@ -196,6 +198,8 @@ class VentaCreate(BaseModel):
     pagos: Optional[List[PagoVenta]] = None
     cliente_id: Optional[str] = None
     detalles: List[DetalleVenta]
+    ajuste_monto: float = 0.0
+    ajuste_detalle: Optional[str] = None
 
 class Proveedor(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -1347,7 +1351,9 @@ async def create_venta(input: VentaCreate, current_user: Usuario = Depends(get_c
             }
     
     detalles_finales = list(detalles_unificados.values())
-    total = sum(d['subtotal'] for d in detalles_finales)
+    subtotal_productos = sum(d['subtotal'] for d in detalles_finales)
+    ajuste_monto = input.ajuste_monto or 0.0
+    total = subtotal_productos + ajuste_monto
     total_costos = sum(d.get('costo_total', 0) for d in detalles_finales)
     ganancia_bruta = total
     ganancia_neta = total - total_costos
@@ -1391,6 +1397,8 @@ async def create_venta(input: VentaCreate, current_user: Usuario = Depends(get_c
     
     venta_obj = Venta(
         total=total,
+        ajuste_monto=ajuste_monto,
+        ajuste_detalle=input.ajuste_detalle,
         ganancia_bruta=ganancia_bruta,
         ganancia_neta=ganancia_neta,
         medio_pago=medio_pago,
