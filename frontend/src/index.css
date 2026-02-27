@@ -107,3 +107,21 @@ code {
         border-bottom-color: inherit;
     }
 }
+
+/* Scrollbar personalizado para comentarios de StickyNotes */
+.comentarios-scroll::-webkit-scrollbar {
+    width: 5px;
+}
+
+.comentarios-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.comentarios-scroll::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 10px;
+}
+
+.comentarios-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.25);
+}

@@ -376,7 +376,7 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
               </div>
               
               {/* Lista de comentarios */}
-              <div className="space-y-2 max-h-40 overflow-y-auto mb-2">
+              <div className="space-y-2 max-h-40 overflow-y-auto mb-2 comentarios-scroll">
                 {comentarios && comentarios.length > 0 ? (
                   comentarios.map((comentario) => (
                     <div 
