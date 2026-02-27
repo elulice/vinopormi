@@ -2274,9 +2274,8 @@ async def obtener_sticky_notes(current_user: Usuario = Depends(get_current_user)
                 timestamp = document.get('timestamp')
             
             tiempo_relativo = ""
+            now = datetime.now(timezone.utc)
             if timestamp:
-                now = datetime.now(timezone.utc)
-                
                 # Manejar timestamp con o sin timezone
                 if timestamp.tzinfo is None:
                     # Si no tiene timezone, asumir UTC
@@ -2296,6 +2295,25 @@ async def obtener_sticky_notes(current_user: Usuario = Depends(get_current_user)
             
             if editada:
                 tiempo_relativo = f"editado {tiempo_relativo}"
+            
+            # Calcular tiempo relativo de cada comentario
+            comentarios = document.get('comentarios', [])
+            for comentario in comentarios:
+                fecha_com = comentario.get('fecha')
+                if fecha_com:
+                    if fecha_com.tzinfo is None:
+                        fecha_com = fecha_com.replace(tzinfo=timezone.utc)
+                    diff_com = now - fecha_com
+                    if diff_com.days > 0:
+                        comentario['tiempo_relativo'] = f"hace {diff_com.days} día{'s' if diff_com.days != 1 else ''}"
+                    elif diff_com.seconds > 3600:
+                        hours = diff_com.seconds // 3600
+                        comentario['tiempo_relativo'] = f"hace {hours} hora{'s' if hours != 1 else ''}"
+                    elif diff_com.seconds > 60:
+                        minutes = diff_com.seconds // 60
+                        comentario['tiempo_relativo'] = f"hace {minutes} min"
+                    else:
+                        comentario['tiempo_relativo'] = "hace instantes"
             
             # Crear una copia sin el _id para evitar problemas de serialización
             doc_copy = {k: v for k, v in document.items() if k != '_id'}
@@ -2446,12 +2464,14 @@ async def agregar_comentario_sticky_note(
         if not existing_note:
             raise HTTPException(status_code=404, detail="Sticky note no encontrada")
         
+        fecha_comentario = datetime.now(timezone.utc)
         nuevo_comentario = {
             "id": str(uuid.uuid4()),
             "texto": comentario.texto,
             "autor_nombre": current_user.nombre,
             "autor_id": current_user.id,
-            "fecha": datetime.now(timezone.utc)
+            "fecha": fecha_comentario,
+            "tiempo_relativo": "hace instantes"
         }
         
         comentarios = existing_note.get("comentarios", [])

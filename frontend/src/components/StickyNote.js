@@ -189,19 +189,31 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
 
   const formatCommentDate = (dateStr) => {
     if (!dateStr) return '';
+    
     const date = new Date(dateStr);
     const now = new Date();
-    const diffMs = now - date;
+    
+    if (isNaN(date.getTime())) return '';
+    
+    const diffMs = now.getTime() - date.getTime();
+
+    if (diffMs < 0) return 'ahora';
+
+    const diffSecs = Math.floor(diffMs / 1000);
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) return 'ahora';
-    if (diffMins < 60) return `hace ${diffMins}m`;
-    if (diffHours < 24) return `hace ${diffHours}h`;
-    if (diffDays < 7) return `hace ${diffDays}d`;
-    
-    return date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
+    if (diffSecs < 60) return 'ahora';
+    if (diffMins < 60) return `hace ${diffMins} min`;
+    if (diffHours < 24) return `hace ${diffHours} h`;
+    if (diffDays < 7) return `hace ${diffDays} d`;
+
+    return date.toLocaleDateString('es-AR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: '2-digit'
+    });
   };
 
   const canDelete = user?.id === note.autor_id;
@@ -376,7 +388,7 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
                           {comentario.autor_nombre}
                         </span>
                         <span className="text-gray-500 text-[9px]">
-                          {formatCommentDate(comentario.fecha)}
+                          {comentario.tiempo_relativo || formatCommentDate(comentario.fecha)}
                         </span>
                       </div>
                       <p className="text-gray-800">{comentario.texto}</p>
