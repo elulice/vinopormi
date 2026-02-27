@@ -10,7 +10,8 @@ import {
   Pin, 
   PinOff,
   Palette,
-  Check
+  MessageCircle,
+  Send
 } from 'lucide-react';
 import { toast } from 'sonner';
 import axios from 'axios';
@@ -24,6 +25,9 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
   const [editFijada, setEditFijada] = useState(note.fijada);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [comentarios, setComentarios] = useState(note.comentarios || []);
+  const [newComment, setNewComment] = useState('');
 
   const colores = [
     { nombre: 'amarillo', clase: 'bg-yellow-200 border-yellow-300 hover:bg-yellow-300', value: 'yellow' },
@@ -137,9 +141,73 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
     }
   };
 
+  const handleAddComment = async () => {
+    if (!newComment.trim()) {
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error('No hay token de autenticación. Por favor, inicia sesión nuevamente.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await axios.post(
+        `${API}/sticky-notes/${note.id}/comentarios`,
+        { texto: newComment.trim() },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      const updatedComentarios = [...comentarios, response.data];
+      setComentarios(updatedComentarios);
+      setNewComment('');
+      toast.success('Comentario agregado');
+      
+      if (onUpdate) {
+        onUpdate({ ...note, comentarios: updatedComentarios });
+      }
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      if (error.code === 'NETWORK_ERROR') {
+        toast.error('Error de red: No se puede conectar al backend.');
+      } else if (error.response?.status === 401) {
+        toast.error('Token inválido. Inicia sesión nuevamente.');
+      } else {
+        toast.error('Error al agregar comentario: ' + (error.response?.data?.detail || error.message));
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatCommentDate = (dateStr) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'ahora';
+    if (diffMins < 60) return `hace ${diffMins}m`;
+    if (diffHours < 24) return `hace ${diffHours}h`;
+    if (diffDays < 7) return `hace ${diffDays}d`;
+    
+    return date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
+  };
+
   const canDelete = user?.id === note.autor_id;
   const canEdit = user?.id === note.autor_id;
   const tiempoRelativo = note.tiempo_relativo || 'hace instantes';
+  const commentCount = comentarios?.length || 0;
 
   return (
     <div className={`relative border-2 rounded-lg p-4 min-h-[150px] w-full max-w-xs transition-all duration-200 ${
@@ -162,6 +230,19 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
             {note.autor_nombre}
           </span>
           <div className="flex gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowComments(!showComments)}
+              className="h-4 w-6 p-0 text-gray-600 hover:text-blue-600 relative"
+            >
+              <MessageCircle className="w-3 h-3" />
+              {commentCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-[10px] rounded-full w-3.5 h-3.5 flex items-center justify-center">
+                  {commentCount}
+                </span>
+              )}
+            </Button>
             {canEdit && (
               <Button
                 variant="ghost"
@@ -271,6 +352,62 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
           <p className="text-sm text-gray-800 whitespace-pre-wrap mb-2">
             {note.texto}
           </p>
+          
+          {/* Sección de comentarios */}
+          {showComments && (
+            <div className="mt-3 pt-2 border-t border-gray-400/50">
+              <div className="flex items-center gap-1 mb-2">
+                <MessageCircle className="w-3 h-3 text-gray-600" />
+                <span className="text-xs font-semibold text-gray-600">
+                  Comentarios ({commentCount})
+                </span>
+              </div>
+              
+              {/* Lista de comentarios */}
+              <div className="space-y-2 max-h-40 overflow-y-auto mb-2">
+                {comentarios && comentarios.length > 0 ? (
+                  comentarios.map((comentario) => (
+                    <div 
+                      key={comentario.id} 
+                      className="bg-white/40 rounded p-2 text-xs border border-gray-400/30"
+                    >
+                      <div className="flex justify-between items-start mb-1">
+                        <span className="font-semibold text-gray-700 text-[10px]">
+                          {comentario.autor_nombre}
+                        </span>
+                        <span className="text-gray-500 text-[9px]">
+                          {formatCommentDate(comentario.fecha)}
+                        </span>
+                      </div>
+                      <p className="text-gray-800">{comentario.texto}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-gray-500 italic">Sin comentarios aún</p>
+                )}
+              </div>
+              
+              {/* Input para nuevo comentario */}
+              <div className="flex gap-1">
+                <input
+                  type="text"
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
+                  placeholder="Escribir comentario..."
+                  className="flex-1 text-xs px-2 py-1 rounded border border-gray-400/50 bg-white/50 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                />
+                <Button
+                  size="sm"
+                  onClick={handleAddComment}
+                  disabled={loading || !newComment.trim()}
+                  className="h-6 w-6 p-0 bg-blue-500 hover:bg-blue-600"
+                >
+                  <Send className="w-3 h-3" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

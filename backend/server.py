@@ -311,6 +311,7 @@ class StickyNote(BaseModel):
     editada: bool = False  # Si la nota fue editada
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     fecha_actualizacion: Optional[datetime] = None  # Timestamp de última edición
+    comentarios: List[dict] = Field(default_factory=list)  # Lista de comentarios
 
 class StickyNoteCreate(BaseModel):
     texto: str
@@ -321,6 +322,9 @@ class StickyNoteUpdate(BaseModel):
     texto: Optional[str] = None
     color: Optional[str] = None
     fijada: Optional[bool] = None
+
+class StickyNoteComentario(BaseModel):
+    texto: str
 
 class ProductoPublico(BaseModel):
     nombre: str
@@ -2391,6 +2395,7 @@ async def actualizar_sticky_note(
             "editada": updated_note.get('editada', False),
             "timestamp": updated_note['timestamp'],
             "fecha_actualizacion": updated_note.get('fecha_actualizacion'),
+            "comentarios": updated_note.get('comentarios', []),
             "tiempo_relativo": tiempo_relativo
         }
     except Exception as e:
@@ -2428,6 +2433,40 @@ async def eliminar_sticky_note(
         return {"message": "Sticky note eliminada correctamente"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al eliminar sticky note: {str(e)}")
+
+@api_router.post("/sticky-notes/{note_id}/comentarios", response_model=dict)
+async def agregar_comentario_sticky_note(
+    note_id: str,
+    comentario: StickyNoteComentario,
+    current_user: Usuario = Depends(get_current_user)
+):
+    """Agrega un comentario a una sticky note (cualquier usuario puede comentar)"""
+    try:
+        existing_note = await db["sticky_notes"].find_one({"id": note_id})
+        if not existing_note:
+            raise HTTPException(status_code=404, detail="Sticky note no encontrada")
+        
+        nuevo_comentario = {
+            "id": str(uuid.uuid4()),
+            "texto": comentario.texto,
+            "autor_nombre": current_user.nombre,
+            "autor_id": current_user.id,
+            "fecha": datetime.now(timezone.utc)
+        }
+        
+        comentarios = existing_note.get("comentarios", [])
+        comentarios.append(nuevo_comentario)
+        
+        await db["sticky_notes"].update_one(
+            {"id": note_id},
+            {"$set": {"comentarios": comentarios}}
+        )
+        
+        return nuevo_comentario
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al agregar comentario: {str(e)}")
 
 # ===== MERCADOPAGO - TRANSFERENCIAS =====
 
