@@ -62,6 +62,23 @@ const SeccionClientes = () => {
     });
   };
 
+  const getMovimientosConSaldo = () => {
+    if (!movimientos || movimientos.length === 0) return [];
+    
+    const movimientosOrdenados = [...movimientos].sort(
+      (a, b) => new Date(a.fecha) - new Date(b.fecha)
+    );
+    
+    let saldoAcumulado = 0;
+    const movimientosConSaldo = movimientosOrdenados.map((mov) => {
+      saldoAcumulado += mov.monto;
+      return { ...mov, saldo_progresivo: saldoAcumulado };
+    });
+    
+    return movimientosConSaldo.reverse();
+  };
+  };
+
   const totalCompras = ventas.reduce((sum, v) => sum + v.total, 0);
   const tieneCuentaCorriente = cliente?.saldo !== 0;
 
@@ -116,7 +133,7 @@ const SeccionClientes = () => {
                   <h2 className="font-sans text-2xl mb-1">
                     ¡Bienvenido{cliente.apellido ? ` ${cliente.apellido}` : ""}, {cliente.nombre}!
                   </h2>
-                  <p className="text-white/70 text-sm">Miembro VIP</p>
+                  <p className="text-white/70 text-sm">Miembro</p>
                 </div>
                 
                 <div className="bg-white p-4">

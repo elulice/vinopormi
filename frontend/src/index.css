@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Playfair+Display:wght@400;600;700&family=Great+Vibes&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -29,8 +30,10 @@ code {
 @layer base {
     .font-marthin {
         font-family: 'Marthin Slant', cursive;
-        letter-spacing: 0;
-        word-spacing: -0.25rem;
+    }
+    
+    .font-great-vibes {
+        font-family: 'Great Vibes', cursive;
     }
     
     .font-marthin-lg {

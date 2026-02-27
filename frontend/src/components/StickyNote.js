@@ -25,7 +25,7 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
   const [editFijada, setEditFijada] = useState(note.fijada);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [showComments, setShowComments] = useState(false);
+  const [showComments, setShowComments] = useState(true);
   const [comentarios, setComentarios] = useState(note.comentarios || []);
   const [newComment, setNewComment] = useState('');
 

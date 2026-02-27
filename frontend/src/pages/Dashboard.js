@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import '@/components/Dashboard.css';
 import { formatCurrency, formatNumber } from '@/lib/currency';
 import StickyNotesContainer from '@/components/StickyNotesContainer';
+import WelcomeModal from '@/components/WelcomeModal';
 import { API } from '@/lib/config';
 import { apiGet, apiPut } from '@/lib/api';
 
@@ -270,6 +271,9 @@ const Dashboard = () => {
       <div className="!mt-3">
         <StickyNotesContainer />
       </div>
+
+      {/* Modal de Bienvenida/Novedades */}
+      <WelcomeModal />
     </div>
   );
 };
