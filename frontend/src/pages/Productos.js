@@ -130,7 +130,7 @@ const Productos = () => {
       setLoading(false);
       setLoadingPage(false);
     }
-  }, [pagination.limit]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pagination.limit, searchTerm, filters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Mantener la referencia actualizada
   fetchProductosRef.current = fetchProductos;
@@ -142,7 +142,8 @@ const Productos = () => {
   // Recargar cuando cambian los filtros
   useEffect(() => {
     fetchProductosRef.current?.(1, searchTerm, filters);
-  }, [filters, searchTerm]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters]);
 
   useEffect(() => {
     if (dialogOpen && formData.tipo === 'promo') {
