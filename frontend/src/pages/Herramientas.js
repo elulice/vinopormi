@@ -14,7 +14,7 @@ import { AlertTriangle, Trash2, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { API, BACKEND_URL } from '@/lib/config';
+import { API } from '@/lib/config';
 import { apiPost } from '@/lib/api';
 
 const Herramientas = () => {
@@ -28,6 +28,7 @@ const Herramientas = () => {
   const entidadesOptions = [
     { id: 'producto', label: 'Productos' },
     { id: 'cliente', label: 'Cuentas Corrientes' },
+    { id: 'proveedor', label: 'Proveedores' },
     { id: 'egreso', label: 'Egresos' },
     { id: 'usuario', label: 'Usuarios' },
     { id: 'sticky_note', label: 'Sticky Notes' }
@@ -54,11 +55,11 @@ const Herramientas = () => {
     
     try {
       console.log("Iniciando limpieza de base de datos...");
-      console.log("URL:", `${BACKEND_URL}/limpiar-base-datos-direct`);
+      console.log("URL:", `${API}/limpiar-base-datos-direct`);
       console.log("User:", user);
       
       // Usar endpoint directo - no va por /api
-      const response = await apiPost(`${BACKEND_URL}/limpiar-base-datos-direct`, {});
+      const response = await apiPost(`${API}/limpiar-base-datos-direct`, {});
       
       console.log("Respuesta del servidor:", response.data);
       toast.success(response.data.message);
@@ -99,7 +100,7 @@ const Herramientas = () => {
     setLoading(true);
     
     try {
-      const response = await apiPost(`${BACKEND_URL}/limpiar-auditoria-direct`, 
+      const response = await apiPost(`${API}/limpiar-auditoria-direct`, 
         { entidades: entidadesSeleccionadas }
       );
       
@@ -128,7 +129,7 @@ const Herramientas = () => {
     setLoading(true);
     
     try {
-      const response = await apiPost(`${BACKEND_URL}/limpiar-login-registros-direct`, {});
+      const response = await apiPost(`${API}/limpiar-login-registros-direct`, {});
       
       toast.success(`${response.data.message} (${response.data.eliminados} registros)`);
       setLoginDialogOpen(false);

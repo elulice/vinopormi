@@ -171,7 +171,7 @@ const PaginaCatalogo = () => {
 
           {!loading && !error && displayedProductos.length > 0 && (
             <>
-              <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 gap-3">
+              <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
                 {displayedProductos.map((producto, index) => (
                   <div
                     key={`${producto.id}-${index}`}
