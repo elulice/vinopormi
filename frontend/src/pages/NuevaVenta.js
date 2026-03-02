@@ -41,6 +41,9 @@ const NuevaVenta = () => {
   ]);
   const [multiplesPagos, setMultiplesPagos] = useState(false);
   
+  // Estado para cálculo de vuelto
+  const [pagaCon, setPagaCon] = useState('');
+  
   // Estado para ajustes de venta
   const [ajusteMonto, setAjusteMonto] = useState('');
   const [ajusteDetalle, setAjusteDetalle] = useState('');
@@ -281,6 +284,19 @@ const NuevaVenta = () => {
     return Math.abs(getDiferencia()) < 0.01;
   };
 
+  // Verificar si hay efectivo en los pagos
+  const hayEfectivo = () => {
+    return pagos.some(p => p.medio === 'efectivo');
+  };
+
+  // Calcular vuelto
+  const calcularVuelto = () => {
+    if (!pagaCon || pagaCon === '') return 0;
+    const monto = parseFloat(pagaCon);
+    if (isNaN(monto)) return 0;
+    return monto - calcularTotal();
+  };
+
   const handleKeyDown = (e, index) => {
     if (!activeDetalleIndex === index || !productoSearchTerm) return;
 
@@ -417,6 +433,7 @@ const NuevaVenta = () => {
     setMultiplesPagos(false);
     setAjusteMonto('');
     setAjusteDetalle('');
+    setPagaCon('');
     // Auto-focus on first product search field
     setTimeout(() => {
       if (searchRefs.current[0]) {
@@ -970,7 +987,7 @@ const NuevaVenta = () => {
               <div className="flex flex-wrap items-end gap-2">
                 <div className="flex-1 min-w-[140px]">
                   <Label htmlFor="ajuste-monto" className="text-xs text-muted-foreground">
-                    Ajuste
+                    Descuento/Recargo
                   </Label>
                   <div className="relative">
                     <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">$</span>
@@ -1019,6 +1036,70 @@ const NuevaVenta = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Calculadora de Vuelto - Solo visible cuando hay efectivo */}
+        {hayEfectivo() && (
+          <Card className="py-3 border-2 border-blue-200 bg-blue-50/50">
+            <CardHeader className="py-2 pb-2">
+              <CardTitle className="text-base text-blue-800">Cálculo de Vuelto</CardTitle>
+            </CardHeader>
+            <CardContent className="py-0">
+              <div className="flex flex-col lg:flex-row gap-3 items-end">
+                <div className="flex-1 w-full">
+                  <Label className="text-xs text-blue-700 mb-1 block">Paga con</Label>
+                  <div className="relative">
+                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-blue-600 font-semibold text-xs">$</span>
+                    <Input
+                      type="number"
+                      step="100"
+                      min="0"
+                      placeholder="0"
+                      value={pagaCon}
+                      onChange={(e) => setPagaCon(e.target.value)}
+                      className="h-7 pl-5 pr-6 text-sm font-semibold border-blue-300 focus:border-blue-500 bg-white [-moz-appearance:_textfield] [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setPagaCon('10000')}
+                    className="px-2 py-1 text-xs rounded border bg-white text-gray-600 border-gray-300 hover:bg-gray-50 font-medium"
+                  >
+                    $10.000
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPagaCon('20000')}
+                    className="px-2 py-1 text-xs rounded border bg-white text-gray-600 border-gray-300 hover:bg-gray-50 font-medium"
+                  >
+                    $20.000
+                  </button>
+                </div>
+              </div>
+
+              {/* Resultado del vuelto */}
+              {pagaCon && parseFloat(pagaCon) > 0 && (
+                <div className="mt-4 pt-3 border-t border-blue-200">
+                  {calcularVuelto() >= 0 ? (
+                    <div className="text-center">
+                      <p className="text-blue-600 text-sm mb-1">Vuelto</p>
+                      <p className="font-['Manrope'] text-4xl font-bold text-blue-800">
+                        ${calcularVuelto().toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <p className="text-red-500 text-sm font-medium">
+                        Faltan: ${Math.abs(calcularVuelto()).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="py-3">
           <CardContent className="py-2">

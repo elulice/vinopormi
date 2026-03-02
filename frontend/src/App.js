@@ -25,6 +25,12 @@ import { AuthProvider } from "@/context/AuthContext";
 import { ConfigProvider } from "@/context/ConfigContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
+window.addEventListener("wheel", () => {
+  if (document.activeElement && document.activeElement.type === "number") {
+    document.activeElement.blur();
+  }
+});
+
 function App() {
   return (
     <BrowserRouter>
