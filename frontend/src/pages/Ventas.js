@@ -131,6 +131,9 @@ const Ventas = () => {
   // Resetear página cuando cambian los filtros o el modo de vista
   useEffect(() => {
     setPagination(prev => ({ ...prev, page: 1 }));
+    setVentas([]);
+    setStats({ total_bruto: 0, total_neto: 0, cantidad: 0, promedio: 0 });
+    setExpandedGroups(new Set());
     setLoading(true);
     
     const timer = setTimeout(() => {
@@ -941,15 +944,15 @@ const clearFilters = () => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <Card className="py-2">
           <CardContent className="py-2">
-            <div className="text-lg font-bold text-primary">
-              {viewMode === 'grouped' ? stats.cantidad : stats.cantidad}
-            </div>
             <p className="text-xs text-muted-foreground">
               {viewMode === 'individual' 
                 ? `Ventas ${filters.dateType === 'all' ? 'totales' : 'filtradas'}`
                 : `Días ${filters.dateType === 'all' ? 'totales' : 'filtrados'}`
               }
             </p>
+            <div className="text-lg font-bold text-primary">
+              {viewMode === 'grouped' ? stats.cantidad : stats.cantidad}
+            </div>
             {viewMode === 'grouped' && stats.cantidad_ventas !== undefined && (
               <p className="text-xs text-muted-foreground">
                 ({stats.cantidad_ventas} ventas)
@@ -959,19 +962,22 @@ const clearFilters = () => {
         </Card>
         <Card className="py-2">
           <CardContent className="py-2">
+            <p className="text-xs text-muted-foreground">
+              Total {filters.dateType === 'all' ? 'general' : 'filtrado'}
+            </p>
             <div className="text-lg font-bold text-green-600">
               {formatCurrency(stats.total_bruto, showCents)}
             </div>
             <div className="text-xs text-green-600/80">
               Neto: {formatCurrency(stats.total_neto, showCents)}
             </div>
-            <p className="text-xs text-muted-foreground">
-              Total {filters.dateType === 'all' ? 'general' : 'filtrado'}
-            </p>
           </CardContent>
         </Card>
         <Card className="py-2">
           <CardContent className="py-2">
+            <p className="text-xs text-muted-foreground">
+              {viewMode === 'individual' ? 'Promedio venta' : 'Promedio día'}
+            </p>
             <div className="text-lg font-bold text-blue-600">
               {formatCurrency(stats.promedio, showCents)}
             </div>
@@ -980,9 +986,6 @@ const clearFilters = () => {
                 Neto: {formatCurrency(stats.promedio_neto, showCents)}
               </div>
             )}
-            <p className="text-xs text-muted-foreground">
-              {viewMode === 'individual' ? 'Promedio venta' : 'Promedio día'}
-            </p>
           </CardContent>
         </Card>
       </div>
