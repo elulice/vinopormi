@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, status
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, status, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
 import uuid
 from datetime import datetime, timezone, timedelta
+import math
 import bcrypt
 import jwt
 
@@ -1465,15 +1466,80 @@ async def create_venta(input: VentaCreate, current_user: Usuario = Depends(get_c
     
     return venta_obj
 
-@api_router.get("/ventas", response_model=List[Venta])
-async def get_ventas(current_user: Usuario = Depends(get_current_user)):
-    ventas = await db.ventas.find({}, {'_id': 0}).sort('fecha', -1).to_list(None)
+@api_router.get("/ventas")
+async def get_ventas(
+    page: int = Query(1, ge=1),
+    limit: int = Query(100, ge=1, le=500),
+    fecha_inicio: str = Query(None),
+    fecha_fin: str = Query(None),
+    metodo_pago: str = Query(None),
+    usuario_id: str = Query(None),
+    cliente_id: str = Query(None),
+    current_user: Usuario = Depends(get_current_user)
+):
+    # Verificar si el usuario quiere solo sus datos
+    solo_mis_datos = current_user.preferencias.get('soloMisDatos', False) if current_user.preferencias else False
     
-    for v in ventas:
+    # Construir filtro base
+    filtro = {}
+    
+    # Filtro por usuario
+    if solo_mis_datos:
+        filtro['usuario_id'] = current_user.id
+    elif usuario_id:
+        filtro['usuario_id'] = usuario_id
+    
+    # Filtro por cliente
+    if cliente_id:
+        filtro['cliente_id'] = cliente_id
+    
+    # Filtro por método de pago
+    if metodo_pago:
+        filtro['$or'] = [
+            {'medio_pago': metodo_pago},
+            {'pagos.medio_pago': metodo_pago}
+        ]
+    
+    # Filtro por fecha
+    if fecha_inicio or fecha_fin:
+        filtro['fecha'] = {}
+        if fecha_inicio:
+            filtro['fecha']['$gte'] = fecha_inicio
+        if fecha_fin:
+            filtro['fecha']['$lte'] = fecha_fin + 'T23:59:59'
+    
+    # Obtener todas las ventas con los filtros (sin límite para stats)
+    ventas_totales = await db.ventas.find(filtro, {'_id': 0}).sort('fecha', -1).to_list(None)
+    
+    # Calcular estadísticas globales
+    total_bruto = sum(v['total'] for v in ventas_totales)
+    total_neto = sum(v.get('ganancia_neta', 0) for v in ventas_totales)
+    cantidad_ventas = len(ventas_totales)
+    promedio = total_bruto / cantidad_ventas if cantidad_ventas > 0 else 0
+    
+    # Aplicar paginación
+    skip = (page - 1) * limit
+    ventas_paginadas = ventas_totales[skip:skip + limit]
+    
+    # Convertir fechas a datetime
+    for v in ventas_paginadas:
         if isinstance(v.get('fecha'), str):
             v['fecha'] = datetime.fromisoformat(v['fecha'])
     
-    return ventas
+    return {
+        "ventas": ventas_paginadas,
+        "pagination": {
+            "total": cantidad_ventas,
+            "pages": math.ceil(cantidad_ventas / limit) if cantidad_ventas > 0 else 0,
+            "page": page
+        },
+        "stats": {
+            "total_bruto": round(total_bruto, 2),
+            "total_neto": round(total_neto, 2),
+            "cantidad": cantidad_ventas,
+            "promedio": round(promedio, 2)
+        }
+    }
 
 @api_router.get("/ventas/{venta_id}", response_model=Venta)
 async def get_venta(venta_id: str, current_user: Usuario = Depends(get_current_user)):

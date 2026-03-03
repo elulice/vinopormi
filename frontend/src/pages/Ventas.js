@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ShoppingCart, Calendar, CreditCard, User, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, ChevronDown, ChevronRight, List, Layers, ChevronLeft, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { ShoppingCart, Calendar, CreditCard, User, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, ChevronDown, ChevronRight, List, Layers, ChevronLeft, ChevronsLeft, ChevronsRight, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, isWithinInterval, parseISO, startOfDay, endOfDay, isToday, isYesterday } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -82,10 +82,25 @@ const Ventas = () => {
   const [searchParams] = useSearchParams();
   const [ventas, setVentas] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingPage, setLoadingPage] = useState(false);
   const [selectedVenta, setSelectedVenta] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [usuarios, setUsuarios] = useState([]);
-  const [updatingMedioPago, setUpdatingMedioPago] = useState(false);
+  const [updatingMedioPago, setUpdatingMedioPago] = useState([]);
+  
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 100,
+    total: 0,
+    pages: 0
+  });
+  
+  const [stats, setStats] = useState({
+    total_bruto: 0,
+    total_neto: 0,
+    cantidad: 0,
+    promedio: 0
+  });
   
   // Estados para filtros y ordenamiento
   const [filters, setFilters] = useState({
@@ -108,6 +123,12 @@ const Ventas = () => {
       }));
     }
   }, [searchParams]);
+
+  // Resetear página cuando cambian los filtros
+  useEffect(() => {
+    setPagination(prev => ({ ...prev, page: 1 }));
+    fetchVentasRef.current?.(1, filters);
+  }, [filters]);
   
   const [sortConfig, setSortConfig] = useState({
     key: 'fecha',
@@ -117,23 +138,59 @@ const Ventas = () => {
   const [viewMode, setViewMode] = useState('individual'); // 'individual' or 'grouped'
   const [expandedGroups, setExpandedGroups] = useState(new Set());
 
-  // Estados de paginación
-  const [pagination, setPagination] = useState({
-    currentPage: 1,
-    itemsPerPage: 100,
-    totalItems: 0
-  });
+  const fetchVentasRef = useRef();
 
-const fetchVentas = useCallback(async () => {
+  const fetchVentas = useCallback(async (page = 1, currentFilters = null) => {
     try {
-      const response = await apiGet(`${API}/ventas`);
-      setVentas(response.data);
+      if (page === 1) {
+        setLoading(true);
+      } else {
+        setLoadingPage(true);
+      }
+
+      const filtros = currentFilters || filters;
+      
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: pagination.limit.toString()
+      });
+      
+      if (filtros.dateType === 'specific' && filtros.specificDate) {
+        params.append('fecha_inicio', filtros.specificDate);
+        params.append('fecha_fin', filtros.specificDate);
+      } else if (filtros.dateType === 'range' && filtros.startDate && filtros.endDate) {
+        params.append('fecha_inicio', filtros.startDate);
+        params.append('fecha_fin', filtros.endDate);
+      }
+      
+      if (filtros.medioPago !== 'all') {
+        params.append('metodo_pago', filtros.medioPago);
+      }
+      
+      if (filtros.usuario !== 'all') {
+        params.append('usuario_id', filtros.usuario);
+      }
+
+      const res = await apiGet(`${API}/ventas?${params}`);
+      
+      setVentas(res.data.ventas);
+      setPagination(prev => ({
+        ...prev,
+        page: res.data.pagination.page,
+        total: res.data.pagination.total,
+        pages: res.data.pagination.pages
+      }));
+      setStats(res.data.stats);
     } catch (error) {
       toast.error('Error al cargar ventas');
+      console.error('Error fetching ventas:', error);
     } finally {
       setLoading(false);
+      setLoadingPage(false);
     }
-  }, []);
+  }, [pagination.limit]);
+
+  fetchVentasRef.current = fetchVentas;
 
   const fetchUsuarios = useCallback(async () => {
     try {
@@ -145,9 +202,9 @@ const fetchVentas = useCallback(async () => {
   }, []);
 
   useEffect(() => {
-    fetchVentas();
+    fetchVentasRef.current?.(1);
     fetchUsuarios();
-  }, [fetchVentas, fetchUsuarios]);
+  }, []);
 
   // Función segura para parsear fechas
   const safeParseDate = useCallback((dateString) => {
@@ -278,41 +335,28 @@ const fetchVentas = useCallback(async () => {
 
   // Datos agrupados para vista agrupada
   const groupedVentas = useMemo(() => {
-    return groupVentasByDay(sortedVentas);
-  }, [groupVentasByDay, sortedVentas]);
+    return groupVentasByDay(ventas);
+  }, [groupVentasByDay, ventas]);
 
-  // Datos paginados según el modo de vista
-  const paginatedData = useMemo(() => {
-    const data = viewMode === 'individual' ? sortedVentas : groupedVentas;
-    const startIndex = (pagination.currentPage - 1) * pagination.itemsPerPage;
-    const endIndex = startIndex + pagination.itemsPerPage;
-    
-    return data.slice(startIndex, endIndex);
-  }, [sortedVentas, groupedVentas, pagination, viewMode]);
+  // Datos a mostrar según modo de vista
+  const displayData = useMemo(() => {
+    return viewMode === 'individual' ? ventas : groupedVentas;
+  }, [ventas, groupedVentas, viewMode]);
 
-  // Calcular total de páginas
-  const totalPages = useMemo(() => {
-    const totalItems = viewMode === 'individual' ? sortedVentas.length : groupedVentas.length;
-    return Math.ceil(totalItems / pagination.itemsPerPage);
-  }, [sortedVentas, groupedVentas, pagination.itemsPerPage, viewMode]);
+  // Calcular total de páginas del servidor
+  const totalPages = pagination.pages;
 
   // Funciones para manejar paginación
   const handlePageChange = (newPage) => {
-    setPagination(prev => ({ ...prev, currentPage: newPage }));
+    setPagination(prev => ({ ...prev, page: newPage }));
+    fetchVentasRef.current?.(newPage, filters);
+    window.scrollTo(0, 0);
   };
 
-  const handleItemsPerPageChange = (newItemsPerPage) => {
-    setPagination(prev => ({ 
-      ...prev, 
-      itemsPerPage: newItemsPerPage,
-      currentPage: 1 
-    }));
+  const handleItemsPerPageChange = (newLimit) => {
+    setPagination(prev => ({ ...prev, limit: newLimit, page: 1 }));
+    fetchVentasRef.current?.(1, { ...filters, limit: newLimit });
   };
-
-  // Resetear página cuando cambian los filtros
-  useEffect(() => {
-    setPagination(prev => ({ ...prev, currentPage: 1 }));
-  }, [filters]);
 
   // Componente de paginación
   const PaginationComponent = ({ currentPage, totalPages, onPageChange, itemsPerPage, onItemsPerPageChange, totalItems }) => {
@@ -888,7 +932,7 @@ const clearFilters = () => {
         <Card className="py-2">
           <CardContent className="py-2">
             <div className="text-lg font-bold text-primary">
-              {viewMode === 'individual' ? sortedVentas.length : groupedVentas.length}
+              {stats.cantidad}
             </div>
             <p className="text-xs text-muted-foreground">
               {viewMode === 'individual' 
@@ -901,10 +945,10 @@ const clearFilters = () => {
         <Card className="py-2">
           <CardContent className="py-2">
             <div className="text-lg font-bold text-green-600">
-              {formatCurrency(sortedVentas.reduce((sum, v) => sum + v.total, 0), showCents)}
+              {formatCurrency(stats.total_bruto, showCents)}
             </div>
             <div className="text-xs text-green-600/80">
-              Neto: {formatCurrency(sortedVentas.reduce((sum, v) => sum + (v.ganancia_neta || 0), 0), showCents)}
+              Neto: {formatCurrency(stats.total_neto, showCents)}
             </div>
             <p className="text-xs text-muted-foreground">
               Total {filters.dateType === 'all' ? 'general' : 'filtrado'}
@@ -914,17 +958,10 @@ const clearFilters = () => {
         <Card className="py-2">
           <CardContent className="py-2">
             <div className="text-lg font-bold text-blue-600">
-              {viewMode === 'individual' 
-                ? formatCurrency(sortedVentas.length > 0 ? sortedVentas.reduce((sum, v) => sum + v.total, 0) / sortedVentas.length : 0, showCents)
-                : formatCurrency(groupedVentas.length > 0 ? groupedVentas.reduce((sum, g) => sum + g.total, 0) / groupedVentas.length : 0, showCents)
-              }
+              {formatCurrency(stats.promedio, showCents)}
             </div>
             <div className="text-xs text-blue-600/80">
-              Neto: {formatCurrency(
-                viewMode === 'individual'
-                  ? (sortedVentas.length > 0 ? sortedVentas.reduce((sum, v) => sum + (v.ganancia_neta || 0), 0) / sortedVentas.length : 0)
-                  : (groupedVentas.length > 0 ? groupedVentas.reduce((sum, g) => sum + (g.ganancia_neta || 0), 0) / groupedVentas.length : 0)
-                , showCents)}
+              Neto: {formatCurrency(stats.cantidad > 0 ? stats.total_neto / stats.cantidad : 0, showCents)}
             </div>
             <p className="text-xs text-muted-foreground">
               {viewMode === 'individual' ? 'Promedio' : 'Promedio día'}
@@ -934,18 +971,18 @@ const clearFilters = () => {
       </div>
 
       {/* Tabla con virtual scrolling */}
-{paginatedData.length > 0 ? (
+      {!loadingPage && displayData.length > 0 ? (
         <div className="space-y-4">
           <div className="text-sm text-muted-foreground">
             {viewMode === 'individual' 
               ? (filters.dateType === 'all' 
                 ? totalPages > 1 
-                  ? `Ventas (página ${pagination.currentPage} de ${totalPages})`
+                  ? `Ventas (página ${pagination.page} de ${totalPages})`
                   : 'Mostrando todas las ventas'
                 : filters.dateType === 'specific'
-                  ? `Ventas del ${filters.specificDate ? format(parseISO(filters.specificDate), 'PPP', { locale: es }) : 'fecha seleccionada'}${totalPages > 1 ? ` (página ${pagination.currentPage} de ${totalPages})` : ''}`
-                  : `Ventas desde ${filters.startDate ? format(parseISO(filters.startDate), 'PPP', { locale: es }) : 'fecha inicio'} hasta ${filters.endDate ? format(parseISO(filters.endDate), 'PPP', { locale: es }) : 'fecha fin'}${totalPages > 1 ? ` (página ${pagination.currentPage} de ${totalPages})` : ''}`)
-              : `Ventas agrupadas por día (${groupedVentas.length} día${groupedVentas.length !== 1 ? 's' : ''})${totalPages > 1 ? ` - página ${pagination.currentPage} de ${totalPages}` : ''}`
+                  ? `Ventas del ${filters.specificDate ? format(parseISO(filters.specificDate), 'PPP', { locale: es }) : 'fecha seleccionada'}${totalPages > 1 ? ` (página ${pagination.page} de ${totalPages})` : ''}`
+                  : `Ventas desde ${filters.startDate ? format(parseISO(filters.startDate), 'PPP', { locale: es }) : 'fecha inicio'} hasta ${filters.endDate ? format(parseISO(filters.endDate), 'PPP', { locale: es }) : 'fecha fin'}${totalPages > 1 ? ` (página ${pagination.page} de ${totalPages})` : ''}`)
+              : `Ventas agrupadas por día (${groupedVentas.length} día${groupedVentas.length !== 1 ? 's' : ''})${totalPages > 1 ? ` - página ${pagination.page} de ${totalPages}` : ''}`
             }
           </div>
           
@@ -955,7 +992,7 @@ const clearFilters = () => {
               {/* Versión desktop - Tabla virtualizada */}
               <div className="hidden lg:block">
                 <VirtualTable
-                  items={paginatedData}
+                  items={displayData}
                   itemHeight={44}
                   containerHeight={400}
                   renderItem={renderRow}
@@ -965,7 +1002,7 @@ const clearFilters = () => {
               
               {/* Versión móvil - Cards */}
               <div className="lg:hidden space-y-2">
-                {paginatedData.map((venta, index) => (
+                {displayData.map((venta, index) => (
                   <MobileCard
                     key={venta.id}
                     onClick={() => handleViewDetails(venta)}
@@ -1031,12 +1068,12 @@ const clearFilters = () => {
                 </div>
                 
                 {/* Grupos */}
-                {paginatedData.map((group, index) => renderGroupRow(group, index))}
+                {displayData.map((group, index) => renderGroupRow(group, index))}
               </div>
               
               {/* Versión móvil - Cards agrupadas */}
               <div className="lg:hidden space-y-2">
-                {paginatedData.map((group) => {
+                {displayData.map((group) => {
                   const isExpanded = expandedGroups.has(group.date);
                   
                   return (
@@ -1135,15 +1172,15 @@ const clearFilters = () => {
           
           {/* Componente de paginación */}
           <PaginationComponent
-            currentPage={pagination.currentPage}
+            currentPage={pagination.page}
             totalPages={totalPages}
             onPageChange={handlePageChange}
-            itemsPerPage={pagination.itemsPerPage}
+            itemsPerPage={pagination.limit}
             onItemsPerPageChange={handleItemsPerPageChange}
-            totalItems={viewMode === 'individual' ? sortedVentas.length : groupedVentas.length}
+            totalItems={pagination.total}
           />
         </div>
-      ) : (
+      ) : !loadingPage && ventas.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <ShoppingCart className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
@@ -1159,6 +1196,16 @@ const clearFilters = () => {
             </p>
           </CardContent>
         </Card>
+      ) : null}
+
+      {/* Loading overlay para cambios de página */}
+      {loadingPage && (
+        <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
+          <div className="bg-white p-4 rounded-lg flex items-center gap-2">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span>Cargando...</span>
+          </div>
+        </div>
       )}
 
       {/* Diálogo de detalles */}
