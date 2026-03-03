@@ -201,6 +201,7 @@ const Ventas = () => {
       setLoading(false);
       setLoadingPage(false);
     }
+     // eslint-disable-next-line
   }, [pagination.limit]);
 
   fetchVentasRef.current = fetchVentas;
@@ -217,6 +218,7 @@ const Ventas = () => {
   useEffect(() => {
     fetchVentasRef.current?.(1);
     fetchUsuarios();
+     // eslint-disable-next-line
   }, []);
 
   // Función segura para parsear fechas
