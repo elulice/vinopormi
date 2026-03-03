@@ -1475,71 +1475,235 @@ async def get_ventas(
     metodo_pago: str = Query(None),
     usuario_id: str = Query(None),
     cliente_id: str = Query(None),
+    agrupar_por_dia: bool = Query(False),
     current_user: Usuario = Depends(get_current_user)
 ):
-    # Verificar si el usuario quiere solo sus datos
     solo_mis_datos = current_user.preferencias.get('soloMisDatos', False) if current_user.preferencias else False
     
-    # Construir filtro base
-    filtro = {}
+    match_stage = {}
     
-    # Filtro por usuario
     if solo_mis_datos:
-        filtro['usuario_id'] = current_user.id
+        match_stage['usuario_id'] = current_user.id
     elif usuario_id:
-        filtro['usuario_id'] = usuario_id
+        match_stage['usuario_id'] = usuario_id
     
-    # Filtro por cliente
     if cliente_id:
-        filtro['cliente_id'] = cliente_id
+        match_stage['cliente_id'] = cliente_id
     
-    # Filtro por método de pago
     if metodo_pago:
-        filtro['$or'] = [
+        match_stage['$or'] = [
             {'medio_pago': metodo_pago},
             {'pagos.medio_pago': metodo_pago}
         ]
     
-    # Filtro por fecha
     if fecha_inicio or fecha_fin:
-        filtro['fecha'] = {}
+        match_stage['fecha'] = {}
         if fecha_inicio:
-            filtro['fecha']['$gte'] = fecha_inicio
+            match_stage['fecha']['$gte'] = fecha_inicio
         if fecha_fin:
-            filtro['fecha']['$lte'] = fecha_fin + 'T23:59:59'
+            match_stage['fecha']['$lte'] = fecha_fin + 'T23:59:59'
     
-    # Obtener todas las ventas con los filtros (sin límite para stats)
-    ventas_totales = await db.ventas.find(filtro, {'_id': 0}).sort('fecha', -1).to_list(None)
-    
-    # Calcular estadísticas globales
-    total_bruto = sum(v['total'] for v in ventas_totales)
-    total_neto = sum(v.get('ganancia_neta', 0) for v in ventas_totales)
-    cantidad_ventas = len(ventas_totales)
-    promedio = total_bruto / cantidad_ventas if cantidad_ventas > 0 else 0
-    
-    # Aplicar paginación
-    skip = (page - 1) * limit
-    ventas_paginadas = ventas_totales[skip:skip + limit]
-    
-    # Convertir fechas a datetime
-    for v in ventas_paginadas:
-        if isinstance(v.get('fecha'), str):
-            v['fecha'] = datetime.fromisoformat(v['fecha'])
-    
-    return {
-        "ventas": ventas_paginadas,
-        "pagination": {
-            "total": cantidad_ventas,
-            "pages": math.ceil(cantidad_ventas / limit) if cantidad_ventas > 0 else 0,
-            "page": page
-        },
-        "stats": {
-            "total_bruto": round(total_bruto, 2),
-            "total_neto": round(total_neto, 2),
-            "cantidad": cantidad_ventas,
-            "promedio": round(promedio, 2)
+    if agrupar_por_dia:
+        pipeline = [
+            {"$match": match_stage},
+            {
+                "$addFields": {
+                    "fecha_str": {
+                        "$cond": {
+                            "if": {"$eq": [{"$type": "$fecha"}, "string"]},
+                            "then": "$fecha",
+                            "else": {"$dateToString": {"format": "%Y-%m-%dT%H:%M:%S", "date": "$fecha"}}
+                        }
+                    }
+                }
+            },
+            {"$project": {"_id": 0}},
+            {
+                "$group": {
+                    "_id": {"$substr": ["$fecha_str", 0, 10]},
+                    "ventas": {"$push": "$$ROOT"},
+                    "total_bruto": {"$sum": "$total"},
+                    "total_neto": {"$sum": {"$ifNull": ["$ganancia_neta", 0]}},
+                    "cantidad_ventas": {"$sum": 1}
+                }
+            },
+            {"$sort": {"_id": -1}},
+            {"$skip": (page - 1) * limit},
+            {"$limit": limit}
+        ]
+        
+        cursor = db.ventas.aggregate(pipeline)
+        resultados = await cursor.to_list(limit)
+        
+        count_pipeline = [
+            {"$match": match_stage},
+            {
+                "$addFields": {
+                    "fecha_str": {
+                        "$cond": {
+                            "if": {"$eq": [{"$type": "$fecha"}, "string"]},
+                            "then": "$fecha",
+                            "else": {"$dateToString": {"format": "%Y-%m-%dT%H:%M:%S", "date": "$fecha"}}
+                        }
+                    }
+                }
+            },
+            {
+                "$group": {
+                    "_id": {"$substr": ["$fecha_str", 0, 10]}
+                }
+            },
+            {"$count": "total_dias"}
+        ]
+        count_cursor = db.ventas.aggregate(count_pipeline)
+        count_result = await count_cursor.to_list(1)
+        total_dias = count_result[0]['total_dias'] if count_result else 0
+        
+        stats_pipeline = [
+            {"$match": match_stage},
+            {
+                "$group": {
+                    "_id": None,
+                    "total_bruto": {"$sum": "$total"},
+                    "total_neto": {"$sum": {"$ifNull": ["$ganancia_neta", 0]}},
+                    "dias_unicos": {"$addToSet": {
+                        "$dateToString": {"format": "%Y-%m-%d", "date": "$fecha"}
+                    }}
+                }
+            }
+        ]
+        stats_pipeline = [
+            {"$match": match_stage},
+            {
+                "$addFields": {
+                    "fecha_str": {
+                        "$cond": {
+                            "if": {"$eq": [{"$type": "$fecha"}, "string"]},
+                            "then": "$fecha",
+                            "else": {"$dateToString": {"format": "%Y-%m-%dT%H:%M:%S", "date": "$fecha"}}
+                        }
+                    }
+                }
+            },
+            {
+                "$group": {
+                    "_id": None,
+                    "total_bruto": {"$sum": "$total"},
+                    "total_neto": {"$sum": {"$ifNull": ["$ganancia_neta", 0]}},
+                    "dias_unicos": {"$addToSet": {"$substr": ["$fecha_str", 0, 10]}}
+                }
+            }
+        ]
+        stats_cursor = db.ventas.aggregate(stats_pipeline)
+        stats_result = await stats_cursor.to_list(1)
+        
+        if stats_result:
+            stats_data = stats_result[0]
+            total_bruto = stats_data.get('total_bruto', 0)
+            total_neto = stats_data.get('total_neto', 0)
+            dias_unicos = len(stats_data.get('dias_unicos', []))
+            promedio_diario = total_bruto / dias_unicos if dias_unicos > 0 else 0
+        else:
+            total_bruto = 0
+            total_neto = 0
+            dias_unicos = 0
+            promedio_diario = 0
+        
+        ventas_result = []
+        for grupo in resultados:
+            fecha_iso = datetime.fromisoformat(grupo['_id'])
+            for v in grupo.get('ventas', []):
+                if isinstance(v.get('fecha'), str):
+                    v['fecha'] = datetime.fromisoformat(v['fecha'])
+            ventas_result.extend(grupo.get('ventas', []))
+        
+        return {
+            "ventas": ventas_result,
+            "pagination": {
+                "total": total_dias,
+                "pages": math.ceil(total_dias / limit) if total_dias > 0 else 0,
+                "page": page
+            },
+            "stats": {
+                "total_bruto": round(total_bruto, 2),
+                "total_neto": round(total_neto, 2),
+                "cantidad": dias_unicos,
+                "promedio": round(promedio_diario, 2),
+                "promedio_neto": round(total_neto / dias_unicos, 2) if dias_unicos > 0 else 0,
+                "cantidad_ventas": sum(g.get('cantidad_ventas', 0) for g in resultados)
+            }
         }
-    }
+    else:
+        pipeline = [
+            {"$match": match_stage},
+            {"$project": {"_id": 0}},
+            {"$sort": {"fecha": -1}},
+            {"$skip": (page - 1) * limit},
+            {"$limit": limit}
+        ]
+        
+        cursor = db.ventas.aggregate(pipeline)
+        ventas_paginadas = await cursor.to_list(limit)
+        
+        total_count = await db.ventas.count_documents(match_stage)
+        
+        stats_pipeline = [
+            {"$match": match_stage},
+            {
+                "$addFields": {
+                    "fecha_str": {
+                        "$cond": {
+                            "if": {"$eq": [{"$type": "$fecha"}, "string"]},
+                            "then": "$fecha",
+                            "else": {"$dateToString": {"format": "%Y-%m-%dT%H:%M:%S", "date": "$fecha"}}
+                        }
+                    }
+                }
+            },
+            {
+                "$group": {
+                    "_id": None,
+                    "total_bruto": {"$sum": "$total"},
+                    "total_neto": {"$sum": {"$ifNull": ["$ganancia_neta", 0]}},
+                    "dias_unicos": {"$addToSet": {"$substr": ["$fecha_str", 0, 10]}}
+                }
+            }
+        ]
+        stats_cursor = db.ventas.aggregate(stats_pipeline)
+        stats_result = await stats_cursor.to_list(1)
+        
+        if stats_result:
+            stats_data = stats_result[0]
+            total_bruto = stats_data.get('total_bruto', 0)
+            total_neto = stats_data.get('total_neto', 0)
+            dias_unicos = len(stats_data.get('dias_unicos', []))
+            promedio = total_bruto / total_count if total_count > 0 else 0
+        else:
+            total_bruto = 0
+            total_neto = 0
+            dias_unicos = 0
+            promedio = 0
+        
+        for v in ventas_paginadas:
+            if isinstance(v.get('fecha'), str):
+                v['fecha'] = datetime.fromisoformat(v['fecha'])
+        
+        return {
+            "ventas": ventas_paginadas,
+            "pagination": {
+                "total": total_count,
+                "pages": math.ceil(total_count / limit) if total_count > 0 else 0,
+                "page": page
+            },
+            "stats": {
+                "total_bruto": round(total_bruto, 2),
+                "total_neto": round(total_neto, 2),
+                "cantidad": total_count,
+                "promedio": round(promedio, 2),
+                "promedio_neto": round(total_neto / total_count, 2) if total_count > 0 else 0,
+                "dias_unicos": dias_unicos
+            }
+        }
 
 @api_router.get("/ventas/{venta_id}", response_model=Venta)
 async def get_venta(venta_id: str, current_user: Usuario = Depends(get_current_user)):

@@ -124,18 +124,27 @@ const Ventas = () => {
     }
   }, [searchParams]);
 
-  // Resetear página cuando cambian los filtros
+  const [viewMode, setViewMode] = useState('individual'); // 'individual' or 'grouped'
+  const viewModeRef = useRef(viewMode);
+  viewModeRef.current = viewMode;
+
+  // Resetear página cuando cambian los filtros o el modo de vista
   useEffect(() => {
     setPagination(prev => ({ ...prev, page: 1 }));
-    fetchVentasRef.current?.(1, filters);
-  }, [filters]);
+    setLoading(true);
+    
+    const timer = setTimeout(() => {
+      fetchVentasRef.current?.(1, filters);
+    }, 50);
+    
+    return () => clearTimeout(timer);
+  }, [filters, viewMode]);
   
   const [sortConfig, setSortConfig] = useState({
     key: 'fecha',
     direction: 'desc' // 'asc' or 'desc'
   });
 
-  const [viewMode, setViewMode] = useState('individual'); // 'individual' or 'grouped'
   const [expandedGroups, setExpandedGroups] = useState(new Set());
 
   const fetchVentasRef = useRef();
@@ -152,7 +161,8 @@ const Ventas = () => {
       
       const params = new URLSearchParams({
         page: page.toString(),
-        limit: pagination.limit.toString()
+        limit: pagination.limit.toString(),
+        agrupar_por_dia: viewModeRef.current === 'grouped' ? 'true' : 'false'
       });
       
       if (filtros.dateType === 'specific' && filtros.specificDate) {
@@ -932,7 +942,7 @@ const clearFilters = () => {
         <Card className="py-2">
           <CardContent className="py-2">
             <div className="text-lg font-bold text-primary">
-              {stats.cantidad}
+              {viewMode === 'grouped' ? stats.cantidad : stats.cantidad}
             </div>
             <p className="text-xs text-muted-foreground">
               {viewMode === 'individual' 
@@ -940,6 +950,11 @@ const clearFilters = () => {
                 : `Días ${filters.dateType === 'all' ? 'totales' : 'filtrados'}`
               }
             </p>
+            {viewMode === 'grouped' && stats.cantidad_ventas !== undefined && (
+              <p className="text-xs text-muted-foreground">
+                ({stats.cantidad_ventas} ventas)
+              </p>
+            )}
           </CardContent>
         </Card>
         <Card className="py-2">
@@ -960,11 +975,13 @@ const clearFilters = () => {
             <div className="text-lg font-bold text-blue-600">
               {formatCurrency(stats.promedio, showCents)}
             </div>
-            <div className="text-xs text-blue-600/80">
-              Neto: {formatCurrency(stats.cantidad > 0 ? stats.total_neto / stats.cantidad : 0, showCents)}
-            </div>
+            {stats.promedio_neto !== undefined && (
+              <div className="text-xs text-blue-600/80">
+                Neto: {formatCurrency(stats.promedio_neto, showCents)}
+              </div>
+            )}
             <p className="text-xs text-muted-foreground">
-              {viewMode === 'individual' ? 'Promedio' : 'Promedio día'}
+              {viewMode === 'individual' ? 'Promedio venta' : 'Promedio día'}
             </p>
           </CardContent>
         </Card>
