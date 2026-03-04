@@ -127,15 +127,11 @@ const Ventas = () => {
   const [viewMode, setViewMode] = useState('individual'); // 'individual' or 'grouped'
   const viewModeRef = useRef(viewMode);
   viewModeRef.current = viewMode;
-
   // Resetear página cuando cambian los filtros o el modo de vista
   useEffect(() => {
     setPagination(prev => ({ ...prev, page: 1 }));
-    setVentas([]);
-    setStats({ total_bruto: 0, total_neto: 0, cantidad: 0, promedio: 0 });
     setExpandedGroups(new Set());
-    setLoading(true);
-    
+    setLoadingPage(true); // Usamos loadingPage para no destruir la tabla actual
     const timer = setTimeout(() => {
       fetchVentasRef.current?.(1, filters);
     }, 50);
@@ -154,17 +150,19 @@ const Ventas = () => {
 
   const fetchVentas = useCallback(async (page = 1, currentFilters = null) => {
     try {
-      if (page === 1) {
+      // Solo usar el loading de pantalla completa en la primera carga vacía
+      if (page === 1 && ventas.length === 0) {
         setLoading(true);
       } else {
-        setLoadingPage(true);
+        setLoadingPage(true); // Usa el overlay suave para evitar desmontar el DOM
       }
 
       const filtros = currentFilters || filters;
+      const currentLimit = viewModeRef.current === 'grouped' ? 300 : 100;
       
       const params = new URLSearchParams({
         page: page.toString(),
-        limit: pagination.limit.toString(),
+        limit: currentLimit.toString(),
         agrupar_por_dia: viewModeRef.current === 'grouped' ? 'true' : 'false'
       });
       
@@ -190,6 +188,7 @@ const Ventas = () => {
       setPagination(prev => ({
         ...prev,
         page: res.data.pagination.page,
+        limit: currentLimit,
         total: res.data.pagination.total,
         pages: res.data.pagination.pages
       }));
@@ -202,7 +201,7 @@ const Ventas = () => {
       setLoadingPage(false);
     }
      // eslint-disable-next-line
-  }, [pagination.limit]);
+  }, [filters]);
 
   fetchVentasRef.current = fetchVentas;
 
@@ -233,42 +232,8 @@ const Ventas = () => {
 
 // Aplicar filtros
   const filteredVentas = useMemo(() => {
-    let filtered = [...ventas];
-    
-    // Filtrar por fecha
-    if (filters.dateType === 'specific' && filters.specificDate) {
-      filtered = filtered.filter(venta => {
-        const ventaDate = safeParseDate(venta.fecha);
-        return format(ventaDate, 'yyyy-MM-dd') === filters.specificDate;
-      });
-    } else if (filters.dateType === 'range' && filters.startDate && filters.endDate) {
-      const start = startOfDay(parseISO(filters.startDate));
-      const end = endOfDay(parseISO(filters.endDate));
-      filtered = filtered.filter(venta => {
-        const ventaDate = safeParseDate(venta.fecha);
-        return isWithinInterval(ventaDate, { start, end });
-      });
-    }
-    
-    // Filtrar por medio de pago
-    if (filters.medioPago !== 'all') {
-      filtered = filtered.filter(venta => {
-        // Si tiene pagos múltiples, verificar si alguno coincide
-        if (venta.pagos && venta.pagos.length > 0) {
-          return venta.pagos.some(p => p.medio_pago === filters.medioPago);
-        }
-        // Si no, usar el medio_pago tradicional
-        return venta.medio_pago === filters.medioPago;
-      });
-    }
-    
-    // Filtrar por usuario
-    if (filters.usuario !== 'all') {
-      filtered = filtered.filter(venta => venta.usuario_id === filters.usuario);
-    }
-    
-    return filtered;
-  }, [filters, safeParseDate, ventas]);
+    return ventas;
+  }, [ventas]);
 
   // Aplicar ordenamiento
   const sortedVentas = useMemo(() => {
@@ -278,8 +243,8 @@ const Ventas = () => {
       let aVal, bVal;
       
       if (sortConfig.key === 'fecha') {
-        aVal = safeParseDate(a.fecha);
-        bVal = safeParseDate(b.fecha);
+        aVal = a.fecha || '';
+        bVal = b.fecha || '';
       } else if (sortConfig.key === 'total') {
         aVal = a.total;
         bVal = b.total;
@@ -355,8 +320,8 @@ const Ventas = () => {
 
   // Datos a mostrar según modo de vista
   const displayData = useMemo(() => {
-    return viewMode === 'individual' ? ventas : groupedVentas;
-  }, [ventas, groupedVentas, viewMode]);
+    return viewMode === 'individual' ? sortedVentas : groupedVentas;
+  }, [sortedVentas, groupedVentas, viewMode]);
 
   // Calcular total de páginas del servidor
   const totalPages = pagination.pages;
@@ -1024,7 +989,7 @@ const clearFilters = () => {
               
               {/* Versión móvil - Cards */}
               <div className="lg:hidden space-y-2">
-                {displayData.map((venta, index) => (
+                {displayData.slice(0, pagination.limit).map((venta, index) => (
                   <MobileCard
                     key={venta.id}
                     onClick={() => handleViewDetails(venta)}
