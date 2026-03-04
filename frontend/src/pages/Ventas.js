@@ -258,7 +258,7 @@ const Ventas = () => {
     });
     
     return sorted;
-  }, [filteredVentas, safeParseDate, sortConfig]);
+  }, [filteredVentas, sortConfig]);
 
   // Función para obtener etiqueta de fecha inteligente
   const getDateLabel = useCallback((date) => {
@@ -557,21 +557,21 @@ const clearFilters = () => {
         </div>
       </div>
       <div className="col-span-1 flex items-center">
-        <div className="font-semibold text-primary text-xs">
+        <div className="font-semibold text-primary text-xs px-1">
           {formatCurrency(venta.total, showCents)}
         </div>
       </div>
       <div className="col-span-1 flex items-center">
-        <div className={`font-semibold text-xs ${(venta.ganancia_neta || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+        <div className={`font-semibold text-xs px-1 ${(venta.ganancia_neta || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
           {formatCurrency(venta.ganancia_neta || 0, showCents)}
         </div>
       </div>
       <div className="col-span-1 flex items-center text-xs text-muted-foreground truncate">
-        {venta.usuario_nombre || 'Usuario desconocido'}
+      <div className='px-2 text-xs'>{venta.usuario_nombre || 'Usuario desconocido'}</div>
       </div>
       <div className="col-span-1 flex items-center">
         {venta.pagos && venta.pagos.length > 0 ? (
-          <div className="text-xs">
+          <div className="text-xs px-3">
             {venta.pagos.map((pago, idx) => (
               <div key={idx} className="capitalize">
                 {pago.medio_pago?.replace('_', ' ')}
@@ -707,20 +707,20 @@ const clearFilters = () => {
                     </div>
                   </div>
                 </div>
-                <div className="col-span-1">
+                <div className="col-span-1 flex items-center">
                   <div className="font-semibold text-primary text-xs">
                     {formatCurrency(venta.total, showCents)}
                   </div>
                 </div>
-                <div className="col-span-1">
+                <div className="col-span-1 flex items-center">
                   <div className={`font-semibold text-xs ${(venta.ganancia_neta || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                     {formatCurrency(venta.ganancia_neta || 0, showCents)}
                   </div>
                 </div>
-                <div className="col-span-1 text-xs text-muted-foreground">
+                <div className="col-span-1 text-xs text-muted-foreground flex items-center">
                   {venta.usuario_nombre || 'Usuario desconocido'}
                 </div>
-                <div className="col-span-1">
+                <div className="col-span-1 flex items-center">
                   {venta.pagos && venta.pagos.length > 0 ? (
                     <div className="text-xs">
                       {venta.pagos.map((pago, idx) => (
