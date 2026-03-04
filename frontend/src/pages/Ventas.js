@@ -129,9 +129,9 @@ const Ventas = () => {
   viewModeRef.current = viewMode;
   // Resetear página cuando cambian los filtros o el modo de vista
   useEffect(() => {
-    setPagination(prev => ({ ...prev, page: 1 }));
+    setPagination(prev => ({ ...prev, page: 1, limit: viewMode === 'grouped' ? 500 : 100 }));
     setExpandedGroups(new Set());
-    setLoadingPage(true); // Usamos loadingPage para no destruir la tabla actual
+    setLoadingPage(true);
     const timer = setTimeout(() => {
       fetchVentasRef.current?.(1, filters);
     }, 50);
@@ -158,7 +158,7 @@ const Ventas = () => {
       }
 
       const filtros = currentFilters || filters;
-      const currentLimit = viewModeRef.current === 'grouped' ? 300 : 100;
+      const currentLimit = filtros.limit || (viewModeRef.current === 'grouped' ? 500 : 100);
       
       const params = new URLSearchParams({
         page: page.toString(),
@@ -379,7 +379,7 @@ const Ventas = () => {
                 value={itemsPerPage.toString()}
                 onValueChange={(value) => onItemsPerPageChange(parseInt(value))}
               >
-                <SelectTrigger className="w-14 h-8 text-xs">
+                <SelectTrigger className="w-16 h-8 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
