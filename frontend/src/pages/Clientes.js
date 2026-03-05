@@ -562,7 +562,8 @@ const Clientes = () => {
                     return (
                       <div
                         key={mov.id}
-                        className="flex justify-between items-center p-2 bg-muted/50 rounded-md"
+                        className={`flex justify-between items-center p-2 bg-muted/50 rounded-md ${esVenta ? 'cursor-pointer hover:bg-muted' : ''}`}
+                        onClick={() => esVenta && handleViewVenta(mov)}
                       >
                         <div className="flex items-center gap-2">
                           {esVenta ? (
