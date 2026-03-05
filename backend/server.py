@@ -1480,13 +1480,11 @@ async def get_ventas(
     agrupar_por_dia: bool = Query(False),
     current_user: Usuario = Depends(get_current_user)
 ):
-    solo_mis_datos = current_user.preferencias.get('soloMisDatos', False) if current_user.preferencias else False
+    solo_mis_datos = False
     
     match_stage = {}
     
-    if solo_mis_datos:
-        match_stage['usuario_id'] = current_user.id
-    elif usuario_id:
+    if usuario_id:
         match_stage['usuario_id'] = usuario_id
     
     if cliente_id:
