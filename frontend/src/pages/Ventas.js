@@ -99,7 +99,8 @@ const Ventas = () => {
     total_bruto: 0,
     total_neto: 0,
     cantidad: 0,
-    promedio: 0
+    promedio: 0,
+    dias_unicos: 0
   });
   
   // Estados para filtros y ordenamiento
@@ -918,11 +919,16 @@ const clearFilters = () => {
               }
             </p>
             <div className="text-lg font-bold text-primary">
-              {viewMode === 'grouped' ? stats.cantidad : stats.cantidad}
+              {stats.cantidad}
             </div>
             {viewMode === 'grouped' && stats.cantidad_ventas !== undefined && (
               <p className="text-xs text-muted-foreground">
                 ({stats.cantidad_ventas} ventas)
+              </p>
+            )}
+            {viewMode === 'individual' && stats.dias_unicos !== undefined && (
+              <p className="text-xs text-muted-foreground">
+                ({stats.dias_unicos} días)
               </p>
             )}
           </CardContent>

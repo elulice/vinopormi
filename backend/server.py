@@ -1496,12 +1496,26 @@ async def get_ventas(
             {'pagos.medio_pago': metodo_pago}
         ]
     
+# --- REEMPLAZO PARA CORREGIR EL FILTRO DE FECHA ---
     if fecha_inicio or fecha_fin:
         match_stage['fecha'] = {}
+        # Definimos tu zona horaria (Argentina UTC-3)
+        tz_ar = timezone(timedelta(hours=-3))
+        
         if fecha_inicio:
-            match_stage['fecha']['$gte'] = fecha_inicio
+            # Tomamos el inicio del día local y lo pasamos a UTC para buscar en la DB
+            dt_inicio_local = datetime.strptime(fecha_inicio[:10], "%Y-%m-%d").replace(tzinfo=tz_ar)
+            dt_inicio_utc = dt_inicio_local.astimezone(timezone.utc)
+            match_stage['fecha']['$gte'] = dt_inicio_utc.isoformat()
+            
         if fecha_fin:
-            match_stage['fecha']['$lte'] = fecha_fin + 'T23:59:59'
+            # Tomamos el final del día local y lo pasamos a UTC para buscar en la DB
+            dt_fin_local = datetime.strptime(fecha_fin[:10], "%Y-%m-%d").replace(
+                hour=23, minute=59, second=59, microsecond=999999, tzinfo=tz_ar
+            )
+            dt_fin_utc = dt_fin_local.astimezone(timezone.utc)
+            match_stage['fecha']['$lte'] = dt_fin_utc.isoformat()
+    # ------------------------------------------------
     
     if agrupar_por_dia:
         pipeline = [

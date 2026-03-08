@@ -22,6 +22,7 @@ import {
   TrendingDown,
   Filter,
   Calendar,
+  X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, isWithinInterval, parseISO, startOfDay, endOfDay } from 'date-fns';
