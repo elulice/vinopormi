@@ -2811,6 +2811,141 @@ async def buscar_transferencias(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@api_router.get("/mercadopago/buscar-ventas-coincidentes")
+async def buscar_ventas_coincidentes(
+    monto: float,
+    fecha_inicio: str,
+    fecha_fin: str,
+    transferencia_id: Optional[str] = None,
+    current_user: Usuario = Depends(get_current_user)
+):
+    """Busca ventas que coincidan con una transferencia por monto y rango de fecha"""
+    try:
+        from dateutil import parser as date_parser
+        
+        dt_inicio = date_parser.parse(fecha_inicio)
+        dt_fin = date_parser.parse(fecha_fin)
+        
+        filtro_combinado = {
+            "fecha": {
+                "$gte": dt_inicio.isoformat(),
+                "$lte": dt_fin.isoformat()
+            },
+            "$or": [
+                {"medio_pago": "transferencia"},
+                {"pagos.medio_pago": "transferencia"},
+                {"pagos": {"$elemMatch": {"medio_pago": "transferencia", "monto": monto}}}
+            ]
+        }
+        
+        ventas = await db.ventas.find(filtro_combinado, {"_id": 0}).sort("fecha", -1).to_list(20)
+        
+        filtro_sin_fecha = {
+            "total": monto,
+            "$or": [
+                {"medio_pago": "transferencia"},
+                {"pagos": {"$elemMatch": {"medio_pago": "transferencia"}}}
+            ]
+        }
+        ventas_transferencia = await db.ventas.find(filtro_sin_fecha, {"_id": 0}).sort("fecha", -1).to_list(50)
+        
+        if transferencia_id:
+            config_asociacion = await db["configuracion"].find_one({
+                "tipo": "transferencias_asociaciones",
+                f"transferencias.{transferencia_id}": {"$exists": True}
+            })
+            
+            if config_asociacion:
+                venta_asociada_id = config_asociacion.get("transferencias", {}).get(transferencia_id)
+                for v in ventas:
+                    v["ya_asociada"] = (v.get("id") == venta_asociada_id)
+                for v in ventas_transferencia:
+                    v["ya_asociada"] = (v.get("id") == venta_asociada_id)
+        
+        return {
+            "ventas_coincidentes": ventas, 
+            "ventas_transferencia": ventas_transferencia,
+            "cantidad": len(ventas),
+            "debug": {
+                "monto_buscado": monto,
+                "fecha_inicio": fecha_inicio,
+                "fecha_fin": fecha_fin,
+                "ventas_en_fecha": len(ventas),
+                "ventas_transferencia": len(ventas_transferencia)
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.post("/mercadopago/asociar-transferencia")
+async def asociar_transferencia_venta(
+    request: Request,
+    current_user: Usuario = Depends(get_current_user)
+):
+    """Asocia una transferencia de MP con una venta existente"""
+    data = await request.json()
+    transferencia_id = data.get("transferencia_id")
+    venta_id = data.get("venta_id")
+    
+    if not transferencia_id or not venta_id:
+        raise HTTPException(status_code=400, detail="Faltan transferencia_id o venta_id")
+    
+    try:
+        venta = await db.ventas.find_one({"id": venta_id})
+        if not venta:
+            raise HTTPException(status_code=404, detail="Venta no encontrada")
+        
+        await db["configuracion"].update_one(
+            {"tipo": "transferencias_asociaciones"},
+            {
+                "$set": {
+                    f"transferencias.{transferencia_id}": venta_id,
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                    "updated_by": current_user.id
+                }
+            },
+            upsert=True
+        )
+        
+        return {"success": True, "message": "Transferencia asociada correctamente", "venta_id": venta_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.get("/mercadopago/obtener-asociaciones")
+async def obtener_asociaciones(
+    current_user: Usuario = Depends(get_current_user)
+):
+    """Obtiene todas las asociaciones de transferencias con ventas"""
+    try:
+        config = await db["configuracion"].find_one({"tipo": "transferencias_asociaciones"})
+        if not config:
+            return {"asociaciones": {}, "ventas_asociadas": {}}
+        
+        asociaciones = config.get("transferencias", {})
+        
+        ventas_ids = list(asociaciones.values())
+        ventas = {}
+        if ventas_ids:
+            cursor = db.ventas.find({"id": {"$in": ventas_ids}}, {"_id": 0})
+            async for v in cursor:
+                ventas[v["id"]] = v
+        
+        resultado = {}
+        for transf_id, venta_id in asociaciones.items():
+            resultado[transf_id] = {
+                "venta_id": venta_id,
+                "venta": ventas.get(venta_id)
+            }
+        
+        return {"asociaciones": resultado}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 # ===== CONFIGURACIÓN MERCADOPAGO =====
 
 @api_router.get("/mercadopago/configuracion")

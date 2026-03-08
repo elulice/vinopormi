@@ -183,9 +183,9 @@ const Dashboard = () => {
               {formatCurrency(stats.total_vendido_hoy - stats.total_egresos_hoy, showCents)}
             </div>
           </CardContent>
-          <div className="absolute bottom-3 right-3 bg-green-100 rounded-full p-2 hover:bg-green-200 transition-colors duration-200">
+          {/* <div className="absolute bottom-3 right-3 bg-green-100 rounded-full p-2 hover:bg-green-200 transition-colors duration-200">
             <ArrowRight className="w-4 h-4 text-green-600" />
-          </div>
+          </div> */}
         </Card>
 
         <Card 
