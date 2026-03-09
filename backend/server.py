@@ -52,7 +52,7 @@ class Usuario(BaseModel):
     username: str
     nombre: str
     rol: str = "comun"  # "admin" o "comun"
-    preferencias: dict = Field(default_factory=lambda: {"showCents": True, "sidebarWidth": "normal", "floatingMenu": False, "autoLogout": True, "soloMisDatos": False})  # Preferencias del usuario
+    preferencias: dict = Field(default_factory=lambda: {"showCents": True, "sidebarWidth": "normal", "floatingMenu": False, "autoLogout": True, "soloMisDatos": False, "calcularVuelto": True})  # Preferencias del usuario
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     lastActivity: Optional[datetime] = None  # Última actividad del usuario
 
@@ -75,6 +75,7 @@ class PreferenciasUpdate(BaseModel):
     floatingMenu: Optional[bool] = None  # Habilitar/deshabilitar menú flotante
     autoLogout: Optional[bool] = None   # Habilitar/deshabilitar cierre de sesión automático
     soloMisDatos: Optional[bool] = None  # Mostrar solo mis datos en dashboard
+    calcularVuelto: Optional[bool] = None  # Habilitar/deshabilitar calculadora de vuelto
 
 class LoginRequest(BaseModel):
     username: str
@@ -248,6 +249,7 @@ class DashboardStats(BaseModel):
     total_saldo_cuenta_corriente: float
     total_egresos_hoy: float
     ingresos_cta_cte_hoy: float = 0
+    caja_real: float = 0
     ultimos_clientes_cta_cte: list = []
 
 class CuentaCorrienteInfo(BaseModel):
@@ -748,6 +750,8 @@ async def update_preferencias(
         preferencias_actuales['autoLogout'] = preferencias.autoLogout
     if preferencias.soloMisDatos is not None:
         preferencias_actuales['soloMisDatos'] = preferencias.soloMisDatos
+    if preferencias.calcularVuelto is not None:
+        preferencias_actuales['calcularVuelto'] = preferencias.calcularVuelto
     
     # Guardar en la base de datos
     result = await db.usuarios.update_one(
@@ -1854,6 +1858,14 @@ async def get_dashboard_stats(current_user: Usuario = Depends(get_current_user))
                 'leida': False
             })
     
+    # Calcular caja_real: efectivo + transferencia + posnet + ingresos_cta_cte_hoy
+    caja_real = (
+        ventas_por_medio.get('efectivo', 0) +
+        ventas_por_medio.get('transferencia', 0) +
+        ventas_por_medio.get('posnet', 0) +
+        ingresos_cta_cte_hoy
+    )
+    
     return DashboardStats(
         total_vendido_hoy=total_vendido,
         cantidad_ventas_hoy=cantidad_ventas,
@@ -1861,6 +1873,7 @@ async def get_dashboard_stats(current_user: Usuario = Depends(get_current_user))
         total_saldo_cuenta_corriente=total_saldo_cuenta_corriente,
         total_egresos_hoy=total_egresos_hoy,
         ingresos_cta_cte_hoy=ingresos_cta_cte_hoy,
+        caja_real=caja_real,
         ultimos_clientes_cta_cte=ultimos_clientes
     )
 
@@ -2832,11 +2845,7 @@ async def buscar_ventas_coincidentes(
                 "$gte": dt_inicio.isoformat(),
                 "$lte": dt_fin.isoformat()
             },
-            "$or": [
-                {"medio_pago": "transferencia"},
-                {"pagos.medio_pago": "transferencia"},
-                {"pagos": {"$elemMatch": {"medio_pago": "transferencia", "monto": monto}}}
-            ]
+            "total": monto
         }
         
         ventas = await db.ventas.find(filtro_combinado, {"_id": 0}).sort("fecha", -1).to_list(20)

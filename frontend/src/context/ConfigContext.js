@@ -19,6 +19,7 @@ export const ConfigProvider = ({ children }) => {
   const [sidebarWidth, setSidebarWidthState] = useState('normal'); // 'compact', 'normal', 'expanded'
   const [floatingMenu, setFloatingMenuState] = useState(false); // Por defecto deshabilitado
   const [autoLogout, setAutoLogoutState] = useState(true); // Por defecto habilitado
+  const [calcularVuelto, setCalcularVueltoState] = useState(true); // Por defecto habilitado
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -39,6 +40,7 @@ export const ConfigProvider = ({ children }) => {
       setSidebarWidthState(preferencias.sidebarWidth !== undefined ? preferencias.sidebarWidth : 'normal');
       setFloatingMenuState(preferencias.floatingMenu !== undefined ? preferencias.floatingMenu : false);
       setAutoLogoutState(preferencias.autoLogout !== undefined ? preferencias.autoLogout : false);
+      setCalcularVueltoState(preferencias.calcularVuelto !== undefined ? preferencias.calcularVuelto : true);
     } catch (err) {
       console.error('Error cargando preferencias:', err);
       // En caso de error, usar valor por defecto
@@ -130,6 +132,25 @@ export const ConfigProvider = ({ children }) => {
     }
   };
 
+  // Guardar calcularVuelto en el backend
+  const setCalcularVuelto = async (enabled) => {
+    if (!user) return;
+
+    try {
+      await axios.put(`${API}/auth/preferencias`,
+        { calcularVuelto: enabled },
+        { headers: getAuthHeader() }
+      );
+      
+      setCalcularVueltoState(enabled);
+      setError(null);
+    } catch (err) {
+      console.error('Error guardando preferencias:', err);
+      setError(err);
+      localStorage.setItem('vinopormi_calcular_vuelto_fallback', JSON.stringify(enabled));
+    }
+  };
+
   const toggleShowCents = () => {
     setShowCents(!showCents);
   };
@@ -144,6 +165,7 @@ export const ConfigProvider = ({ children }) => {
       setSidebarWidthState('normal');
       setFloatingMenuState(false);
       setAutoLogoutState(false);
+      setCalcularVueltoState(true);
       setLoading(false);
     }
   }, [user, loadPreferences]);
@@ -159,6 +181,8 @@ export const ConfigProvider = ({ children }) => {
       setFloatingMenu,
       autoLogout,
       setAutoLogout,
+      calcularVuelto,
+      setCalcularVuelto,
       loading,
       error
     }}>

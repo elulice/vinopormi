@@ -15,7 +15,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { apiGet, apiPost } from '@/lib/api';
 
 const NuevaVenta = () => {
-  const { showCents } = useConfig();
+  const { showCents, calcularVuelto: mostrarCalculadoraVuelto } = useConfig();
   const navigate = useNavigate();
   const [productos, setProductos] = useState([]);
 
@@ -1037,8 +1037,8 @@ const NuevaVenta = () => {
           </CardContent>
         </Card>
 
-        {/* Calculadora de Vuelto - Solo visible cuando hay efectivo */}
-        {hayEfectivo() && (
+        {/* Calculadora de Vuelto - Solo visible cuando hay efectivo y está habilitada */}
+        {mostrarCalculadoraVuelto && hayEfectivo() && (
           <Card className="py-3 border-2 border-blue-200 bg-blue-50/50">
             <CardHeader className="py-2 pb-2">
               <CardTitle className="text-base text-blue-800">Cálculo de Vuelto</CardTitle>

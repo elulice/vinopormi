@@ -6,7 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { useConfig } from '@/context/ConfigContext';
 import { useAuth } from '@/context/AuthContext';
-import { Settings as SettingsIcon, Package, Users, Truck, TrendingDown, DollarSign, Loader2, AlertCircle, Menu, LogOut } from 'lucide-react';
+import { Settings as SettingsIcon, Package, Users, Truck, TrendingDown, DollarSign, Loader2, AlertCircle, Menu, LogOut, Calculator } from 'lucide-react';
 import MercadopagoIcon from '@/components/MercadopagoIcon';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/currency';
@@ -14,11 +14,12 @@ import { API } from '@/lib/config';
 import { apiGet, apiPost } from '@/lib/api';
 
 const Configuracion = () => {
-  const { showCents, toggleShowCents, floatingMenu, setFloatingMenu, autoLogout, setAutoLogout, loading, error } = useConfig();
+  const { showCents, toggleShowCents, floatingMenu, setFloatingMenu, autoLogout, setAutoLogout, loading, error, calcularVuelto, setCalcularVuelto } = useConfig();
   const { user } = useAuth();
   const [localShowCents, setLocalShowCents] = useState(showCents);
   const [localFloatingMenu, setLocalFloatingMenu] = useState(floatingMenu);
   const [localAutoLogout, setLocalAutoLogout] = useState(autoLogout);
+  const [localCalcularVuelto, setLocalCalcularVuelto] = useState(calcularVuelto);
   const [mercadopagoConfig, setMercadopagoConfig] = useState({ access_token: '' });
   const [savingMercadopago, setSavingMercadopago] = useState(false);
   const [loadingMercadopago, setLoadingMercadopago] = useState(true);
@@ -35,6 +36,10 @@ const Configuracion = () => {
   useEffect(() => {
     setLocalAutoLogout(autoLogout);
   }, [autoLogout]);
+
+  useEffect(() => {
+    setLocalCalcularVuelto(calcularVuelto);
+  }, [calcularVuelto]);
 
   // Fetch Mercadopago config
   useEffect(() => {
@@ -88,6 +93,12 @@ const handleFloatingMenuToggle = () => {
     const newValue = !localAutoLogout;
     setLocalAutoLogout(newValue);
     setAutoLogout(newValue);
+  };
+
+  const handleCalcularVueltoToggle = () => {
+    const newValue = !localCalcularVuelto;
+    setLocalCalcularVuelto(newValue);
+    setCalcularVuelto(newValue);
   };
 
   return (
@@ -252,6 +263,35 @@ const handleFloatingMenuToggle = () => {
             </div>
           </div>
 
+        </CardContent>
+      </Card>
+
+      {/* Tarjeta de configuración de cálculo de vuelto */}
+      <Card className="py-2">
+        <CardHeader className="py-2">
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <Calculator className="w-4 h-4" />
+            Cálculo de Vuelto
+            {loading && <Loader2 className="w-3 h-3 animate-spin" />}
+            {error && <AlertCircle className="w-3 h-3 text-red-500" />}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="py-2 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="calcular-vuelto" className="text-sm font-medium">
+                Calculadora de vuelto
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Mostrar calculadora de vuelto en ventas en efectivo
+              </p>
+            </div>
+            <Switch
+              id="calcular-vuelto"
+              checked={localCalcularVuelto}
+              onCheckedChange={handleCalcularVueltoToggle}
+            />
+          </div>
         </CardContent>
       </Card>
 

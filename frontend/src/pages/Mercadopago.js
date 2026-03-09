@@ -333,7 +333,10 @@ const Mercadopago = () => {
                               size="sm" 
                               variant="outline" 
                               className="h-6 text-xs"
-                              onClick={() => asociarVenta(venta.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                asociarVenta(venta.id);
+                              }}
                             >
                               Asociar
                             </Button>
@@ -345,27 +348,7 @@ const Mercadopago = () => {
                 )}
               </div>
 
-              {asociaciones[selectedTransferencia.id] && (
-                <div className="border-t pt-3">
-                  <h3 className="font-semibold text-sm mb-2 text-green-600 flex items-center gap-1">
-                    <CheckCircle className="w-4 h-4" />
-                    Venta asociada
-                  </h3>
-                  {asociaciones[selectedTransferencia.id].venta && (
-                    <div className="p-2 bg-green-50 border border-green-200 rounded-md text-xs">
-                      <p className="font-medium">
-                        {format(safeParseDate(asociaciones[selectedTransferencia.id].venta.fecha), 'dd/MM/yyyy HH:mm', { locale: es })}
-                      </p>
-                      <p className="text-muted-foreground">
-                        {asociaciones[selectedTransferencia.id].venta.usuario_nombre}
-                      </p>
-                      <p className="font-semibold text-green-700">
-                        {formatCurrencyConfig(asociaciones[selectedTransferencia.id].venta.total)}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
+
             </div>
           )}
         </DialogContent>

@@ -27,6 +27,7 @@ const Dashboard = () => {
     total_saldo_cuenta_corriente: 0,
     total_egresos_hoy: 0,
     ingresos_cta_cte_hoy: 0,
+    caja_real: 0,
     ultimos_clientes_cta_cte: []
   });
   const [loading, setLoading] = useState(true);
@@ -169,7 +170,7 @@ const Dashboard = () => {
 
         <Card
           data-testid="card-balance-del-dia"
-          className="cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-[1.02] relative"
+          className="cursor-pointer relative hover:shadow-lg hover:z-50 hover:scale-x-[1.15] hover:scale-y-[1.08] transition-all duration-200 bg-gradient-to-br from-blue-50 to-white border-2 border-blue-200 hover:border-blue-400"
           onClick={() => navigate('/dashboard')}
         >
           <CardHeader className="flex flex-row items-center justify-between p-4 pb-2">
@@ -179,13 +180,34 @@ const Dashboard = () => {
             <DollarSign className="w-5 h-5 text-blue-600 !mt-0" />
           </CardHeader>
           <CardContent className="p-4 pt-0">
-            <div className={`text-xl sm:text-2xl font-bold ${(stats.total_vendido_hoy - stats.total_egresos_hoy) >= 0 ? 'text-green-600' : 'text-destructive'} break-words overflow-wrap-anywhere pb-8`}>
-              {formatCurrency(stats.total_vendido_hoy - stats.total_egresos_hoy, showCents)}
+            <div className={`text-3xl sm:text-4xl font-bold ${(stats.caja_real - stats.total_egresos_hoy) >= 0 ? 'text-green-600' : 'text-destructive'} break-words overflow-wrap-anywhere pb-2`}>
+              {formatCurrency(stats.caja_real - stats.total_egresos_hoy, showCents)}
+            </div>
+            <div className="space-y-1 pt-1">
+              <div className="flex justify-between text-xs text-green-600">
+                <span>Efectivo</span>
+                <span>{formatCurrency(stats.ventas_por_medio_pago?.efectivo || 0, showCents)}</span>
+              </div>
+              <div className="flex justify-between text-xs text-green-600">
+                <span>Transferencia</span>
+                <span>{formatCurrency(stats.ventas_por_medio_pago?.transferencia || 0, showCents)}</span>
+              </div>
+              <div className="flex justify-between text-xs text-green-600">
+                <span>PosNet</span>
+                <span>{formatCurrency(stats.ventas_por_medio_pago?.posnet || 0, showCents)}</span>
+              </div>
+              {stats.ingresos_cta_cte_hoy > 0 && (
+                <div className="flex justify-between text-xs text-green-600">
+                  <span>Cobros Cta. Cte.</span>
+                  <span>{formatCurrency(stats.ingresos_cta_cte_hoy, showCents)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-xs text-red-500 pt-1 border-t">
+                <span>Egresos</span>
+                <span>-{formatCurrency(stats.total_egresos_hoy, showCents)}</span>
+              </div>
             </div>
           </CardContent>
-          {/* <div className="absolute bottom-3 right-3 bg-green-100 rounded-full p-2 hover:bg-green-200 transition-colors duration-200">
-            <ArrowRight className="w-4 h-4 text-green-600" />
-          </div> */}
         </Card>
 
         <Card 
