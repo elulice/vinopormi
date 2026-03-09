@@ -1,41 +1,43 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { 
-  DollarSign, 
-  MessageCircle, 
-  Wine, 
-  Users,
-  Sparkles,
-  Percent
+  Calculator,
+  Wallet,
+  LayoutGrid,
+  CreditCard,
+  Globe,
+  ExternalLink
 } from 'lucide-react';
 
-const NEWS_KEY = 'vpm_news_seen_v2';
+const NEWS_KEY = 'vpm_news_seen_v1.04';
 
 const features = [
   {
-    icon: Percent,
-    title: 'Descuento/Recargo Global',
-    description: 'En Nueva Venta ahora podés aplicar descuentos o recargos globales a la venta completa, con motivo opcional.'
+    icon: Wallet,
+    title: 'Balance del Día',
+    description: 'Ahora muestra la liquidez real: efectivo + transferencia + posnet + cobros de cuentas corrientes.'
   },
   {
-    icon: DollarSign,
-    title: 'Control de Rentabilidad',
-    description: 'Ahora podés ver tu ganancia Neta y Bruta en cada venta y en los totales del día.'
+    icon: Calculator,
+    title: 'Calculadora de Vuelto',
+    description: 'Opcional desde Configuración. Mostrá u ocultá la calculadora de vuelto en nuevas ventas.'
   },
   {
-    icon: MessageCircle,
-    title: 'Hilos de Comentarios',
-    description: 'Las StickyNotes ahora permiten agregar comentarios para hacer seguimiento de trámites o pedidos.'
+    icon: LayoutGrid,
+    title: 'Card de Balance',
+    description: 'Diseño mejorado con efecto hover para destacar el balance del día.'
   },
   {
-    icon: Wine,
-    title: 'Catálogo Separado',
-    description: 'La Landing Page ahora es más rápida y el catálogo completo tiene su propia sección con filtros.'
+    icon: CreditCard,
+    title: 'Mercadopago',
+    description: 'Nueva sección para buscar transferencias y asociarlas con ventas.'
   },
   {
-    icon: Users,
-    title: 'Portal de Miembros',
-    description: 'Mejoramos la visualización de puntos y saldos para tus clientes.'
+    icon: Globe,
+    title: 'Sección Landing',
+    description: 'Nueva sección pública para tu catálogo de productos. (En desarrollo).',
+    link: '/Landing',
+    linkText: 'Ver Landing'
   }
 ];
 
@@ -56,28 +58,38 @@ const WelcomeModal = () => {
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200 shadow-2xl">
-        <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-amber-100 rounded-full mb-4">
-            <Sparkles className="w-8 h-8 text-amber-600" />
-          </div>
-          <h2 className="font-bold text-2xl text-amber-800">
-            ¡Novedades!
+      <DialogContent className="max-w-sm bg-background border-border">
+        <div className="text-center mb-4">
+          <h2 className="font-semibold text-lg text-foreground">
+            Novedades
           </h2>
         </div>
 
-        <div className="space-y-4 mb-6 max-h-[50vh] overflow-y-auto pr-2">
+        <div className="space-y-3 mb-4">
           {features.map((feature, index) => (
             <div 
               key={index}
-              className="flex gap-3 p-3 bg-white/60 rounded-lg border border-amber-100/50"
+              className="flex gap-3 p-2"
             >
-              <div className="flex-shrink-0 w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
-                <feature.icon className="w-5 h-5 text-amber-600" />
+              <div className="flex-shrink-0 w-8 h-8 bg-muted rounded-full flex items-center justify-center">
+                <feature.icon className="w-4 h-4 text-muted-foreground" />
               </div>
               <div>
-                <h3 className="font-sans font-medium text-gray-800 text-sm">{feature.title}</h3>
-                <p className="text-xs text-gray-600 leading-tight">{feature.description}</p>
+                <h3 className="font-medium text-sm">{feature.title}</h3>
+                <p className="text-xs text-muted-foreground">
+                  {feature.description}
+                  {feature.link && (
+                    <a 
+                      href={feature.link} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="ml-1 text-blue-600 hover:underline inline-flex items-center gap-1"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {feature.linkText} <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                </p>
               </div>
             </div>
           ))}
@@ -85,9 +97,9 @@ const WelcomeModal = () => {
 
         <button
           onClick={handleClose}
-          className="w-full py-3 px-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold rounded-lg shadow-md transition-all duration-200 transform hover:scale-[1.02]"
+          className="w-full py-2 text-sm bg-primary text-primary-foreground font-medium rounded-md hover:opacity-90 transition-opacity"
         >
-          ¡Entendido, vamos a trabajar!
+          Cerrar
         </button>
       </DialogContent>
     </Dialog>
