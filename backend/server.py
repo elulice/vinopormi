@@ -2845,17 +2845,13 @@ async def buscar_ventas_coincidentes(
                 "$gte": dt_inicio.isoformat(),
                 "$lte": dt_fin.isoformat()
             },
-            "total": monto
+            "pagos": {"$elemMatch": {"medio_pago": "transferencia", "monto": monto}}
         }
         
         ventas = await db.ventas.find(filtro_combinado, {"_id": 0}).sort("fecha", -1).to_list(20)
         
         filtro_sin_fecha = {
-            "total": monto,
-            "$or": [
-                {"medio_pago": "transferencia"},
-                {"pagos": {"$elemMatch": {"medio_pago": "transferencia"}}}
-            ]
+            "pagos": {"$elemMatch": {"medio_pago": "transferencia", "monto": monto}}
         }
         ventas_transferencia = await db.ventas.find(filtro_sin_fecha, {"_id": 0}).sort("fecha", -1).to_list(50)
         

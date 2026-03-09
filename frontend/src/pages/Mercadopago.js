@@ -57,11 +57,8 @@ const Mercadopago = () => {
     fetchAsociaciones();
   }, [fetchTransferencias, fetchAsociaciones]);
 
-  const [debugInfo, setDebugInfo] = useState(null);
-
-  const buscarCoincidencias = async (transferencia) => {
+    const buscarCoincidencias = async (transferencia) => {
     setLoadingCoincidencias(true);
-    setDebugInfo(null);
     try {
       const fechaAprobacion = new Date(transferencia.fecha_aprobacion || transferencia.fecha_creacion);
       const fechaInicio = new Date(fechaAprobacion.getTime() - 30 * 60 * 1000);
@@ -76,7 +73,6 @@ const Mercadopago = () => {
       );
       const ventasEnFecha = response.data.ventas_coincidentes || [];
       
-      setDebugInfo(response.data.debug);
       console.log('Ventas coincidencias (fecha + monto):', ventasEnFecha);
       setVentasCoincidentes(ventasEnFecha);
     } catch (error) {
@@ -285,14 +281,6 @@ const Mercadopago = () => {
                     <p className="text-sm text-muted-foreground text-center py-2">
                       No se encontraron ventas coincidentes
                     </p>
-                    {debugInfo && (
-                      <div className="p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
-                        <p className="font-medium text-yellow-800">Debug:</p>
-                        <p className="text-yellow-700">Monto buscado: {formatCurrencyConfig(debugInfo.monto_buscado)}</p>
-                        <p className="text-yellow-700">Ventas en rango de fecha: {debugInfo.ventas_en_fecha}</p>
-                        <p className="text-yellow-700">Ventas con medio transferencia: {debugInfo.ventas_transferencia}</p>
-                      </div>
-                    )}
                   </div>
                 ) : (
                   <div className="space-y-2 max-h-[40vh] overflow-y-auto">
@@ -317,10 +305,9 @@ const Mercadopago = () => {
                             <p className="font-semibold">
                               {formatCurrencyConfig(venta.total)}
                             </p>
-                            <p className="text-xs text-muted-foreground">
-                              Medio: {venta.medio_pago || 'No especificado'}
-                              {venta.pagos && venta.pagos.length > 0 && 
-                                ` (${venta.pagos.map(p => p.medio_pago).join(', ')})`}
+                            <p className="text-xs text-muted-foreground capitalize">
+                              Medio: {venta.pagos && venta.pagos.length > 0 && 
+                                venta.pagos.map(p => p.medio_pago).join(', ') || 'No especificado'}
                             </p>
                           </div>
                           {asociaciones[selectedTransferencia.id]?.venta_id === venta.id ? (
