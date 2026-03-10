@@ -29,6 +29,7 @@ next-env.d.ts
 /build
 dist/
 dist
+.env
 
 # Environment files (comprehensive coverage)
 
@@ -91,3 +92,5 @@ build_vpm_yarn.bat
 frontend/yarn.lock
 deploy_prod.bat
 yarn.lock
+backend_log.txt
+run_backend.bat
