@@ -506,17 +506,18 @@ const Productos = () => {
           >
             Promo
           </button>
-        </div>
-
-        <div className="flex gap-1">
+          
+          <div className="w-px bg-gray-300 mx-1"></div>
+          
           <button
             onClick={() => setFilters({ ...filters, is_public: filters.is_public === 'true' ? '' : 'true' })}
-            className={`px-2 py-1 text-xs rounded border ${
+            className={`px-2 py-1 text-xs rounded border flex items-center gap-1 ${
               filters.is_public === 'true' 
                 ? 'bg-green-600 text-white border-green-600' 
                 : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
             }`}
           >
+            <Eye className="w-3 h-3" />
             Público
           </button>
           <button
@@ -529,9 +530,9 @@ const Productos = () => {
           >
             Oculto
           </button>
-        </div>
-
-        <div className="flex gap-1">
+          
+          <div className="w-px bg-gray-300 mx-1"></div>
+          
           <button
             onClick={() => setFilters({ ...filters, is_featured: filters.is_featured === 'true' ? '' : 'true' })}
             className={`px-2 py-1 text-xs rounded border ${
@@ -552,9 +553,9 @@ const Productos = () => {
           >
             Normal
           </button>
-        </div>
-
-        <div className="flex gap-1">
+          
+          <div className="w-px bg-gray-300 mx-1"></div>
+          
           <button
             onClick={() => setFilters({ ...filters, has_discount: filters.has_discount === 'true' ? '' : 'true' })}
             className={`px-2 py-1 text-xs rounded border ${
@@ -579,9 +580,9 @@ const Productos = () => {
 
         {(filters.tipo || filters.is_public || filters.is_featured || filters.has_discount) && (
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
-            className="h-7 text-xs text-muted-foreground"
+            className="h-7 text-xs"
             onClick={() => setFilters({ tipo: '', is_public: '', is_featured: '', has_discount: '' })}
           >
             Limpiar
