@@ -88,3 +88,6 @@ clonar_db.bat
 .gitignore
 sync_db.py
 build_vpm_yarn.bat
+frontend/yarn.lock
+deploy_prod.bat
+yarn.lock
