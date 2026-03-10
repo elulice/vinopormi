@@ -180,7 +180,7 @@ const Dashboard = () => {
             <DollarSign className="w-5 h-5 text-blue-600 !mt-0" />
           </CardHeader>
           <CardContent className="p-4 pt-0">
-            <div className={`text-3xl sm:text-4xl font-bold ${(stats.caja_real - stats.total_egresos_hoy) >= 0 ? 'text-green-600' : 'text-destructive'} break-words overflow-wrap-anywhere pb-2`}>
+            <div className={`text-2xl sm:text-2xl font-bold ${(stats.caja_real - stats.total_egresos_hoy) >= 0 ? 'text-green-600' : 'text-destructive'} break-words overflow-wrap-anywhere pb-2`}>
               {formatCurrency(stats.caja_real - stats.total_egresos_hoy, showCents)}
             </div>
             <div className="space-y-1 pt-1">

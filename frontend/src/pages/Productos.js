@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -137,6 +138,13 @@ const Productos = () => {
 
   useEffect(() => {
     fetchProductosRef.current?.(1);
+    
+    apiGet(`${API}/productos-stock`)
+      .then(res => {
+        const normals = res.data.filter(p => p.tipo !== 'promo');
+        setProductosNormales(normals);
+      })
+      .catch(err => console.error('Error loading normals:', err));
   }, []);
 
   // Recargar cuando cambian los filtros
@@ -181,7 +189,8 @@ const Productos = () => {
         producto_id: producto.id,
         cantidad: 1,
         nombre: producto.nombre,
-        precio_unitario: producto.precio_unitario
+        precio_unitario: producto.precio_unitario,
+        precio_costo: producto.precio_costo
       }]
     }));
     setShowProductoSelect(false);
@@ -205,8 +214,47 @@ const Productos = () => {
     }));
   }, []);
 
+  const productosMap = useMemo(() => {
+    const map = {};
+    productos.forEach(p => { 
+      if (p.tipo !== 'promo') {
+        map[p.id] = p; 
+      }
+    });
+    productosNormales.forEach(p => {
+      map[p.id] = p;
+    });
+    return map;
+  }, [productos, productosNormales]);
+
   const totalProductos = useMemo(() => {
     return formData.productos_incluidos.reduce((sum, p) => sum + (p.precio_unitario * p.cantidad), 0);
+  }, [formData.productos_incluidos]);
+
+  const netoProductos = useMemo(() => {
+    return formData.productos_incluidos.reduce((sum, p) => {
+      const costo = p.precio_costo || 0;
+      return sum + ((p.precio_unitario - costo) * p.cantidad);
+    }, 0);
+  }, [formData.productos_incluidos]);
+
+  const netoPromo = useMemo(() => {
+    if (!formData.precio_unitario) return 0;
+    if (formData.tipo === 'promo') {
+      const costoTotal = formData.productos_incluidos.reduce((sum, p) => {
+        const costo = p.precio_costo || 0;
+        return sum + (costo * p.cantidad);
+      }, 0);
+      return Number(formData.precio_unitario) - costoTotal;
+    }
+    return Number(formData.precio_unitario) - Number(formData.precio_costo || 0);
+  }, [formData.tipo, formData.precio_unitario, formData.precio_costo, formData.productos_incluidos]);
+
+  const costoTotalProductos = useMemo(() => {
+    return formData.productos_incluidos.reduce((sum, p) => {
+      const costo = p.precio_costo || 0;
+      return sum + (costo * p.cantidad);
+    }, 0);
   }, [formData.productos_incluidos]);
 
   /* ==============================
@@ -280,7 +328,8 @@ const Productos = () => {
       productosInc = productosInc.map(inc => ({
         ...inc,
         nombre: prodsMap[inc.producto_id]?.nombre || 'Unknown',
-        precio_unitario: prodsMap[inc.producto_id]?.precio_unitario || 0
+        precio_unitario: prodsMap[inc.producto_id]?.precio_unitario || 0,
+        precio_costo: prodsMap[inc.producto_id]?.precio_costo || 0
       }));
     }
     
@@ -566,14 +615,28 @@ const Productos = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="text-xs">Tipo</Label>
-                  <select
-                    value={formData.tipo}
-                    onChange={(e) => setFormData({ ...formData, tipo: e.target.value, productos_incluidos: e.target.value === 'normal' ? [] : formData.productos_incluidos })}
-                    className="flex h-7 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm transition-colors file:border-0 file:bg-transparent file:text-xs file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                  <Select 
+                    value={formData.tipo} 
+                    onValueChange={(value) => {
+                      const nuevoPrecioCosto = value === 'promo' 
+                        ? formData.productos_incluidos.reduce((sum, p) => sum + ((p.precio_costo || 0) * p.cantidad), 0).toFixed(2)
+                        : formData.precio_costo;
+                      setFormData({ 
+                        ...formData, 
+                        tipo: value, 
+                        productos_incluidos: value === 'normal' ? [] : formData.productos_incluidos,
+                        precio_costo: nuevoPrecioCosto
+                      });
+                    }}
                   >
-                    <option value="normal">Normal</option>
-                    <option value="promo">Promo</option>
-                  </select>
+                    <SelectTrigger className="h-7">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="normal">Normal</SelectItem>
+                      <SelectItem value="promo">Promo</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -608,6 +671,10 @@ const Productos = () => {
                       <div className="flex justify-between text-xs font-medium border-t pt-2">
                         <span>Total productos:</span>
                         <span>{formatCurrency(totalProductos, showCents)}</span>
+                      </div>
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Neto:</span>
+                        <span>{formatCurrency(netoProductos, showCents)}</span>
                       </div>
                     </div>
                   )}
@@ -698,7 +765,7 @@ const Productos = () => {
                 </div>
 
                 <div>
-                  <Label className="text-xs">Precio Unitario</Label>
+                  <Label className="text-xs">{formData.tipo === 'promo' ? 'Precio Promo' : 'Precio Unitario'}</Label>
                   <Input
                     type="number"
                     step="0.01"
@@ -716,12 +783,24 @@ const Productos = () => {
                   <Input
                     type="number"
                     step="0.01"
-                    value={formData.precio_costo}
+                    value={formData.tipo === 'promo' ? costoTotalProductos.toFixed(2) : formData.precio_costo}
                     onChange={(e) =>
                       setFormData({ ...formData, precio_costo: e.target.value })
                     }
+                    disabled={formData.tipo === 'promo'}
                     className="h-7"
-                    placeholder="0.00"
+                    placeholder={formData.tipo === 'promo' ? '' : '0.00'}
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs">Neto Ganado</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={netoPromo.toFixed(2)}
+                    disabled
+                    className="h-7"
                   />
                 </div>
 
@@ -843,13 +922,15 @@ const Productos = () => {
       {/* TABLA */}
       <ResponsiveTable
         headers={[
-          { title: 'Nombre', width: '20%' },
+          { title: 'Nombre', width: '15%' },
           { title: 'Tipo', width: '8%' },
-          { title: 'Stock', width: '10%' },
-          { title: 'Precio', width: '12%' },
-          { title: 'Descuento', width: '15%' },
-          { title: 'Visible', width: '15%' },
-          { title: 'Acciones', width: '20%' }
+          { title: 'Stock', width: '8%' },
+          { title: 'Precio', width: '10%' },
+          { title: 'Costo', width: '10%' },
+          { title: 'Neto', width: '10%' },
+          { title: 'Descuento', width: '12%' },
+          { title: 'Visible', width: '12%' },
+          { title: 'Acciones', width: '15%' }
         ]}
         rows={productos}
         renderDesktopRow={(p, index) => (
@@ -868,6 +949,37 @@ const Productos = () => {
             </td>
             <td className="p-2 font-semibold text-primary text-xs">
               {formatCurrency(p.precio_unitario, showCents)}
+            </td>
+            <td className="p-2 text-muted-foreground text-xs">
+              {(() => {
+                if (p.tipo === 'promo' && p.productos_incluidos?.length > 0) {
+                  const costo = p.productos_incluidos.reduce((sum, prod) => {
+                    const costoProd = prod.precio_costo || productosMap[prod.producto_id]?.precio_costo || 0;
+                    return sum + (costoProd * prod.cantidad);
+                  }, 0);
+                  return formatCurrency(costo, showCents);
+                }
+                return formatCurrency(p.precio_costo || 0, showCents);
+              })()}
+            </td>
+            <td className="p-2 text-xs">
+              {(() => {
+                let costo, neto;
+                if (p.tipo === 'promo' && p.productos_incluidos?.length > 0) {
+                  costo = p.productos_incluidos.reduce((sum, prod) => {
+                    const costoProd = prod.precio_costo || productosMap[prod.producto_id]?.precio_costo || 0;
+                    return sum + (costoProd * prod.cantidad);
+                  }, 0);
+                } else {
+                  costo = p.precio_costo || 0;
+                }
+                neto = p.precio_unitario - costo;
+                return (
+                  <span className={neto >= 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                    {formatCurrency(neto, showCents)}
+                  </span>
+                );
+              })()}
             </td>
             <td className="p-2">
               {p.descuento_cantidad_minima && p.descuento_precio_unitario ? (
@@ -946,6 +1058,37 @@ const Productos = () => {
               <div className="text-right">
                 <div className="text-base font-bold text-primary">
                   {formatCurrency(p.precio_unitario, showCents)}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Costo: {(() => {
+                    if (p.tipo === 'promo' && p.productos_incluidos?.length > 0) {
+                      const costo = p.productos_incluidos.reduce((sum, prod) => {
+                        const costoProd = prod.precio_costo || productosMap[prod.producto_id]?.precio_costo || 0;
+                        return sum + (costoProd * prod.cantidad);
+                      }, 0);
+                      return formatCurrency(costo, showCents);
+                    }
+                    return formatCurrency(p.precio_costo || 0, showCents);
+                  })()}
+                </div>
+                <div className="text-xs">
+                  Neto: {(() => {
+                    let costo, neto;
+                    if (p.tipo === 'promo' && p.productos_incluidos?.length > 0) {
+                      costo = p.productos_incluidos.reduce((sum, prod) => {
+                        const costoProd = prod.precio_costo || productosMap[prod.producto_id]?.precio_costo || 0;
+                        return sum + (costoProd * prod.cantidad);
+                      }, 0);
+                    } else {
+                      costo = p.precio_costo || 0;
+                    }
+                    neto = p.precio_unitario - costo;
+                    return (
+                      <span className={neto >= 0 ? 'text-green-600' : 'text-red-600'}>
+                        {formatCurrency(neto, showCents)}
+                      </span>
+                    );
+                  })()}
                 </div>
                 {p.descuento_cantidad_minima && p.descuento_precio_unitario ? (
                   <div className="text-xs text-green-600">
