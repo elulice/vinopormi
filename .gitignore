@@ -84,3 +84,7 @@ backend/backend_log.txt
 backend/clonar_db.bat
 .gitignore
 backend/sync_db.py
+clonar_db.bat
+.gitignore
+sync_db.py
+build_vpm_yarn.bat
