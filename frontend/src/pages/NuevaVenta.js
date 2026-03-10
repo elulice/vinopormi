@@ -13,6 +13,7 @@ import { capitalizeWords } from '@/lib/utils';
 import { API } from '@/lib/config';
 import { useDebounce } from '@/hooks/useDebounce';
 import { apiGet, apiPost } from '@/lib/api';
+import { actualizarCacheProductos, actualizarCacheClientes, obtenerTodosProductos, obtenerTodosClientes, guardarVentaOffline } from '@/db/offlineDB';
 
 const NuevaVenta = () => {
   const { showCents, calcularVuelto: mostrarCalculadoraVuelto } = useConfig();
@@ -102,8 +103,19 @@ const NuevaVenta = () => {
     try {
       const res = await apiGet(`${API}/productos-paginados?limit=1000`);
       setProductos(res.data.productos);
+      try {
+        await actualizarCacheProductos(res.data.productos);
+      } catch (cacheError) {
+        console.warn('Error guardando caché de productos:', cacheError);
+      }
     } catch (error) {
-      toast.error('Error al cargar productos');
+      const cachedProductos = await obtenerTodosProductos();
+      if (cachedProductos.length > 0) {
+        setProductos(cachedProductos);
+        toast.warning('Modo Offline: Mostrando precios en caché');
+      } else {
+        toast.error('Error al cargar productos');
+      }
     } finally {
       setLoading(false);
     }
@@ -114,6 +126,7 @@ const NuevaVenta = () => {
     try {
       const res = await apiGet(`${API}/productos-paginados?limit=1000`);
       setProductos(res.data.productos);
+      await actualizarCacheProductos(res.data.productos);
       toast.success('Lista de productos actualizada');
     } catch (error) {
       toast.error('Error al actualizar productos');
@@ -126,8 +139,14 @@ const NuevaVenta = () => {
     try {
       const response = await apiGet(`${API}/clientes`);
       setClientes(response.data);
+      await actualizarCacheClientes(response.data);
     } catch (error) {
-      toast.error('Error al cargar clientes');
+      const cachedClientes = await obtenerTodosClientes();
+      if (cachedClientes.length > 0) {
+        setClientes(cachedClientes);
+      } else {
+        toast.error('Error al cargar clientes');
+      }
     }
   }, []);
 
@@ -561,42 +580,47 @@ const NuevaVenta = () => {
 
     setLoading(true);
 
-    try {
-      const data = {
-        pagos: pagosAMostrar.filter(p => p.medio && p.monto > 0).map(p => ({
-          medio_pago: p.medio,
-          monto: parseFloat(p.monto)
-        })),
-        cliente_id: tieneCuentaCorriente ? clienteId : null,
-        detalles: productosValidos.map(d => {
-          const producto = productos.find(p => p.id === d.producto_id);
-          let precioUnitarioAplicado = d.precio_unitario;
-          
-          // Calcular precio unitario real con descuento si corresponde
-          if (producto && producto.descuento_cantidad_minima && producto.descuento_precio_unitario) {
-            if (d.cantidad >= producto.descuento_cantidad_minima) {
-              precioUnitarioAplicado = producto.descuento_precio_unitario;
-            }
+    const data = {
+      pagos: pagosAMostrar.filter(p => p.medio && p.monto > 0).map(p => ({
+        medio_pago: p.medio,
+        monto: parseFloat(p.monto)
+      })),
+      cliente_id: tieneCuentaCorriente ? clienteId : null,
+      detalles: productosValidos.map(d => {
+        const producto = productos.find(p => p.id === d.producto_id);
+        let precioUnitarioAplicado = d.precio_unitario;
+        
+        if (producto && producto.descuento_cantidad_minima && producto.descuento_precio_unitario) {
+          if (d.cantidad >= producto.descuento_cantidad_minima) {
+            precioUnitarioAplicado = producto.descuento_precio_unitario;
           }
-          
-          return {
-            producto_id: d.producto_id,
-            producto_nombre: d.producto_nombre,
-            cantidad: d.cantidad,
-            precio_unitario: precioUnitarioAplicado,
-            subtotal: d.subtotal
-          };
-        }),
-        ajuste_monto: ajusteMonto === '' || ajusteMonto === null ? 0 : parseFloat(ajusteMonto),
-        ajuste_detalle: ajusteDetalle || null
-      };
+        }
+        
+        return {
+          producto_id: d.producto_id,
+          producto_nombre: d.producto_nombre,
+          cantidad: d.cantidad,
+          precio_unitario: precioUnitarioAplicado,
+          subtotal: d.subtotal
+        };
+      }),
+      ajuste_monto: ajusteMonto === '' || ajusteMonto === null ? 0 : parseFloat(ajusteMonto),
+      ajuste_detalle: ajusteDetalle || null
+    };
 
+    try {
       await apiPost(`${API}/ventas`, data);
       
       toast.success('Venta registrada exitosamente');
       resetForm();
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Error al registrar venta');
+      if (error.code === 'ECONNABORTED' || error.response?.status >= 500 || error.response?.status === 0 || !error.response) {
+        await guardarVentaOffline(data);
+        toast.success('⚠️ Servidor inaccesible. Venta guardada localmente. Se sincronizará cuando vuelva la conexión.');
+        resetForm();
+      } else {
+        toast.error(error.response?.data?.detail || 'Error al registrar venta');
+      }
     } finally {
       setLoading(false);
     }
