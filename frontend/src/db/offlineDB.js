@@ -3,8 +3,8 @@ import Dexie from 'dexie';
 export const db = new Dexie('VinoPorMi_OfflineDB');
 
 db.version(1).stores({
-  ventas_pendientes: '++id, fecha_creacion, sincronizado',
-  egresos_pendientes: '++id, fecha_creacion, sincronizado',
+  ventas_pendientes: '++id, fecha_creacion',
+  egresos_pendientes: '++id, fecha_creacion',
   cache_productos: 'id, nombre, precio_unitario, stock, tipo',
   cache_clientes: 'id, nombre, dni'
 });
@@ -18,7 +18,8 @@ export async function guardarVentaOffline(ventaData) {
 }
 
 export async function obtenerVentasPendientes() {
-  return await db.ventas_pendientes.where('sincronizado').equals(false).toArray();
+  const todas = await db.ventas_pendientes.toArray();
+  return todas.filter(v => v.sincronizado === false);
 }
 
 export async function marcarVentaComoSincronizada(id) {
@@ -39,7 +40,8 @@ export async function guardarEgresoOffline(egresoData) {
 }
 
 export async function obtenerEgresosPendientes() {
-  return await db.egresos_pendientes.where('sincronizado').equals(false).toArray();
+  const todas = await db.egresos_pendientes.toArray();
+  return todas.filter(e => e.sincronizado === false);
 }
 
 export async function marcarEgresoComoSincronizado(id) {
@@ -60,7 +62,8 @@ export async function obtenerClientePorId(id) {
 }
 
 export async function obtenerTodosProductos() {
-  return await db.cache_productos.toArray();
+  const productos = await db.cache_productos.toArray();
+  return productos.sort((a, b) => a.nombre.localeCompare(b.nombre));
 }
 
 export async function obtenerTodosClientes() {

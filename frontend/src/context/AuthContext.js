@@ -10,6 +10,11 @@ import { API } from '@/lib/config';
 axios.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Si es error de red (servidor caído), no redirigir al login
+    if (!error.response) {
+      return Promise.reject(error);
+    }
+    
     if (error.response?.status === 401) {
       const errorMessage = error.response.data?.detail || 'Token inválido o expirado';
       
@@ -38,6 +43,7 @@ export const AuthProvider = ({ children }) => {
 
   const handleAutoLogout = useCallback(() => {
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
     setToken(null);
     setUser(null);
     setAutoLogoutEnabled(false);
@@ -82,6 +88,8 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const verifyToken = async () => {
       const storedToken = localStorage.getItem('token');
+      const storedUser = localStorage.getItem('user');
+      
       if (storedToken) {
         try {
           const response = await axios.get(`${API}/auth/me`, {
@@ -89,13 +97,25 @@ export const AuthProvider = ({ children }) => {
           });
           setUser(response.data);
           setToken(storedToken);
+          localStorage.setItem('user', JSON.stringify(response.data));
           
           const isEnabled = response.data.preferencias?.autoLogout !== false;
           setAutoLogoutEnabled(isEnabled);
         } catch (error) {
+          // Si es error de red (servidor caído), mantener sesión activa con datos guardados
+          if (!error.response) {
+            if (storedUser) {
+              setUser(JSON.parse(storedUser));
+            }
+            setToken(storedToken);
+            setAutoLogoutEnabled(false);
+            setLoading(false);
+            return;
+          }
           // El interceptor global manejará el 401, así que solo limpiamos estado localmente
-          if (!error.response || error.response.status !== 401) {
+          if (error.response.status !== 401) {
             localStorage.removeItem('token');
+            localStorage.removeItem('user');
             setToken(null);
             setUser(null);
           }
@@ -152,6 +172,7 @@ export const AuthProvider = ({ children }) => {
     const response = await axios.post(`${API}/auth/login`, { username, password });
     const { token: newToken, user: userData } = response.data;
     localStorage.setItem('token', newToken);
+    localStorage.setItem('user', JSON.stringify(userData));
     setToken(newToken);
     setUser(userData);
     
@@ -167,6 +188,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
     setToken(null);
     setUser(null);
     setAutoLogoutEnabled(false);
