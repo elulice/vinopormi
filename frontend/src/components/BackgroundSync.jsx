@@ -37,17 +37,18 @@ const BackgroundSync = () => {
     if (totalPendientes > 0 && serverAvailable === true && !syncInProgress.current && !syncTriggeredRef.current) {
       syncTriggeredRef.current = true;
       if (sincronizarTodoRef.current) {
-        sincronizarTodoRef.current();
+        sincronizarTodoRef.current().finally(() => {
+          setTimeout(() => {
+            syncTriggeredRef.current = false;
+          }, 2000);
+        });
       }
-      setTimeout(() => {
-        syncTriggeredRef.current = false;
-      }, 5000);
     }
   }, [ventasPendientesCount, egresosPendientesCount, serverAvailable]);
 
   const checkServer = async () => {
-    const sincronizarTodo = sincronizarTodoRef.current;
-    if (!sincronizarTodo) return;
+    const totalPendientes = (ventasPendientesCount || 0) + (egresosPendientesCount || 0);
+    
     try {
       await apiGet(`${API}/productos-paginados?limit=1`, { timeout: 5000 });
       if (prevServerAvailable.current === false) {
@@ -57,8 +58,10 @@ const BackgroundSync = () => {
           clearInterval(intervalRef.current);
           intervalRef.current = null;
         }
-        sincronizarTodo();
-      } else {
+        if (totalPendientes > 0 && sincronizarTodoRef.current) {
+          sincronizarTodoRef.current();
+        }
+      } else if (prevServerAvailable.current === null || prevServerAvailable.current === true) {
         setServerAvailable(true);
         prevServerAvailable.current = true;
       }
@@ -72,8 +75,10 @@ const BackgroundSync = () => {
             clearInterval(intervalRef.current);
             intervalRef.current = null;
           }
-          sincronizarTodo();
-        } else {
+          if (totalPendientes > 0 && sincronizarTodoRef.current) {
+            sincronizarTodoRef.current();
+          }
+        } else if (prevServerAvailable.current === null || prevServerAvailable.current === true) {
           setServerAvailable(true);
           prevServerAvailable.current = true;
         }
@@ -82,9 +87,7 @@ const BackgroundSync = () => {
       if (prevServerAvailable.current !== false) {
         setServerAvailable(false);
         prevServerAvailable.current = false;
-        intervalRef.current = setInterval(() => {
-          sincronizarTodo();
-        }, 30000);
+        intervalRef.current = setInterval(checkServer, 10000);
       }
       return false;
     }
@@ -151,14 +154,16 @@ const BackgroundSync = () => {
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
-      if (sincronizarTodoRef.current) {
-        sincronizarTodoRef.current();
-      }
+      checkServer();
     };
 
     const handleOffline = () => {
       setIsOnline(false);
       setServerAvailable(false);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
     };
 
     window.addEventListener('online', handleOnline);
