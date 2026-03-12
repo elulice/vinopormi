@@ -27,6 +27,7 @@ import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
 import SearchInput from '@/components/common/SearchInput';
 import StatusBadge from '@/components/common/StatusBadge';
 import DeleteConfirmDialog from '@/components/common/DeleteConfirmDialog';
+import { obtenerTodosProductos, actualizarCacheProductos } from '@/db/offlineDB';
 
 const Productos = () => {
   const { showCents } = useConfig();
@@ -78,6 +79,7 @@ const Productos = () => {
   ============================== */
   // Referencia estable para fetchProductos
   const fetchProductosRef = useRef();
+  const initialFetchDone = useRef(false);
   
   const fetchProductos = useCallback(async (page = 1, search = null, currentFilters = null) => {
     try {
@@ -111,6 +113,7 @@ const Productos = () => {
         params.append('has_discount', filtros.has_discount);
       }
 
+      // INTENTO DE CONEXIÓN ONLINE
       const res = await apiGet(`${API}/productos-paginados?${params}`);
       
       const prodsConStock = await apiGet(`${API}/productos-stock`);
@@ -124,9 +127,44 @@ const Productos = () => {
       
       setProductos(productosConStockCalculado);
       setPagination(res.data.pagination);
+      
+      // ACTUALIZAR CACHÉ (Solo si estamos en la primera página y sin filtros)
+      if (page === 1 && !search && !filtros.tipo) {
+        actualizarCacheProductos(productosConStockCalculado).catch(err => 
+          console.error("Error guardando caché de productos:", err)
+        );
+      }
     } catch (error) {
-      toast.error('Error al cargar productos');
-      console.error('Error fetching productos:', error);
+      console.warn('Fallo la conexión con el servidor. Intentando cargar caché local...', error);
+      
+      // FALLBACK OFFLINE
+      try {
+        const productosLocales = await obtenerTodosProductos();
+        
+        if (productosLocales && productosLocales.length > 0) {
+          const productosFiltrados = search 
+            ? productosLocales.filter(p => p.nombre.toLowerCase().includes(search.toLowerCase()))
+            : productosLocales;
+
+          setProductos(productosFiltrados);
+          
+          setPagination(prev => ({
+            ...prev,
+            page: 1,
+            pages: 1,
+            total: productosFiltrados.length,
+            has_next: false,
+            has_prev: false
+          }));
+          
+          toast.info('Sin conexión: Mostrando catálogo guardado localmente.', { duration: 3000 });
+        } else {
+          toast.error('Estás desconectado y no hay productos guardados en el dispositivo.');
+        }
+      } catch (localError) {
+        console.error("Error al leer la base de datos local:", localError);
+        toast.error('Error al intentar recuperar los datos locales.');
+      }
     } finally {
       setLoading(false);
       setLoadingPage(false);
@@ -137,19 +175,25 @@ const Productos = () => {
   fetchProductosRef.current = fetchProductos;
 
   useEffect(() => {
-    fetchProductosRef.current?.(1);
-    
-    apiGet(`${API}/productos-stock`)
-      .then(res => {
-        const normals = res.data.filter(p => p.tipo !== 'promo');
-        setProductosNormales(normals);
-      })
-      .catch(err => console.error('Error loading normals:', err));
+    if (!initialFetchDone.current) {
+      initialFetchDone.current = true;
+      fetchProductosRef.current?.(1);
+      
+      apiGet(`${API}/productos-stock`)
+        .then(res => {
+          const normals = res.data.filter(p => p.tipo !== 'promo');
+          setProductosNormales(normals);
+        })
+        .catch(err => console.error('Error loading normals:', err));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Recargar cuando cambian los filtros
   useEffect(() => {
-    fetchProductosRef.current?.(1, searchTerm, filters);
+    if (initialFetchDone.current) {
+      fetchProductosRef.current?.(1, searchTerm, filters);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
 
