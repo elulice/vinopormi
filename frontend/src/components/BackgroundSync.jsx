@@ -9,7 +9,8 @@ import {
   marcarVentaComoSincronizada,
   obtenerEgresosPendientes,
   marcarEgresoComoSincronizado,
-  db
+  db,
+  contarPendientes
 } from '@/db/offlineDB';
 
 const BackgroundSync = () => {
@@ -21,34 +22,28 @@ const BackgroundSync = () => {
   const prevServerAvailable = useRef(null);
   const sincronizarTodoRef = useRef(null);
   const syncTriggeredRef = useRef(false);
+  const pendientesCountRef = useRef(null);
 
-  const ventasPendientesCount = useLiveQuery(async () => {
-    const todas = await db.ventas_pendientes.toArray();
-    return todas.filter(v => v.sincronizado === false).length;
-  });
-
-  const egresosPendientesCount = useLiveQuery(async () => {
-    const todas = await db.egresos_pendientes.toArray();
-    return todas.filter(e => e.sincronizado === false).length;
-  });
+  const pendientesCount = useLiveQuery(() => contarPendientes());
 
   useEffect(() => {
-    const totalPendientes = (ventasPendientesCount || 0) + (egresosPendientesCount || 0);
-    if (totalPendientes > 0 && serverAvailable === true && !syncInProgress.current && !syncTriggeredRef.current) {
+    pendientesCountRef.current = pendientesCount;
+  }, [pendientesCount]);
+
+  useEffect(() => {
+    if (pendientesCount > 0 && serverAvailable === true && !syncInProgress.current && !syncTriggeredRef.current) {
       syncTriggeredRef.current = true;
       if (sincronizarTodoRef.current) {
-        sincronizarTodoRef.current().finally(() => {
+        sincronizarTodoRef.current(true).finally(() => {
           setTimeout(() => {
             syncTriggeredRef.current = false;
           }, 2000);
         });
       }
     }
-  }, [ventasPendientesCount, egresosPendientesCount, serverAvailable]);
+  }, [pendientesCount, serverAvailable]);
 
   const checkServer = async () => {
-    const totalPendientes = (ventasPendientesCount || 0) + (egresosPendientesCount || 0);
-    
     try {
       await apiGet(`${API}/productos-paginados?limit=1`, { timeout: 5000 });
       if (prevServerAvailable.current === false) {
@@ -57,9 +52,6 @@ const BackgroundSync = () => {
         if (intervalRef.current) {
           clearInterval(intervalRef.current);
           intervalRef.current = null;
-        }
-        if (totalPendientes > 0 && sincronizarTodoRef.current) {
-          sincronizarTodoRef.current();
         }
       } else if (prevServerAvailable.current === null || prevServerAvailable.current === true) {
         setServerAvailable(true);
@@ -74,9 +66,6 @@ const BackgroundSync = () => {
           if (intervalRef.current) {
             clearInterval(intervalRef.current);
             intervalRef.current = null;
-          }
-          if (totalPendientes > 0 && sincronizarTodoRef.current) {
-            sincronizarTodoRef.current();
           }
         } else if (prevServerAvailable.current === null || prevServerAvailable.current === true) {
           setServerAvailable(true);
@@ -128,8 +117,8 @@ const BackgroundSync = () => {
   const sincronizarTodo = useCallback(async () => {
     if (syncInProgress.current) return;
     
-    const isServerUp = await checkServer();
-    if (!isServerUp) return;
+      const isServerUp = await checkServer();
+      if (!isServerUp) return;
 
     syncInProgress.current = true;
     setIsSyncing(true);
