@@ -1,6 +1,7 @@
 // craco.config.js
 const path = require("path");
 require("dotenv").config();
+const WorkboxWebpackPlugin = require('workbox-webpack-plugin');
 
 // Check if we're in development/preview mode (not production build)
 // Craco sets NODE_ENV=development for start, NODE_ENV=production for build
@@ -65,6 +66,30 @@ const webpackConfig = {
       if (config.enableHealthCheck && healthPluginInstance) {
         webpackConfig.plugins.push(healthPluginInstance);
       }
+
+      // Service Worker for PWA
+      if (process.env.NODE_ENV === 'production') {
+        webpackConfig.plugins.push(
+          new WorkboxWebpackPlugin.GenerateSW({
+            clientsClaim: true,
+            skipWaiting: true,
+            maximumFileSizeToCacheInBytes: 7 * 1024 * 1024,
+            navigateFallback: '/index.html',
+            navigateFallbackDenylist: [new RegExp('^/api/')],
+            runtimeCaching: [
+              {
+                urlPattern: /\.(?:png|jpg|jpeg|svg|gif)$/,
+                handler: 'CacheFirst',
+                options: {
+                  cacheName: 'images',
+                  expiration: { maxEntries: 100 },
+                },
+              },
+            ],
+          })
+        );
+      }
+
       return webpackConfig;
     },
   },
