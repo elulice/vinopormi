@@ -34,18 +34,19 @@ const Dashboard = () => {
 
   const fetchStats = useCallback(async () => {
     try {
-      const response = await apiGet(`${API}/dashboard/stats`);
+      const params = soloMisDatos ? '?soloMisDatos=true' : '';
+      const response = await apiGet(`${API}/dashboard/stats${params}`);
       setStats(response.data);
     } catch (error) {
       toast.error('Error al cargar estadísticas');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [soloMisDatos]);
 
   useEffect(() => {
     fetchStats();
-  }, [fetchStats]);
+  }, [fetchStats, soloMisDatos]);
 
   useEffect(() => {
     const loadPreferencias = async () => {
