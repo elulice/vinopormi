@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useConfig } from '@/context/ConfigContext';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Pencil, Trash2, Users, CreditCard, TrendingUp, TrendingDown, ShoppingCart, List } from 'lucide-react';
+import { Plus, Pencil, Trash2, Users, CreditCard, TrendingUp, TrendingDown, ShoppingCart, List, Download, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { formatCurrency, formatNumber } from '@/lib/currency';
 import { toast } from 'sonner';
@@ -19,6 +19,8 @@ import { API } from '@/lib/config';
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
 import SearchInput from '@/components/common/SearchInput';
 import DeleteConfirmDialog from '@/components/common/DeleteConfirmDialog';
+import DetalleVentaContent from '@/components/DetalleVentaCard';
+import { downloadVentaAsImage, downloadVentaAsPDF } from '@/lib/downloadUtils';
 
 const Clientes = () => {
   const { showCents } = useConfig();
@@ -31,6 +33,8 @@ const Clientes = () => {
   const [ventaDialogOpen, setVentaDialogOpen] = useState(false);
   const [selectedVenta, setSelectedVenta] = useState(null);
   const [loadingVenta, setLoadingVenta] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const contenidoVentaRef = useRef(null);
   const [editingCliente, setEditingCliente] = useState(null);
   const [selectedCliente, setSelectedCliente] = useState(null);
   const [cuentaInfo, setCuentaInfo] = useState(null);
@@ -241,6 +245,22 @@ const Clientes = () => {
   const handleVentaDialogClose = () => {
     setVentaDialogOpen(false);
     setSelectedVenta(null);
+  };
+
+  const downloadAsImage = async () => {
+    if (!contenidoVentaRef.current || !selectedVenta) return;
+    setDownloading(true);
+    const contentRef = contenidoVentaRef.current.getContentRef ? contenidoVentaRef.current.getContentRef() : contenidoVentaRef.current;
+    await downloadVentaAsImage(contentRef, selectedVenta.id);
+    setDownloading(false);
+  };
+
+  const downloadAsPDF = async () => {
+    if (!contenidoVentaRef.current || !selectedVenta) return;
+    setDownloading(true);
+    const contentRef = contenidoVentaRef.current.getContentRef ? contenidoVentaRef.current.getContentRef() : contenidoVentaRef.current;
+    await downloadVentaAsPDF(contentRef, selectedVenta.id);
+    setDownloading(false);
   };
 
   const filteredClientes = clientes.filter((c) =>
@@ -769,90 +789,43 @@ const Clientes = () => {
       <Dialog open={ventaDialogOpen} onOpenChange={handleVentaDialogClose}>
         <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
           <DialogHeader className="flex-shrink-0">
-            <DialogTitle className="text-base">Detalle de Venta</DialogTitle>
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-base">Detalle de Venta</DialogTitle>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={downloadAsImage}
+                  disabled={downloading || loadingVenta}
+                  className="text-xs h-8"
+                >
+                  {downloading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Download className="w-3 h-3 mr-1" />}
+                  Imagen
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={downloadAsPDF}
+                  disabled={downloading || loadingVenta}
+                  className="text-xs h-8"
+                >
+                  {downloading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Download className="w-3 h-3 mr-1" />}
+                  PDF
+                </Button>
+              </div>
+            </div>
           </DialogHeader>
           {loadingVenta ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center py-8">Cargando detalles de la venta...</div>
             </div>
           ) : selectedVenta ? (
-            <div className="flex flex-col flex-1 min-h-0 space-y-3">
-              <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded-md flex-shrink-0 text-xs">
-                <div>
-                  <p className="text-muted-foreground">Fecha</p>
-                  <p className="font-medium text-xs">
-                    {format(new Date(selectedVenta.fecha), 'dd/MM/yyyy HH:mm', { locale: es })}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Usuario</p>
-                  <p className="font-medium text-xs">
-                    {selectedVenta.usuario_nombre || 'Usuario desconocido'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Medio de Pago</p>
-                  <p className="font-medium capitalize text-xs">
-                    {selectedVenta.medio_pago?.replace('_', ' ') ?? '—'}
-                  </p>
-                </div>
-                {selectedVenta.cliente_nombre && (
-                  <div className="col-span-2">
-                    <p className="text-muted-foreground">Cliente</p>
-                    <p className="font-medium text-xs">{selectedVenta.cliente_nombre}</p>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex flex-col flex-1 min-h-0">
-                <h3 className="font-semibold text-sm py-1 flex-shrink-0">Productos</h3>
-                <div className="flex-1 overflow-y-auto space-y-1 max-h-[40vh]">
-                  {selectedVenta.detalles?.map((detalle, index) => (
-                    <div
-                      key={index}
-                      className="flex justify-between items-center p-2 bg-muted rounded-md text-xs"
-                    >
-                      <div>
-                        <p className="font-medium text-xs">{capitalizeWords(detalle.producto_nombre)}</p>
-                        <p className="text-muted-foreground text-xs">
-                          {detalle.cantidad} x {formatCurrency(detalle.precio_unitario, showCents)}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-semibold text-xs">
-                          {formatCurrency(detalle.subtotal, showCents)}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {selectedVenta.ajuste_monto !== 0 && (
-                <div className={`flex justify-between items-center p-2 rounded-md flex-shrink-0 ${selectedVenta.ajuste_monto < 0 ? 'bg-green-50' : 'bg-red-50'}`}>
-                  <div className="flex items-center">
-                    <p className={`font-medium text-xs ${selectedVenta.ajuste_monto < 0 ? 'text-green-700' : 'text-red-700'}`}>
-                      {selectedVenta.ajuste_monto < 0 ? 'Descuento' : 'Recargo'}
-                    </p>
-                    {selectedVenta.ajuste_detalle && (
-                      <p className="text-xs text-muted-foreground ml-1">
-                        ({selectedVenta.ajuste_detalle})
-                      </p>
-                    )}
-                  </div>
-                  <p className={`font-semibold text-xs ${selectedVenta.ajuste_monto < 0 ? 'text-green-700' : 'text-red-700'}`}>
-                    {selectedVenta.ajuste_monto < 0 ? '-' : '+'}{formatCurrency(Math.abs(selectedVenta.ajuste_monto), showCents)}
-                  </p>
-                </div>
-              )}
-
-              <div className="flex justify-between items-center p-2 bg-primary/10 rounded-md flex-shrink-0">
-                <span className="font-bold text-sm">Total</span>
-                <span className="text-lg font-bold text-primary">
-                  {formatCurrency(selectedVenta.total, showCents)}
-                </span>
-              </div>
-            </div>
+            <DetalleVentaContent
+              ref={contenidoVentaRef}
+              venta={selectedVenta}
+              showCents={showCents}
+              showClientInfo={true}
+            />
           ) : (
             <div className="text-center py-8">No se pudo cargar la venta</div>
           )}

@@ -7,16 +7,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ShoppingCart, Calendar, CreditCard, User, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, ChevronDown, ChevronRight, List, Layers, ChevronLeft, ChevronsLeft, ChevronsRight, Loader2 } from 'lucide-react';
+import { ShoppingCart, Calendar, CreditCard, User, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, ChevronDown, ChevronRight, List, Layers, ChevronLeft, ChevronsLeft, ChevronsRight, Loader2, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, isWithinInterval, parseISO, startOfDay, endOfDay, isToday, isYesterday } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { formatCurrency, formatNumber } from '@/lib/currency';
-import { capitalizeWords } from '@/lib/utils';
 import ResponsiveTable from '@/components/ResponsiveTable';
 import MobileCard from '@/components/MobileCard';
 import { API } from '@/lib/config';
 import { apiGet } from '@/lib/api';
+import { downloadVentaAsImage, downloadVentaAsPDF } from '@/lib/downloadUtils';
+import DetalleVentaContent from '@/components/DetalleVentaCard';
 
 // Componente de virtual scrolling manual
 const VirtualTable = ({ items, itemHeight, containerHeight, renderItem, headers }) => {
@@ -85,6 +86,9 @@ const Ventas = () => {
   const [loadingPage, setLoadingPage] = useState(false);
   const [selectedVenta, setSelectedVenta] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const detalleVentaRef = useRef(null);
+  const contenidoVentaRef = useRef(null);
   const [usuarios, setUsuarios] = useState([]);
   const [updatingMedioPago, setUpdatingMedioPago] = useState([]);
   
@@ -758,6 +762,22 @@ const clearFilters = () => {
     return <div className="text-center py-8">Cargando...</div>;
   }
 
+  const downloadAsImage = async () => {
+    if (!contenidoVentaRef.current || !selectedVenta) return;
+    setDownloading(true);
+    const contentRef = contenidoVentaRef.current.getContentRef ? contenidoVentaRef.current.getContentRef() : contenidoVentaRef.current;
+    await downloadVentaAsImage(contentRef, selectedVenta.id);
+    setDownloading(false);
+  };
+
+  const downloadAsPDF = async () => {
+    if (!contenidoVentaRef.current || !selectedVenta) return;
+    setDownloading(true);
+    const contentRef = contenidoVentaRef.current.getContentRef ? contenidoVentaRef.current.getContentRef() : contenidoVentaRef.current;
+    await downloadVentaAsPDF(contentRef, selectedVenta.id);
+    setDownloading(false);
+  };
+
   return (
     <div className="space-y-3">
       <div>
@@ -1192,109 +1212,42 @@ const clearFilters = () => {
       ) : null}
 
       {/* Loading overlay para cambios de página */}
-      {loadingPage && (
-        <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
-          <div className="bg-white p-4 rounded-lg flex items-center gap-2">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            <span>Cargando...</span>
-          </div>
-        </div>
-      )}
-
-      {/* Diálogo de detalles */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
           <DialogHeader className="flex-shrink-0">
-            <DialogTitle className="text-base">Detalle de Venta</DialogTitle>
-          </DialogHeader>
-          {selectedVenta && (
-            <div className="flex flex-col flex-1 min-h-0 space-y-3">
-              <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded-md flex-shrink-0 text-xs">
-                <div>
-                  <p className="text-muted-foreground">Fecha</p>
-                  <p className="font-medium text-xs">
-                    {format(safeParseDate(selectedVenta.fecha), 'dd/MM/yyyy HH:mm', { locale: es })}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Usuario</p>
-                  <p className="font-medium text-xs">
-                    {selectedVenta.usuario_nombre || 'Usuario desconocido'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Medio de Pago</p>
-                  {selectedVenta.pagos && selectedVenta.pagos.length > 0 ? (
-                    <div className="font-medium text-xs">
-                      {selectedVenta.pagos.map((pago, idx) => (
-                        <div key={idx} className="capitalize">
-                          {pago.medio_pago?.replace('_', ' ')}: {formatCurrency(pago.monto, showCents)}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="font-medium capitalize text-xs">
-                      {selectedVenta.medio_pago?.replace('_', ' ') ?? '—'}
-                    </p>
-                  )}
-                </div>
-                {selectedVenta.cliente_nombre && (
-                  <div className="col-span-2">
-                    <p className="text-muted-foreground">Cliente</p>
-                    <p className="font-medium text-xs">{selectedVenta.cliente_nombre}</p>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex flex-col flex-1 min-h-0">
-                <h3 className="font-semibold text-sm py-1 flex-shrink-0">Productos</h3>
-                <div className="flex-1 overflow-y-auto space-y-1 max-h-[40vh]">
-                  {selectedVenta.detalles.map((detalle, index) => (
-                    <div
-                      key={index}
-                      className="flex justify-between items-center p-2 bg-muted rounded-md text-xs"
-                    >
-                      <div>
-                        <p className="font-medium text-xs">{capitalizeWords(detalle.producto_nombre)}</p>
-                        <p className="text-muted-foreground text-xs">
-                          {detalle.cantidad} x {formatCurrency(detalle.precio_unitario, showCents)}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-semibold text-xs">
-                          {formatCurrency(detalle.subtotal, showCents)}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {selectedVenta.ajuste_monto !== 0 && (
-                <div className={`flex justify-between items-center p-2 rounded-md flex-shrink-0 ${selectedVenta.ajuste_monto < 0 ? 'bg-green-50' : 'bg-red-50'}`}>
-                  <div className="flex items-center">
-                    <p className={`font-medium text-xs ${selectedVenta.ajuste_monto < 0 ? 'text-green-700' : 'text-red-700'}`}>
-                      {selectedVenta.ajuste_monto < 0 ? 'Descuento' : 'Recargo'}
-                    </p>
-                    {selectedVenta.ajuste_detalle && (
-                      <p className="text-xs text-muted-foreground ml-1">
-                        ({selectedVenta.ajuste_detalle})
-                      </p>
-                    )}
-                  </div>
-                  <p className={`font-semibold text-xs ${selectedVenta.ajuste_monto < 0 ? 'text-green-700' : 'text-red-700'}`}>
-                    {selectedVenta.ajuste_monto < 0 ? '-' : '+'}{formatCurrency(Math.abs(selectedVenta.ajuste_monto), showCents)}
-                  </p>
-                </div>
-              )}
-
-              <div className="flex justify-between items-center p-2 bg-primary/10 rounded-md flex-shrink-0">
-                <span className="font-bold text-sm">Total</span>
-                <span className="text-lg font-bold text-primary">
-                  {formatCurrency(selectedVenta.total, showCents)}
-                </span>
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-base">Detalle de Venta</DialogTitle>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={downloadAsImage}
+                  disabled={downloading}
+                  className="text-xs h-8"
+                >
+                  {downloading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Download className="w-3 h-3 mr-1" />}
+                  Imagen
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={downloadAsPDF}
+                  disabled={downloading}
+                  className="text-xs h-8"
+                >
+                  {downloading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Download className="w-3 h-3 mr-1" />}
+                  PDF
+                </Button>
               </div>
             </div>
+          </DialogHeader>
+          {selectedVenta && (
+            <DetalleVentaContent
+              ref={contenidoVentaRef}
+              venta={selectedVenta}
+              showCents={showCents}
+              showClientInfo={true}
+            />
           )}
         </DialogContent>
       </Dialog>
