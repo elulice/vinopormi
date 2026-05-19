@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,11 +11,16 @@ import {
   PinOff,
   Palette,
   MessageCircle,
-  Send
+  Send,
+  Download,
+  Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import axios from 'axios';
 import { API } from '@/lib/config';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
+import { format } from 'date-fns';
 
 const StickyNote = ({ note, onUpdate, onDelete }) => {
   const { user } = useAuth();
@@ -28,6 +33,8 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
   const [showComments, setShowComments] = useState(true);
   const [comentarios, setComentarios] = useState(note.comentarios || []);
   const [newComment, setNewComment] = useState('');
+  const [downloading, setDownloading] = useState(false);
+  const noteContentRef = useRef(null);
 
   const colores = [
     { nombre: 'amarillo', clase: 'bg-yellow-200 border-yellow-300 hover:bg-yellow-300', value: 'yellow' },
@@ -187,6 +194,54 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
     }
   };
 
+  const downloadAsImage = async () => {
+    if (!noteContentRef.current) return;
+    setDownloading(true);
+    try {
+      const canvas = await html2canvas(noteContentRef.current, {
+        backgroundColor: null,
+        scale: 2,
+        useCORS: true
+      });
+      const link = document.createElement('a');
+      link.download = `nota-${note.id}-${format(new Date(), 'yyyyMMdd-HHmmss')}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      toast.success('Imagen descargada correctamente');
+    } catch (error) {
+      toast.error('Error al descargar la imagen');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const downloadAsPDF = async () => {
+    if (!noteContentRef.current) return;
+    setDownloading(true);
+    try {
+      const canvas = await html2canvas(noteContentRef.current, {
+        backgroundColor: null,
+        scale: 2,
+        useCORS: true
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`nota-${note.id}-${format(new Date(), 'yyyyMMdd-HHmmss')}.pdf`);
+      toast.success('PDF descargado correctamente');
+    } catch (error) {
+      toast.error('Error al descargar el PDF');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   const formatCommentDate = (dateStr) => {
     if (!dateStr) return '';
     
@@ -235,193 +290,220 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
         </div>
       )}
 
-      {/* Header con autor y timestamp */}
-      <div className="mb-2 border-b border-gray-400 pb-1">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-gray-700">
-            {note.autor_nombre}
-          </span>
-          <div className="flex gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowComments(!showComments)}
-              className="h-4 w-6 p-0 text-gray-600 hover:text-blue-600 relative"
-            >
-              <MessageCircle className="w-3 h-3" />
-              {commentCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-[10px] rounded-full w-3.5 h-3.5 flex items-center justify-center">
-                  {commentCount}
-                </span>
-              )}
-            </Button>
-            {canEdit && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsEditing(true)}
-                className="h-4 w-6 p-0 text-gray-600 hover:text-blue-600"
-              >
-                <Edit2 className="w-3 h-3" />
-              </Button>
-            )}
-            {canDelete && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleDelete}
-                className="h-4 w-6 p-0 text-gray-600 hover:text-red-600"
-                disabled={loading}
-              >
-                <Trash2 className="w-3 h-3" />
-              </Button>
-            )}
-          </div>
-        </div>
-        <span className="text-xs text-gray-600">
-          {tiempoRelativo}
-        </span>
-      </div>
-
-      {/* Contenido de la nota */}
-      {isEditing ? (
-        <div className="space-y-2">
-          <Textarea
-            value={editText}
-            onChange={(e) => setEditText(e.target.value)}
-            className="min-h-[80px] text-sm resize-none bg-white/50"
-            placeholder="Escribe tu nota..."
-          />
-          
-          {/* Selector de color */}
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowColorPicker(!showColorPicker)}
-              className="h-6 text-xs"
-            >
-              <Palette className="w-3 h-3 mr-1" />
-              Color
-            </Button>
-            
-            {/* Toggle fijada */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setEditFijada(!editFijada)}
-              className={`h-6 text-xs ${editFijada ? 'bg-red-100 border-red-300' : ''}`}
-            >
-              {editFijada ? <Pin className="w-3 h-3 mr-1" /> : <PinOff className="w-3 h-3 mr-1" />}
-              {editFijada ? 'Fijada' : 'Fijar'}
-            </Button>
-          </div>
-
-          {/* Paleta de colores */}
-          {showColorPicker && (
-            <div className="flex gap-1 mt-2">
-              {colores.map((color) => (
-                <button
-                  key={color.value}
-                  onClick={() => {
-                    setEditColor(color.value);
-                    setShowColorPicker(false);
-                  }}
-                  className={`w-6 h-6 rounded border-2 ${color.clase} ${
-                    editColor === color.value ? 'ring-2 ring-blue-500' : ''
-                  }`}
-                  title={color.nombre}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Botones de acción */}
-          <div className="flex gap-1">
-            <Button
-              size="sm"
-              onClick={handleSave}
-              disabled={loading}
-              className="h-6 text-xs bg-green-600 hover:bg-green-700"
-            >
-              <Save className="w-3 h-3 mr-1" />
-              Guardar
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleCancel}
-              disabled={loading}
-              className="h-6 text-xs"
-            >
-              <X className="w-3 h-3 mr-1" />
-              Cancelar
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <div>
-          <p className="text-sm text-gray-800 whitespace-pre-wrap mb-2">
-            {note.texto}
-          </p>
-          
-          {/* Sección de comentarios */}
-          {showComments && (
-            <div className="mt-3 pt-2 border-t border-gray-400/50">
-              <div className="flex items-center gap-1 mb-2">
-                <MessageCircle className="w-3 h-3 text-gray-600" />
-                <span className="text-xs font-semibold text-gray-600">
-                  Comentarios ({commentCount})
-                </span>
-              </div>
-              
-              {/* Lista de comentarios */}
-              <div className="space-y-2 max-h-40 overflow-y-auto mb-2 comentarios-scroll">
-                {comentarios && comentarios.length > 0 ? (
-                  comentarios.map((comentario) => (
-                    <div 
-                      key={comentario.id} 
-                      className="bg-white/40 rounded p-2 text-xs border border-gray-400/30"
-                    >
-                      <div className="flex justify-between items-start mb-1">
-                        <span className="font-semibold text-gray-700 text-[10px]">
-                          {comentario.autor_nombre}
-                        </span>
-                        <span className="text-gray-500 text-[9px]">
-                          {comentario.tiempo_relativo || formatCommentDate(comentario.fecha)}
-                        </span>
-                      </div>
-                      <p className="text-gray-800">{comentario.texto}</p>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-xs text-gray-500 italic">Sin comentarios aún</p>
+      {/* Contenido capturable */}
+      <div ref={noteContentRef}>
+        <div className="note-body">
+          {/* Header con autor y timestamp */}
+          <div className="mb-2 border-b border-gray-400 pb-1">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-gray-700">
+                {note.autor_nombre}
+              </span>
+              <div className="flex gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowComments(!showComments)}
+                  className="h-4 w-6 p-0 text-gray-600 hover:text-blue-600 relative"
+                >
+                  <MessageCircle className="w-3 h-3" />
+                  {commentCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-[10px] rounded-full w-3.5 h-3.5 flex items-center justify-center">
+                      {commentCount}
+                    </span>
+                  )}
+                </Button>
+                {canEdit && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsEditing(true)}
+                    className="h-4 w-6 p-0 text-gray-600 hover:text-blue-600"
+                  >
+                    <Edit2 className="w-3 h-3" />
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={downloadAsImage}
+                  disabled={downloading || isEditing}
+                  className="h-4 w-6 p-0 text-gray-600 hover:text-green-600"
+                  title="Descargar como imagen"
+                >
+                  {downloading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={downloadAsPDF}
+                  disabled={downloading || isEditing}
+                  className="h-4 w-6 p-0 text-gray-600 hover:text-purple-600"
+                  title="Descargar como PDF"
+                >
+                  <Download className="w-3 h-3" />
+                </Button>
+                {canDelete && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleDelete}
+                    className="h-4 w-6 p-0 text-gray-600 hover:text-red-600"
+                    disabled={loading}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
                 )}
               </div>
-              
-              {/* Input para nuevo comentario */}
-              <div className="flex gap-1">
-                <input
-                  type="text"
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
-                  placeholder="Escribir comentario..."
-                  className="flex-1 text-xs px-2 py-1 rounded border border-gray-400/50 bg-white/50 focus:outline-none focus:ring-1 focus:ring-blue-400"
-                />
-                <Button
-                  size="sm"
-                  onClick={handleAddComment}
-                  disabled={loading || !newComment.trim()}
-                  className="h-6 w-6 p-0 bg-blue-500 hover:bg-blue-600"
-                >
-                  <Send className="w-3 h-3" />
-                </Button>
-              </div>
             </div>
-          )}
+            <span className="text-xs text-gray-600">
+              {tiempoRelativo}
+            </span>
+          </div>
+
+          {/* Contenido de la nota */}
+          <div className="note-content">
+            {isEditing ? (
+              <div className="space-y-2">
+                <Textarea
+                  value={editText}
+                  onChange={(e) => setEditText(e.target.value)}
+                  className="min-h-[80px] text-sm resize-none bg-white/50"
+                  placeholder="Escribe tu nota..."
+                />
+                
+                {/* Selector de color */}
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowColorPicker(!showColorPicker)}
+                    className="h-6 text-xs"
+                  >
+                    <Palette className="w-3 h-3 mr-1" />
+                    Color
+                  </Button>
+                  
+                  {/* Toggle fijada */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEditFijada(!editFijada)}
+                    className={`h-6 text-xs ${editFijada ? 'bg-red-100 border-red-300' : ''}`}
+                  >
+                    {editFijada ? <Pin className="w-3 h-3 mr-1" /> : <PinOff className="w-3 h-3 mr-1" />}
+                    {editFijada ? 'Fijada' : 'Fijar'}
+                  </Button>
+                </div>
+
+                {/* Paleta de colores */}
+                {showColorPicker && (
+                  <div className="flex gap-1 mt-2">
+                    {colores.map((color) => (
+                      <button
+                        key={color.value}
+                        onClick={() => {
+                          setEditColor(color.value);
+                          setShowColorPicker(false);
+                        }}
+                        className={`w-6 h-6 rounded border-2 ${color.clase} ${
+                          editColor === color.value ? 'ring-2 ring-blue-500' : ''
+                        }`}
+                        title={color.nombre}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {/* Botones de acción */}
+                <div className="flex gap-1">
+                  <Button
+                    size="sm"
+                    onClick={handleSave}
+                    disabled={loading}
+                    className="h-6 text-xs bg-green-600 hover:bg-green-700"
+                  >
+                    <Save className="w-3 h-3 mr-1" />
+                    Guardar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCancel}
+                    disabled={loading}
+                    className="h-6 text-xs"
+                  >
+                    <X className="w-3 h-3 mr-1" />
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <p className="text-sm text-gray-800 whitespace-pre-wrap mb-2">
+                  {note.texto}
+                </p>
+                
+                {/* Sección de comentarios */}
+                {showComments && (
+                  <div className="mt-3 pt-2 border-t border-gray-400/50">
+                    <div className="flex items-center gap-1 mb-2">
+                      <MessageCircle className="w-3 h-3 text-gray-600" />
+                      <span className="text-xs font-semibold text-gray-600">
+                        Comentarios ({commentCount})
+                      </span>
+                    </div>
+                    
+                    {/* Lista de comentarios */}
+                    <div className="space-y-2 max-h-40 overflow-y-auto mb-2 comentarios-scroll">
+                      {comentarios && comentarios.length > 0 ? (
+                        comentarios.map((comentario) => (
+                          <div 
+                            key={comentario.id} 
+                            className="bg-white/40 rounded p-2 text-xs border border-gray-400/30"
+                          >
+                            <div className="flex justify-between items-start mb-1">
+                              <span className="font-semibold text-gray-700 text-[10px]">
+                                {comentario.autor_nombre}
+                              </span>
+                              <span className="text-gray-500 text-[9px]">
+                                {comentario.tiempo_relativo || formatCommentDate(comentario.fecha)}
+                              </span>
+                            </div>
+                            <p className="text-gray-800">{comentario.texto}</p>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-xs text-gray-500 italic">Sin comentarios aún</p>
+                      )}
+                    </div>
+                    
+                    {/* Input para nuevo comentario */}
+                    <div className="flex gap-1">
+                      <input
+                        type="text"
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
+                        placeholder="Escribir comentario..."
+                        className="flex-1 text-xs px-2 py-1 rounded border border-gray-400/50 bg-white/50 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      />
+                      <Button
+                        size="sm"
+                        onClick={handleAddComment}
+                        disabled={loading || !newComment.trim()}
+                        className="h-6 w-6 p-0 bg-blue-500 hover:bg-blue-600"
+                      >
+                        <Send className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };
