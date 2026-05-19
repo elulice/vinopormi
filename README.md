@@ -1,6 +1,7 @@
+
 # VinoPorMi - Sistema de Gestión de Vinoteca
 
-🍷 **VinoPorMi** es un sistema integral de gestión moderno para vinotecas y negocios de bebidas, desarrollado con arquitectura full-stack para optimizar el control completo del negocio: inventario, ventas, clientes, proveedores y finanzas.
+🍷 **VinoPorMi** es un sistema integral de gestión moderno para vinotecas y negocios medianos, desarrollado con arquitectura full-stack para optimizar el control completo del negocio: inventario, ventas, clientes, proveedores y finanzas.
 
 Una solución web responsiva que combina la potencia de FastAPI + MongoDB en el backend con React + Tailwind CSS en el frontend, ofreciendo una experiencia de usuario fluida y herramientas administrativas robustas.
 
@@ -27,30 +28,13 @@ Una solución web responsiva que combina la potencia de FastAPI + MongoDB en el 
 ## 🛠️ Arquitectura y Tecnologías
 
 ### Backend
-- **FastAPI**: Framework moderno y asíncrono para APIs Python
-- **MongoDB**: Base de datos NoSQL con Motor (async driver)
-- **Pydantic**: Validación y serialización de datos
-- **JWT**: Autenticación con tokens JSON Web Tokens
-- **bcrypt**: Encriptación segura de contraseñas
-- **Rate Limiting**: Protección contra abusos con SlowAPI
+- **FastAPI**,  **MongoDB**, **Pydantic**, **JWT**, **bcrypt**, **Rate Limiting**
 
 ### Frontend
-- **React 18**: Biblioteca moderna de JavaScript con hooks
-- **React Router**: Navegación y routing de SPA
-- **Tailwind CSS**: Framework de CSS utility-first
-- **Radix UI**: Componentes accesibles y personalizables (selección optimizada)
-- **Axios**: Cliente HTTP para comunicación con API
-- **Lucide React**: Iconos modernos y consistentes
-- **Date-fns**: Manipulación y formateo de fechas
-- **Sonner**: Sistema de notificaciones toast
-- **Vaul**: Componentes de drawer animados
+- **React 18**, **React Router**, **Tailwind CSS**, **Radix UI**, **Axios**, **Lucide React**, **Date-fns**, **Sonner**, **Vaul**
 
 ### Infraestructura y DevOps
-- **Node.js**: Entorno de ejecución JavaScript (v24.x)
-- **Yarn**: Gestor de paquetes optimizado
-- **CRACO**: Configuración avanzada de Create React App
-- **Python 3.11+**: Backend con soporte async/await
-- **UVicorn**: Servidor ASGI de alto rendimiento
+- **Node.js**, **Yarn**, **CRACO**, **Python 3.11+**, **UVicorn**
 
 ## 📁 Estructura del Proyecto
 
@@ -106,7 +90,7 @@ vinopormi/
 
 - Autenticación JWT con expiración configurable
 - Encriptación de contraseñas con bcrypt
-- Rate limiting en endpoints críticos
+- Rate limiting en endpoints
 - Validación de datos con Pydantic/Zod
 - Registro de auditoría completo
 - Protección CORS configurada
@@ -136,8 +120,6 @@ yarn install
 yarn start
 ```
 
-**Nota:** El proyecto ha sido optimizado recientemente, eliminando dependencias y componentes no utilizados para mejorar el rendimiento y reducir el tamaño del bundle.
-
 ## 🌐 API Endpoints
 
 La API expone endpoints RESTful para:
@@ -159,13 +141,12 @@ La API expone endpoints RESTful para:
 - **Performance**: 
   - Optimizado con paginación, caching y consultas eficientes
   - Bundle size reducido (~175 kB gzipped)
-  - Dependencias optimizadas (eliminadas 43 paquetes no utilizados)
-  - Componentes UI optimizados (solo 8 componentes esenciales)
+  - Dependencias optimizadas
+  - Componentes UI optimizados
 
 ## 🎯 Ideal Para
 
 - Vinotecas y licorerías
-- Negocios de bebidas especializadas
 - Pequeños y medianos comercios
 - Empresas con sistema de cuenta corriente
 - Negocios que requieren control de stock avanzado
@@ -178,4 +159,4 @@ Este proyecto está licenciado bajo la [MIT License](LICENSE).
 
 ---
 
-**Desarrollado con ❤️ para la comunidad de vinos**
+**Desarrollado con ❤️ para la comunidad**
