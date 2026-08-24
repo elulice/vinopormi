@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/button';
 import { useState, useRef, useEffect } from 'react';
 import { logoImage } from '@/assets/images';
 import MercadopagoIcon from '@/components/MercadopagoIcon';
+import BackgroundSync from '@/components/BackgroundSync';
 
 const Layout = () => {
   const { user, logout } = useAuth();
@@ -343,6 +344,7 @@ const Layout = () => {
 
       {/* FloatingMenu - Solo para usuarios autenticados y con la configuración activada */}
       {user && floatingMenu && <FloatingMenu />}
+      <BackgroundSync />
     </div>
   );
 };

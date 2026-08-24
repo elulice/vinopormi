@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,16 +11,11 @@ import {
   PinOff,
   Palette,
   MessageCircle,
-  Send,
-  Download,
-  Loader2
+  Send
 } from 'lucide-react';
 import { toast } from 'sonner';
 import axios from 'axios';
 import { API } from '@/lib/config';
-import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
-import { format } from 'date-fns';
 
 const StickyNote = ({ note, onUpdate, onDelete }) => {
   const { user } = useAuth();
@@ -33,8 +28,15 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
   const [showComments, setShowComments] = useState(true);
   const [comentarios, setComentarios] = useState(note.comentarios || []);
   const [newComment, setNewComment] = useState('');
-  const [downloading, setDownloading] = useState(false);
-  const noteContentRef = useRef(null);
+  const editTextareaRef = useRef(null);
+
+  useEffect(() => {
+    if (isEditing && editTextareaRef.current) {
+      const el = editTextareaRef.current;
+      el.style.height = 'auto';
+      el.style.height = `${el.scrollHeight}px`;
+    }
+  }, [isEditing, editText]);
 
   const colores = [
     { nombre: 'amarillo', clase: 'bg-yellow-200 border-yellow-300 hover:bg-yellow-300', value: 'yellow' },
@@ -194,54 +196,6 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
     }
   };
 
-  const downloadAsImage = async () => {
-    if (!noteContentRef.current) return;
-    setDownloading(true);
-    try {
-      const canvas = await html2canvas(noteContentRef.current, {
-        backgroundColor: null,
-        scale: 2,
-        useCORS: true
-      });
-      const link = document.createElement('a');
-      link.download = `nota-${note.id}-${format(new Date(), 'yyyyMMdd-HHmmss')}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-      toast.success('Imagen descargada correctamente');
-    } catch (error) {
-      toast.error('Error al descargar la imagen');
-    } finally {
-      setDownloading(false);
-    }
-  };
-
-  const downloadAsPDF = async () => {
-    if (!noteContentRef.current) return;
-    setDownloading(true);
-    try {
-      const canvas = await html2canvas(noteContentRef.current, {
-        backgroundColor: null,
-        scale: 2,
-        useCORS: true
-      });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-      });
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`nota-${note.id}-${format(new Date(), 'yyyyMMdd-HHmmss')}.pdf`);
-      toast.success('PDF descargado correctamente');
-    } catch (error) {
-      toast.error('Error al descargar el PDF');
-    } finally {
-      setDownloading(false);
-    }
-  };
-
   const formatCommentDate = (dateStr) => {
     if (!dateStr) return '';
     
@@ -291,7 +245,7 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
       )}
 
       {/* Contenido capturable */}
-      <div ref={noteContentRef}>
+      <div>
         <div className="note-body">
           {/* Header con autor y timestamp */}
           <div className="mb-2 border-b border-gray-400 pb-1">
@@ -323,26 +277,6 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
                     <Edit2 className="w-3 h-3" />
                   </Button>
                 )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={downloadAsImage}
-                  disabled={downloading || isEditing}
-                  className="h-4 w-6 p-0 text-gray-600 hover:text-green-600"
-                  title="Descargar como imagen"
-                >
-                  {downloading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={downloadAsPDF}
-                  disabled={downloading || isEditing}
-                  className="h-4 w-6 p-0 text-gray-600 hover:text-purple-600"
-                  title="Descargar como PDF"
-                >
-                  <Download className="w-3 h-3" />
-                </Button>
                 {canDelete && (
                   <Button
                     variant="ghost"
@@ -366,6 +300,7 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
             {isEditing ? (
               <div className="space-y-2">
                 <Textarea
+                  ref={editTextareaRef}
                   value={editText}
                   onChange={(e) => setEditText(e.target.value)}
                   className="min-h-[80px] text-sm resize-none bg-white/50"

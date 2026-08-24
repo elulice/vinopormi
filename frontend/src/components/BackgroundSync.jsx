@@ -12,8 +12,10 @@ import {
   db,
   contarPendientes
 } from '@/db/offlineDB';
+import { useAuth } from '@/context/AuthContext';
 
 const BackgroundSync = () => {
+  const { silentReauth } = useAuth();
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isSyncing, setIsSyncing] = useState(false);
   const [serverAvailable, setServerAvailable] = useState(null);
@@ -49,13 +51,16 @@ const BackgroundSync = () => {
       if (prevServerAvailable.current === false) {
         setServerAvailable(true);
         prevServerAvailable.current = true;
+        localStorage.setItem('server_online', 'true');
         if (intervalRef.current) {
           clearInterval(intervalRef.current);
           intervalRef.current = null;
         }
+        silentReauth();
       } else if (prevServerAvailable.current === null || prevServerAvailable.current === true) {
         setServerAvailable(true);
         prevServerAvailable.current = true;
+        localStorage.setItem('server_online', 'true');
       }
       return true;
     } catch (error) {
@@ -63,19 +68,23 @@ const BackgroundSync = () => {
         if (prevServerAvailable.current === false) {
           setServerAvailable(true);
           prevServerAvailable.current = true;
+          localStorage.setItem('server_online', 'true');
           if (intervalRef.current) {
             clearInterval(intervalRef.current);
             intervalRef.current = null;
           }
+          silentReauth();
         } else if (prevServerAvailable.current === null || prevServerAvailable.current === true) {
           setServerAvailable(true);
           prevServerAvailable.current = true;
+          localStorage.setItem('server_online', 'true');
         }
         return true;
       }
       if (prevServerAvailable.current !== false) {
         setServerAvailable(false);
         prevServerAvailable.current = false;
+      localStorage.setItem('server_online', 'false');
         intervalRef.current = setInterval(checkServer, 10000);
       }
       return false;
@@ -149,6 +158,7 @@ const BackgroundSync = () => {
     const handleOffline = () => {
       setIsOnline(false);
       setServerAvailable(false);
+      setServerOnline(false);
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;

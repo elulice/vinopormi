@@ -20,7 +20,6 @@ import Herramientas from "@/pages/Herramientas";
 import Configuracion from "@/pages/Configuracion";
 import Mercadopago from "@/pages/Mercadopago";
 import Layout from "@/components/Layout";
-import BackgroundSync from "@/components/BackgroundSync";
 import AdminRoute from "@/components/AdminRoute";
 import { AuthProvider } from "@/context/AuthContext";
 import { ConfigProvider } from "@/context/ConfigContext";
@@ -97,7 +96,6 @@ function App() {
         </Route>
       </Routes>
 
-      <BackgroundSync />
       <Toaster position="top-right" />
     </BrowserRouter>
   );

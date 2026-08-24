@@ -2802,6 +2802,8 @@ async def buscar_transferencias(
                     pass
             
             if (payment_type in ["bank_transfer", "account_money"] or operation_type in ["transfer", "account_fund"]) and status == "approved":
+                payer = payment.get("payer", {})
+                payer_extra = payment.get("additional_info", {}).get("payer", {})
                 transferencias.append({
                     "id": payment.get("id"),
                     "monto": payment.get("transaction_amount", payment.get("amount", 0)),
@@ -2814,8 +2816,14 @@ async def buscar_transferencias(
                     "metodo_pago": payment.get("payment_method_id"),
                     "fecha_creacion": payment.get("date_created"),
                     "fecha_aprobacion": payment.get("date_approved"),
-                    "payer_email": payment.get("payer", {}).get("email"),
-                    "payer_identificacion": payment.get("payer", {}).get("identification", {}),
+                    "payer_email": payer.get("email"),
+                    "payer_nombre": payer.get("first_name") or payer.get("name") or payer_extra.get("first_name"),
+                    "payer_apellido": payer.get("last_name") or payer.get("surname") or payer_extra.get("last_name"),
+                    "payer_identificacion": payer.get("identification", {}),
+                    "payer_telefono": payer.get("phone", {}) or payer_extra.get("phone", {}),
+                    "payer_extra": payer_extra,
+                    "cardholder_name": payment.get("card", {}).get("cardholder", {}).get("name"),
+                    "raw": payment,
                 })
         
         return {"transferencias": transferencias, "cantidad": len(transferencias), "busqueda_minutos": minutos}

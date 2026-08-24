@@ -14,7 +14,8 @@ import {
   DialogDescription,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash2, Package, Info, X, Eye, EyeOff, Star } from 'lucide-react';
+import { Plus, Pencil, Trash2, Package, Info, X, Eye, EyeOff, Star, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 import ResponsiveTable from '@/components/ResponsiveTable';
 import MobileCard from '@/components/MobileCard';
@@ -48,6 +49,7 @@ const Productos = () => {
   const [editingProducto, setEditingProducto] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [loadingPage, setLoadingPage] = useState(false);
+  const [downloadingXls, setDownloadingXls] = useState(false);
   const [filters, setFilters] = useState({
     tipo: '',
     is_public: '',
@@ -496,6 +498,46 @@ const Productos = () => {
       document.documentElement.scroll({ top: 0, left: 0 });
     }, 200); // Mayor delay para asegurar que el contenido se renderizó
   }, [searchTerm, filters]);
+
+  const handleDescargarLista = useCallback(async () => {
+    try {
+      setDownloadingXls(true);
+      const res = await apiGet(`${API}/productos-paginados?page=1&limit=10000`);
+      const todosLosProductos = res.data.productos;
+
+      const rows = todosLosProductos.map(p => ({
+        'Nombre': capitalizeWords(p.nombre),
+        'Precio': p.precio_unitario,
+        'Descuento': p.descuento_cantidad_minima && p.descuento_precio_unitario
+          ? `Desde ${p.descuento_cantidad_minima} unidades: $${p.descuento_precio_unitario}`
+          : '-'
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Productos');
+
+      ws['!cols'] = [
+        { wch: 40 },
+        { wch: 15 },
+        { wch: 35 }
+      ];
+
+      const meses = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+      const ahora = new Date();
+      const mes = meses[ahora.getMonth()];
+      const anio = String(ahora.getFullYear()).slice(-2);
+      const nombreArchivo = `lista_productos_${mes}_${anio}.xlsx`;
+
+      XLSX.writeFile(wb, nombreArchivo);
+      toast.success(`Se descargaron ${todosLosProductos.length} productos`);
+    } catch (error) {
+      console.error('Error descargando lista:', error);
+      toast.error('Error al descargar la lista de productos');
+    } finally {
+      setDownloadingXls(false);
+    }
+  }, []);
 
   if (loading) {
     return <div className="text-center py-8">Cargando...</div>;
@@ -962,6 +1004,20 @@ const Productos = () => {
             </form>
           </DialogContent>
         </Dialog>
+
+        <Button
+          size="sm"
+          className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+          onClick={handleDescargarLista}
+          disabled={downloadingXls}
+        >
+          {downloadingXls ? (
+            <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+          ) : (
+            <Download className="w-3 h-3 mr-1" />
+          )}
+          Descargar Lista
+        </Button>
       </div>
 
       {/* TABLA */}

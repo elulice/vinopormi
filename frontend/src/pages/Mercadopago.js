@@ -251,6 +251,28 @@ const Mercadopago = () => {
                     <p className="font-medium">{selectedTransferencia.payer_email}</p>
                   </div>
                 )}
+                {(selectedTransferencia.payer_nombre || selectedTransferencia.payer_apellido) && (
+                  <div className="col-span-2">
+                    <p className="text-muted-foreground">Nombre del pagador</p>
+                    <p className="font-medium">
+                      {[selectedTransferencia.payer_nombre, selectedTransferencia.payer_apellido].filter(Boolean).join(' ') || '-'}
+                    </p>
+                  </div>
+                )}
+                {selectedTransferencia.cardholder_name && (
+                  <div className="col-span-2">
+                    <p className="text-muted-foreground">Nombre en tarjeta (cardholder)</p>
+                    <p className="font-medium">{selectedTransferencia.cardholder_name}</p>
+                  </div>
+                )}
+                {selectedTransferencia.payer_extra && Object.keys(selectedTransferencia.payer_extra).length > 0 && (
+                  <div className="col-span-2">
+                    <p className="text-muted-foreground">Datos extra del pagador</p>
+                    <pre className="text-xs bg-background p-2 rounded overflow-x-auto whitespace-pre-wrap break-all">
+                      {JSON.stringify(selectedTransferencia.payer_extra, null, 2)}
+                    </pre>
+                  </div>
+                )}
                 {selectedTransferencia.payer_identificacion && Object.keys(selectedTransferencia.payer_identificacion).length > 0 && (
                   <div className="col-span-2">
                     <p className="text-muted-foreground">Identificación</p>
@@ -334,6 +356,19 @@ const Mercadopago = () => {
                   </div>
                 )}
               </div>
+
+              {selectedTransferencia.raw && (
+                <div className="border-t pt-3">
+                  <details>
+                    <summary className="cursor-pointer text-muted-foreground hover:text-foreground text-sm">
+                      Ver respuesta completa de MercadoPago
+                    </summary>
+                    <pre className="text-[10px] bg-background p-2 rounded overflow-x-auto whitespace-pre-wrap break-all max-h-64 overflow-y-auto mt-2">
+                      {JSON.stringify(selectedTransferencia.raw, null, 2)}
+                    </pre>
+                  </details>
+                </div>
+              )}
 
 
             </div>

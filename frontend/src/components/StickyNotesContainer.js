@@ -190,7 +190,7 @@ const StickyNotesContainer = () => {
             <p className="text-sm">Crea tu primera nota para comenzar</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-start">
             {/* Nota de creación */}
             {showCreateForm && (
               <div className={`relative border-2 rounded-lg p-4 min-h-[150px] w-full max-w-xs transition-all duration-200 ${

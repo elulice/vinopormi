@@ -10,23 +10,27 @@ import { API } from '@/lib/config';
 axios.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Si es error de red (servidor caído), no redirigir al login
     if (!error.response) {
       return Promise.reject(error);
     }
     
     if (error.response?.status === 401) {
+      const serverDown = localStorage.getItem('server_online') === 'false';
+      if (serverDown) {
+        return Promise.reject(error);
+      }
+      
       const errorMessage = error.response.data?.detail || 'Token inválido o expirado';
       
-      // Mostrar mensaje específico si es por inactividad
       if (errorMessage.includes('Sesión expirada por inactividad')) {
         toast.error('Tu sesión ha expirado por inactividad. Por favor, inicia sesión nuevamente.');
       } else {
         toast.error('Token inválido o expirado. Por favor, inicia sesión nuevamente.');
       }
       
-      // Limpiar token y estado
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('offline_credentials');
       window.location.href = '/login';
       return Promise.reject(error);
     }
@@ -41,9 +45,10 @@ export const AuthProvider = ({ children }) => {
   const [activityTimer, setActivityTimer] = useState(null);
   const [autoLogoutEnabled, setAutoLogoutEnabled] = useState(true);
 
-  const handleAutoLogout = useCallback(() => {
+  const clearAuthState = useCallback(() => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('offline_credentials');
     setToken(null);
     setUser(null);
     setAutoLogoutEnabled(false);
@@ -55,7 +60,6 @@ export const AuthProvider = ({ children }) => {
     });
   }, []);
 
-  // Simplificar updateActivity sin useCallback para evitar ciclos
   const updateActivityRef = useRef(() => {});
   
   useEffect(() => {
@@ -72,9 +76,8 @@ export const AuthProvider = ({ children }) => {
                 headers: { Authorization: `Bearer ${token}` }
               });
             } catch (error) {
-              // El interceptor global manejará el 401, pero mantenemos el auto-logout por consistencia
               if (error.response?.status === 401) {
-                handleAutoLogout();
+                clearAuthState();
               }
             }
           }, 30 * 1000);
@@ -83,7 +86,7 @@ export const AuthProvider = ({ children }) => {
         });
       }
     };
-  }, [autoLogoutEnabled, token, handleAutoLogout]);
+  }, [autoLogoutEnabled, token, clearAuthState]);
 
   useEffect(() => {
     const verifyToken = async () => {
@@ -102,7 +105,6 @@ export const AuthProvider = ({ children }) => {
           const isEnabled = response.data.preferencias?.autoLogout !== false;
           setAutoLogoutEnabled(isEnabled);
         } catch (error) {
-          // Si es error de red (servidor caído), mantener sesión activa con datos guardados
           if (!error.response) {
             if (storedUser) {
               setUser(JSON.parse(storedUser));
@@ -112,12 +114,8 @@ export const AuthProvider = ({ children }) => {
             setLoading(false);
             return;
           }
-          // El interceptor global manejará el 401, así que solo limpiamos estado localmente
           if (error.response.status !== 401) {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            setToken(null);
-            setUser(null);
+            clearAuthState();
           }
         }
       }
@@ -125,9 +123,8 @@ export const AuthProvider = ({ children }) => {
     };
 
     verifyToken();
-  }, []);
+  }, [clearAuthState]);
 
-  // Efecto para detectar actividad del usuario - simplificado
   useEffect(() => {
     if (!autoLogoutEnabled) return;
 
@@ -173,6 +170,7 @@ export const AuthProvider = ({ children }) => {
     const { token: newToken, user: userData } = response.data;
     localStorage.setItem('token', newToken);
     localStorage.setItem('user', JSON.stringify(userData));
+    localStorage.setItem('offline_credentials', JSON.stringify({ username, password }));
     setToken(newToken);
     setUser(userData);
     
@@ -182,36 +180,28 @@ export const AuthProvider = ({ children }) => {
     return userData;
   };
 
+  const silentReauth = useCallback(async () => {
+    const credentials = localStorage.getItem('offline_credentials');
+    if (!credentials) return false;
+
+    try {
+      const { username, password } = JSON.parse(credentials);
+      const response = await axios.post(`${API}/auth/login`, { username, password });
+      const { token: newToken, user: userData } = response.data;
+      localStorage.setItem('token', newToken);
+      localStorage.setItem('user', JSON.stringify(userData));
+      setToken(newToken);
+      setUser(userData);
+      toast.success('Sesión reestablecida automáticamente', { duration: 2000 });
+      return true;
+    } catch (error) {
+      console.warn('Re-login silencioso falló:', error);
+      return false;
+    }
+  }, []);
+
   const register = async (username, password, nombre) => {
     await axios.post(`${API}/auth/register`, { username, password, nombre });
-  };
-
-  const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setToken(null);
-    setUser(null);
-    setAutoLogoutEnabled(false);
-    setActivityTimer(prevTimer => {
-      if (prevTimer) {
-        clearTimeout(prevTimer);
-      }
-      return null;
-    });
-  };
-
-  const updateAutoLogoutSetting = (enabled) => {
-    setAutoLogoutEnabled(enabled);
-    if (enabled) {
-      updateActivityRef.current();
-    } else {
-      setActivityTimer(prevTimer => {
-        if (prevTimer) {
-          clearTimeout(prevTimer);
-        }
-        return null;
-      });
-    }
   };
 
   const getAuthHeader = useCallback(() => {
@@ -224,11 +214,24 @@ export const AuthProvider = ({ children }) => {
       token, 
       login, 
       register, 
-      logout, 
+      logout: clearAuthState,
       loading, 
       getAuthHeader, 
-      updateAutoLogoutSetting,
-      autoLogoutEnabled 
+      updateAutoLogoutSetting: (enabled) => {
+        setAutoLogoutEnabled(enabled);
+        if (enabled) {
+          updateActivityRef.current();
+        } else {
+          setActivityTimer(prevTimer => {
+            if (prevTimer) {
+              clearTimeout(prevTimer);
+            }
+            return null;
+          });
+        }
+      },
+      autoLogoutEnabled,
+      silentReauth
     }}>
       {children}
     </AuthContext.Provider>
