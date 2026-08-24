@@ -40,8 +40,8 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4">
-      <div className="absolute inset-0 opacity-5">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950 p-4">
+      <div className="absolute inset-0 opacity-5 dark:opacity-10">
         <img
           src="https://images.pexels.com/photos/33553572/pexels-photo-33553572.jpeg"
           alt="Background"

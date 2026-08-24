@@ -42,14 +42,14 @@ const writeMirror = (key, value) => {
   }
 };
 
-export const ConfigProvider = ({ children }) => {
+export const ConfigProvider = ({ children, forceDark = false }) => {
   const { user, getAuthHeader, updateAutoLogoutSetting } = useAuth();
   const [showCents, setShowCentsState] = useState(() => readMirror(MIRROR_KEYS.showCents, true)); // Por defecto mostrar centavos
   const [sidebarWidth, setSidebarWidthState] = useState(() => readMirror(MIRROR_KEYS.sidebarWidth, 'normal')); // 'compact', 'normal', 'expanded'
   const [floatingMenu, setFloatingMenuState] = useState(() => readMirror(MIRROR_KEYS.floatingMenu, false)); // Por defecto deshabilitado
   const [autoLogout, setAutoLogoutState] = useState(() => readMirror(MIRROR_KEYS.autoLogout, true)); // Por defecto habilitado
   const [calcularVuelto, setCalcularVueltoState] = useState(() => readMirror(MIRROR_KEYS.calcularVuelto, true)); // Por defecto habilitado
-  const [darkMode, setDarkModeState] = useState(() => readMirror(MIRROR_KEYS.darkMode, false));
+  const [darkMode, setDarkModeState] = useState(() => forceDark ? true : readMirror(MIRROR_KEYS.darkMode, true));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -81,7 +81,7 @@ export const ConfigProvider = ({ children }) => {
       const floatingMenuVal = preferencias.floatingMenu !== undefined ? preferencias.floatingMenu : false;
       const autoLogoutVal = preferencias.autoLogout !== undefined ? preferencias.autoLogout : false;
       const calcularVueltoVal = preferencias.calcularVuelto !== undefined ? preferencias.calcularVuelto : true;
-      const darkModeVal = preferencias.darkMode !== undefined ? preferencias.darkMode : false;
+      const darkModeVal = forceDark ? true : (preferencias.darkMode !== undefined ? preferencias.darkMode : true);
 
       setShowCentsState(showCentsVal);
       setSidebarWidthState(sidebarWidthVal);
@@ -166,13 +166,12 @@ export const ConfigProvider = ({ children }) => {
     if (user) {
       loadPreferences();
     } else {
-      // Resetear cuando no hay usuario
+      // Resetear cuando no hay usuario (darkMode se conserva desde el espejo)
       setShowCentsState(true);
       setSidebarWidthState('normal');
       setFloatingMenuState(false);
       setAutoLogoutState(false);
       setCalcularVueltoState(true);
-      setDarkModeState(false);
       setLoading(false);
     }
   }, [user, loadPreferences]);

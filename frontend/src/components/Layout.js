@@ -136,11 +136,11 @@ const Layout = () => {
             <Menu className="w-5 h-5" />
           </Button>
           <div className="flex items-center gap-3 ml-2">
-            <img 
-              src={logoImage} 
-              alt="Vinoteca Logo" 
-              className="w-6 h-6"
-            />
+              <img 
+                src={logoImage} 
+                alt="Vinoteca Logo" 
+                className="w-6 h-6 rounded-full object-cover"
+              />
             <h1 className="text-lg font-bold text-foreground">Vino Por Mi</h1>
           </div>
         </div>
@@ -166,7 +166,7 @@ const Layout = () => {
               <img 
                 src={logoImage} 
                 alt="Vinoteca Logo" 
-                className={`${sidebarWidth === 'compact' ? 'w-6 h-6' : 'w-10 h-10'} flex-shrink-0`}
+                className={`${sidebarWidth === 'compact' ? 'w-6 h-6' : 'w-10 h-10'} flex-shrink-0 rounded-full object-cover`}
               />
               {sidebarWidth !== 'compact' && (
                 <div>

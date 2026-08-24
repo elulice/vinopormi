@@ -14,8 +14,9 @@
         <script>
           (function () {
             try {
+              var path = window.location.pathname;
               var stored = localStorage.getItem('vinopormi_dark_mode');
-              if (stored === 'true') {
+              if (path === '/login' || stored === null || stored === 'true') {
                 document.documentElement.classList.add('dark');
               }
             } catch (e) {}

@@ -43,7 +43,7 @@ function App() {
         {/* LOGIN - Con AuthProvider pero sin ProtectedRoute */}
         <Route path="/login" element={
           <AuthProvider>
-            <ConfigProvider>
+            <ConfigProvider forceDark>
               <Login />
             </ConfigProvider>
           </AuthProvider>

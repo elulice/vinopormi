@@ -52,7 +52,7 @@ class Usuario(BaseModel):
     username: str
     nombre: str
     rol: str = "comun"  # "admin" o "comun"
-    preferencias: dict = Field(default_factory=lambda: {"showCents": True, "sidebarWidth": "normal", "floatingMenu": False, "autoLogout": True, "soloMisDatos": False, "calcularVuelto": True, "darkMode": False})  # Preferencias del usuario
+    preferencias: dict = Field(default_factory=lambda: {"showCents": True, "sidebarWidth": "normal", "floatingMenu": False, "autoLogout": True, "soloMisDatos": False, "calcularVuelto": True, "darkMode": True})  # Preferencias del usuario
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     lastActivity: Optional[datetime] = None  # Última actividad del usuario
 
