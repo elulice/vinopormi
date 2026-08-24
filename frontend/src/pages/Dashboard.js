@@ -171,14 +171,14 @@ const Dashboard = () => {
 
         <Card
           data-testid="card-balance-del-dia"
-          className="cursor-pointer relative hover:shadow-lg hover:z-50 hover:scale-x-[1.15] hover:scale-y-[1.08] transition-all duration-200 bg-gradient-to-br from-blue-50 to-white border-2 border-blue-200 hover:border-blue-400"
+          className="cursor-pointer relative hover:shadow-lg hover:z-50 hover:scale-x-[1.15] hover:scale-y-[1.08] transition-all duration-200 bg-gradient-to-br from-blue-50 to-white border-2 border-blue-200 hover:border-blue-400 dark:from-blue-950/40 dark:to-background dark:border-blue-400/60 dark:hover:border-blue-400"
           onClick={() => navigate('/dashboard')}
         >
           <CardHeader className="flex flex-row items-center justify-between p-4 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Balance del Día
             </CardTitle>
-            <DollarSign className="w-5 h-5 text-blue-600 !mt-0" />
+            <DollarSign className="w-5 h-5 text-blue-600 dark:text-blue-400 !mt-0" />
           </CardHeader>
           <CardContent className="p-4 pt-0">
             <div className={`text-2xl sm:text-2xl font-bold ${(stats.caja_real - stats.total_egresos_hoy) >= 0 ? 'text-green-600' : 'text-destructive'} break-words overflow-wrap-anywhere pb-2`}>
@@ -203,7 +203,7 @@ const Dashboard = () => {
                   <span>{formatCurrency(stats.ingresos_cta_cte_hoy, showCents)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-xs text-red-500 pt-1 border-t">
+                <div className="flex justify-between text-xs text-red-500 pt-1 border-t dark:border-white/10">
                 <span>Egresos</span>
                 <span>-{formatCurrency(stats.total_egresos_hoy, showCents)}</span>
               </div>

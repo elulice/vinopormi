@@ -108,24 +108,38 @@ const Ventas = () => {
   });
   
   // Estados para filtros y ordenamiento
-  const [filters, setFilters] = useState({
+  const defaultFilters = {
     dateType: 'all', // 'all', 'specific', 'range'
     specificDate: '',
     startDate: '',
     endDate: '',
     medioPago: 'all', // 'all', 'cuenta_corriente', 'efectivo', 'posnet', 'transferencia'
     usuario: 'all' // 'all' o ID de usuario específico
-  });
+  };
 
-  // Efecto para aplicar filtro automático desde URL params
+  const getInitialFilters = () => {
+    const autoFilter = searchParams.get('filter');
+    if (autoFilter === 'today') {
+      return {
+        ...defaultFilters,
+        dateType: 'specific',
+        specificDate: format(new Date(), 'yyyy-MM-dd')
+      };
+    }
+    return defaultFilters;
+  };
+
+  const [filters, setFilters] = useState(getInitialFilters);
+
+  // Efecto para aplicar filtro automático desde URL params (navegación sin remount)
   useEffect(() => {
     const autoFilter = searchParams.get('filter');
     if (autoFilter === 'today') {
-      setFilters(prev => ({
-        ...prev,
-        dateType: 'specific',
-        specificDate: format(new Date(), 'yyyy-MM-dd')
-      }));
+      const specificDate = format(new Date(), 'yyyy-MM-dd');
+      setFilters(prev => {
+        if (prev.dateType === 'specific' && prev.specificDate === specificDate) return prev;
+        return { ...prev, dateType: 'specific', specificDate };
+      });
     }
   }, [searchParams]);
 
@@ -220,7 +234,6 @@ const Ventas = () => {
   }, []);
 
   useEffect(() => {
-    fetchVentasRef.current?.(1);
     fetchUsuarios();
      // eslint-disable-next-line
   }, []);

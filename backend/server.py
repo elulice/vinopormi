@@ -52,7 +52,7 @@ class Usuario(BaseModel):
     username: str
     nombre: str
     rol: str = "comun"  # "admin" o "comun"
-    preferencias: dict = Field(default_factory=lambda: {"showCents": True, "sidebarWidth": "normal", "floatingMenu": False, "autoLogout": True, "soloMisDatos": False, "calcularVuelto": True})  # Preferencias del usuario
+    preferencias: dict = Field(default_factory=lambda: {"showCents": True, "sidebarWidth": "normal", "floatingMenu": False, "autoLogout": True, "soloMisDatos": False, "calcularVuelto": True, "darkMode": False})  # Preferencias del usuario
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     lastActivity: Optional[datetime] = None  # Última actividad del usuario
 
@@ -76,6 +76,7 @@ class PreferenciasUpdate(BaseModel):
     autoLogout: Optional[bool] = None   # Habilitar/deshabilitar cierre de sesión automático
     soloMisDatos: Optional[bool] = None  # Mostrar solo mis datos en dashboard
     calcularVuelto: Optional[bool] = None  # Habilitar/deshabilitar calculadora de vuelto
+    darkMode: Optional[bool] = None  # Modo oscuro de la interfaz
 
 class LoginRequest(BaseModel):
     username: str
@@ -752,6 +753,8 @@ async def update_preferencias(
         preferencias_actuales['soloMisDatos'] = preferencias.soloMisDatos
     if preferencias.calcularVuelto is not None:
         preferencias_actuales['calcularVuelto'] = preferencias.calcularVuelto
+    if preferencias.darkMode is not None:
+        preferencias_actuales['darkMode'] = preferencias.darkMode
     
     # Guardar en la base de datos
     result = await db.usuarios.update_one(
@@ -2522,7 +2525,7 @@ async def obtener_sticky_notes(current_user: Usuario = Depends(get_current_user)
     """Obtiene todas las sticky notes (visibles para todos)"""
     try:
         sticky_notes = []
-        cursor = db["sticky_notes"].find().sort("fijada", -1).sort("timestamp", -1)
+        cursor = db["sticky_notes"].find()
         
         async for document in cursor:
             # Convertir ObjectId a string y eliminar _id
@@ -2585,11 +2588,22 @@ async def obtener_sticky_notes(current_user: Usuario = Depends(get_current_user)
             doc_copy['tiempo_relativo'] = tiempo_relativo
             sticky_notes.append(doc_copy)
             
+        def _fecha_orden(doc):
+            ts = doc.get('fecha_actualizacion') or doc.get('timestamp')
+            if ts is None:
+                return 0
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            return ts.timestamp()
+        
+        # Fijadas primero, y dentro de cada grupo por la más reciente (creada o modificada)
+        sticky_notes.sort(key=lambda d: ((0 if d.get('fijada') else 1), -_fecha_orden(d)))
+        
         return sticky_notes
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener sticky notes: {str(e)}")
 
-@api_router.put("/sticky-notes/{note_id}", response_model=StickyNote)
+@api_router.put("/sticky-notes/{note_id}", response_model=dict)
 async def actualizar_sticky_note(
     note_id: str,
     note_update: StickyNoteUpdate,

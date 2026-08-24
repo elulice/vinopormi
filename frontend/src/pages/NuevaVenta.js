@@ -901,14 +901,14 @@ const NuevaVenta = () => {
                                   <Search className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground w-3 h-3 pointer-events-none" />
                                 )}
                                 {activeDetalleIndex === index && productoSearchTerm && (
-                                  <div className="search-dropdown absolute z-10 left-0 right-0 mt-1 bg-background border rounded-md shadow-lg max-h-40 overflow-auto">
+                                  <div className="search-dropdown absolute z-10 left-0 right-0 mt-1 bg-background border border-border rounded-md shadow-lg max-h-40 overflow-auto">
                           {filteredProductos.length > 0 ? (
                              filteredProductos.map((producto, resultIndex) => (
                               <div
                                 key={producto.id}
                                 ref={el => resultRefs.current[resultIndex] = el}
-                                className={`px-2 py-1.5 hover:bg-blue-50 cursor-pointer flex justify-between items-center transition-colors text-sm ${
-                                  resultIndex === selectedResultIndex ? 'bg-blue-100 border-l-4 border-blue-500' : ''
+                                className={`px-2 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/40 cursor-pointer flex justify-between items-center transition-colors text-sm ${
+                                  resultIndex === selectedResultIndex ? 'bg-blue-100 dark:bg-blue-900/50 border-l-4 border-blue-500 dark:border-blue-400' : ''
                                 }`}
                                 onClick={() => {
                                   actualizarDetalle(index, 'producto_id', producto.id);

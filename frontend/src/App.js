@@ -34,7 +34,7 @@ window.addEventListener("wheel", () => {
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
+        <Routes>
         {/* RUTAS PÚBLICAS - Sin AuthProvider ni ConfigProvider */}
         <Route path="/Landing" element={<LandingPage />} />
         <Route path="/catalogo" element={<PaginaCatalogo />} />
@@ -97,7 +97,7 @@ function App() {
       </Routes>
 
       <Toaster position="top-right" />
-    </BrowserRouter>
+      </BrowserRouter>
   );
 }
 

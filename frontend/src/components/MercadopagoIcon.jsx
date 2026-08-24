@@ -1,4 +1,4 @@
-const MercadopagoIcon = ({ className = "w-5 h-5", color = "#000000" }) => (
+const MercadopagoIcon = ({ className = "w-5 h-5", color = "currentColor" }) => (
   <svg width="41" height="28" viewBox="0 0 41 28" className={className} xmlns="http://www.w3.org/2000/svg">
     <g>
       <g strokeWidth="2">

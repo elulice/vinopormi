@@ -11,6 +11,16 @@
         <link rel="apple-touch-icon" href="%PUBLIC_URL%/favicon.ico" />
         <link rel="shortcut icon" href="%PUBLIC_URL%/favicon.ico" />
         <title>Vino Por Mi</title>
+        <script>
+          (function () {
+            try {
+              var stored = localStorage.getItem('vinopormi_dark_mode');
+              if (stored === 'true') {
+                document.documentElement.classList.add('dark');
+              }
+            } catch (e) {}
+          })();
+        </script>
     </head>
     <body>
         <noscript>You need to enable JavaScript to run this app.</noscript>

@@ -16,6 +16,7 @@ import {
 import { toast } from 'sonner';
 import axios from 'axios';
 import { API } from '@/lib/config';
+import { format } from 'date-fns';
 
 const StickyNote = ({ note, onUpdate, onDelete }) => {
   const { user } = useAuth();
@@ -39,18 +40,18 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
   }, [isEditing, editText]);
 
   const colores = [
-    { nombre: 'amarillo', clase: 'bg-yellow-200 border-yellow-300 hover:bg-yellow-300', value: 'yellow' },
-    { nombre: 'rosa', clase: 'bg-pink-200 border-pink-300 hover:bg-pink-300', value: 'pink' },
-    { nombre: 'azul', clase: 'bg-blue-200 border-blue-300 hover:bg-blue-300', value: 'blue' },
-    { nombre: 'verde', clase: 'bg-green-200 border-green-300 hover:bg-green-300', value: 'green' }
+    { nombre: 'amarillo', clase: 'bg-yellow-200 border-yellow-300 hover:bg-yellow-300 dark:bg-yellow-500/25 dark:border-yellow-400/60 dark:text-yellow-50 dark:hover:bg-yellow-500/35', value: 'yellow' },
+    { nombre: 'rosa', clase: 'bg-pink-200 border-pink-300 hover:bg-pink-300 dark:bg-pink-500/25 dark:border-pink-400/60 dark:text-pink-50 dark:hover:bg-pink-500/35', value: 'pink' },
+    { nombre: 'azul', clase: 'bg-blue-200 border-blue-300 hover:bg-blue-300 dark:bg-blue-500/25 dark:border-blue-400/60 dark:text-blue-50 dark:hover:bg-blue-500/35', value: 'blue' },
+    { nombre: 'verde', clase: 'bg-green-200 border-green-300 hover:bg-green-300 dark:bg-green-500/25 dark:border-green-400/60 dark:text-green-50 dark:hover:bg-green-500/35', value: 'green' }
   ];
 
   const getColorClasses = (color) => {
     const colorMap = {
-      'yellow': 'bg-yellow-200 border-yellow-300',
-      'pink': 'bg-pink-200 border-pink-300', 
-      'blue': 'bg-blue-200 border-blue-300',
-      'green': 'bg-green-200 border-green-300'
+      'yellow': 'bg-yellow-200 border-yellow-300 dark:bg-yellow-500/25 dark:border-yellow-400/60 dark:text-yellow-50 dark:hover:bg-yellow-500/35',
+      'pink': 'bg-pink-200 border-pink-300 dark:bg-pink-500/25 dark:border-pink-400/60 dark:text-pink-50 dark:hover:bg-pink-500/35',
+      'blue': 'bg-blue-200 border-blue-300 dark:bg-blue-500/25 dark:border-blue-400/60 dark:text-blue-50 dark:hover:bg-blue-500/35',
+      'green': 'bg-green-200 border-green-300 dark:bg-green-500/25 dark:border-green-400/60 dark:text-green-50 dark:hover:bg-green-500/35'
     };
     return colorMap[color] || colorMap['yellow'];
   };
@@ -230,6 +231,9 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
   const tiempoRelativo = note.tiempo_relativo || 'hace instantes';
   const commentCount = comentarios?.length || 0;
 
+  const fechaReferencia = (note.editada && note.fecha_actualizacion) ? note.fecha_actualizacion : note.timestamp;
+  const fechaTooltip = fechaReferencia ? format(new Date(fechaReferencia), 'dd/MM/yy HH:mm') : '';
+
   return (
     <div className={`relative border-2 rounded-lg p-4 min-h-[150px] w-full max-w-xs transition-all duration-200 ${
       isEditing ? getColorClasses(editColor) : getColorClasses(note.color)
@@ -250,7 +254,7 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
           {/* Header con autor y timestamp */}
           <div className="mb-2 border-b border-gray-400 pb-1">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-gray-700">
+              <span className="text-xs font-semibold text-inherit">
                 {note.autor_nombre}
               </span>
               <div className="flex gap-1">
@@ -258,7 +262,7 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowComments(!showComments)}
-                  className="h-4 w-6 p-0 text-gray-600 hover:text-blue-600 relative"
+                  className="h-4 w-6 p-0 text-inherit hover:text-blue-600 relative"
                 >
                   <MessageCircle className="w-3 h-3" />
                   {commentCount > 0 && (
@@ -272,7 +276,7 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
                     variant="ghost"
                     size="sm"
                     onClick={() => setIsEditing(true)}
-                    className="h-4 w-6 p-0 text-gray-600 hover:text-blue-600"
+                    className="h-4 w-6 p-0 text-inherit hover:text-blue-600"
                   >
                     <Edit2 className="w-3 h-3" />
                   </Button>
@@ -282,7 +286,7 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
                     variant="ghost"
                     size="sm"
                     onClick={handleDelete}
-                    className="h-4 w-6 p-0 text-gray-600 hover:text-red-600"
+                    className="h-4 w-6 p-0 text-inherit hover:text-red-600"
                     disabled={loading}
                   >
                     <Trash2 className="w-3 h-3" />
@@ -290,7 +294,7 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
                 )}
               </div>
             </div>
-            <span className="text-xs text-gray-600">
+            <span className="text-xs text-inherit" title={fechaTooltip}>
               {tiempoRelativo}
             </span>
           </div>
@@ -303,7 +307,7 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
                   ref={editTextareaRef}
                   value={editText}
                   onChange={(e) => setEditText(e.target.value)}
-                  className="min-h-[80px] text-sm resize-none bg-white/50"
+                  className="min-h-[80px] text-sm resize-none bg-white/50 dark:bg-black/20"
                   placeholder="Escribe tu nota..."
                 />
                 
@@ -375,16 +379,16 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
               </div>
             ) : (
               <div>
-                <p className="text-sm text-gray-800 whitespace-pre-wrap mb-2">
+                <p className="text-sm text-inherit whitespace-pre-wrap mb-2">
                   {note.texto}
                 </p>
                 
                 {/* Sección de comentarios */}
                 {showComments && (
-                  <div className="mt-3 pt-2 border-t border-gray-400/50">
+                  <div className="mt-3 pt-2 border-t border-gray-400/50 dark:border-white/20">
                     <div className="flex items-center gap-1 mb-2">
-                      <MessageCircle className="w-3 h-3 text-gray-600" />
-                      <span className="text-xs font-semibold text-gray-600">
+                      <MessageCircle className="w-3 h-3 text-inherit" />
+                      <span className="text-xs font-semibold text-inherit">
                         Comentarios ({commentCount})
                       </span>
                     </div>
@@ -395,21 +399,21 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
                         comentarios.map((comentario) => (
                           <div 
                             key={comentario.id} 
-                            className="bg-white/40 rounded p-2 text-xs border border-gray-400/30"
+                            className="bg-white/40 dark:bg-black/20 rounded p-2 text-xs border border-gray-400/30 dark:border-white/20"
                           >
                             <div className="flex justify-between items-start mb-1">
-                              <span className="font-semibold text-gray-700 text-[10px]">
+                              <span className="font-semibold text-inherit text-[10px]">
                                 {comentario.autor_nombre}
                               </span>
-                              <span className="text-gray-500 text-[9px]">
-                                {comentario.tiempo_relativo || formatCommentDate(comentario.fecha)}
-                              </span>
+                               <span className="text-inherit text-[9px]" title={comentario.fecha ? format(new Date(comentario.fecha), 'dd/MM/yy HH:mm') : ''}>
+                                 {comentario.tiempo_relativo || formatCommentDate(comentario.fecha)}
+                               </span>
                             </div>
-                            <p className="text-gray-800">{comentario.texto}</p>
+                            <p className="text-inherit">{comentario.texto}</p>
                           </div>
                         ))
                       ) : (
-                        <p className="text-xs text-gray-500 italic">Sin comentarios aún</p>
+                        <p className="text-xs text-inherit italic">Sin comentarios aún</p>
                       )}
                     </div>
                     
@@ -421,7 +425,7 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
                         onChange={(e) => setNewComment(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
                         placeholder="Escribir comentario..."
-                        className="flex-1 text-xs px-2 py-1 rounded border border-gray-400/50 bg-white/50 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                        className="flex-1 text-xs px-2 py-1 rounded border border-gray-400/50 dark:border-white/20 bg-white/50 dark:bg-black/20 focus:outline-none focus:ring-1 focus:ring-blue-400"
                       />
                       <Button
                         size="sm"

@@ -116,7 +116,7 @@ const handleFloatingMenuToggle = () => {
         </div>
       </div>
 
-          {/* Tarjeta de configuración de moneda */}
+        {/* Tarjeta de configuración de moneda */}
       <Card className="py-2">
         <CardHeader className="py-2">
           <CardTitle className="flex items-center gap-2 text-sm">

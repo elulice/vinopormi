@@ -384,7 +384,7 @@ const Auditoria = () => {
               {selectedRegistro.valores_anteriores && (
                 <div>
                   <Label className="text-xs font-medium mb-2 block">Valores Anteriores</Label>
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-md p-2">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-md p-2 dark:bg-yellow-500/10 dark:border-yellow-500/30">
                     <pre className="text-xs font-mono whitespace-pre-wrap break-words">
                       {JSON.stringify(selectedRegistro.valores_anteriores, null, 2)}
                     </pre>
@@ -396,7 +396,7 @@ const Auditoria = () => {
               {selectedRegistro.valores_nuevos && (
                 <div>
                   <Label className="text-xs font-medium mb-2 block">Valores Nuevos</Label>
-                  <div className="bg-green-50 border border-green-200 rounded-md p-2">
+                  <div className="bg-green-50 border border-green-200 rounded-md p-2 dark:bg-green-500/10 dark:border-green-500/30">
                     <pre className="text-xs font-mono whitespace-pre-wrap break-words">
                       {JSON.stringify(selectedRegistro.valores_nuevos, null, 2)}
                     </pre>

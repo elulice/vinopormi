@@ -577,7 +577,7 @@ const Productos = () => {
             className={`px-2 py-1 text-xs rounded border ${
               filters.tipo === 'normal' 
                 ? 'bg-primary text-white border-primary' 
-                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 dark:bg-background dark:text-muted-foreground dark:border-border dark:hover:bg-muted'
             }`}
           >
             Normal
@@ -587,20 +587,20 @@ const Productos = () => {
             className={`px-2 py-1 text-xs rounded border ${
               filters.tipo === 'promo' 
                 ? 'bg-orange-500 text-white border-orange-500' 
-                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 dark:bg-background dark:text-muted-foreground dark:border-border dark:hover:bg-muted'
             }`}
           >
             Promo
           </button>
           
-          <div className="w-px bg-gray-300 mx-1"></div>
+          <div className="w-px bg-gray-300 mx-1 dark:bg-border"></div>
           
           <button
             onClick={() => setFilters({ ...filters, is_public: filters.is_public === 'true' ? '' : 'true' })}
             className={`px-2 py-1 text-xs rounded border flex items-center gap-1 ${
               filters.is_public === 'true' 
                 ? 'bg-green-600 text-white border-green-600' 
-                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 dark:bg-background dark:text-muted-foreground dark:border-border dark:hover:bg-muted'
             }`}
           >
             <Eye className="w-3 h-3" />
@@ -611,20 +611,20 @@ const Productos = () => {
             className={`px-2 py-1 text-xs rounded border ${
               filters.is_public === 'false' 
                 ? 'bg-gray-500 text-white border-gray-500' 
-                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 dark:bg-background dark:text-muted-foreground dark:border-border dark:hover:bg-muted'
             }`}
           >
             Oculto
           </button>
           
-          <div className="w-px bg-gray-300 mx-1"></div>
+          <div className="w-px bg-gray-300 mx-1 dark:bg-border"></div>
           
           <button
             onClick={() => setFilters({ ...filters, is_featured: filters.is_featured === 'true' ? '' : 'true' })}
             className={`px-2 py-1 text-xs rounded border ${
               filters.is_featured === 'true' 
                 ? 'bg-yellow-500 text-white border-yellow-500' 
-                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 dark:bg-background dark:text-muted-foreground dark:border-border dark:hover:bg-muted'
             }`}
           >
             ★ Destacado
@@ -634,20 +634,20 @@ const Productos = () => {
             className={`px-2 py-1 text-xs rounded border ${
               filters.is_featured === 'false' 
                 ? 'bg-gray-400 text-white border-gray-400' 
-                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 dark:bg-background dark:text-muted-foreground dark:border-border dark:hover:bg-muted'
             }`}
           >
             Normal
           </button>
           
-          <div className="w-px bg-gray-300 mx-1"></div>
+          <div className="w-px bg-gray-300 mx-1 dark:bg-border"></div>
           
           <button
             onClick={() => setFilters({ ...filters, has_discount: filters.has_discount === 'true' ? '' : 'true' })}
             className={`px-2 py-1 text-xs rounded border ${
               filters.has_discount === 'true' 
                 ? 'bg-green-600 text-white border-green-600' 
-                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 dark:bg-background dark:text-muted-foreground dark:border-border dark:hover:bg-muted'
             }`}
           >
             Con Desc
@@ -657,7 +657,7 @@ const Productos = () => {
             className={`px-2 py-1 text-xs rounded border ${
               filters.has_discount === 'false' 
                 ? 'bg-gray-400 text-white border-gray-400' 
-                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 dark:bg-background dark:text-muted-foreground dark:border-border dark:hover:bg-muted'
             }`}
           >
             Sin Desc
@@ -1281,3 +1281,4 @@ const Productos = () => {
 };
 
 export default Productos;
+

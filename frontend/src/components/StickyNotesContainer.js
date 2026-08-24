@@ -30,10 +30,10 @@ const StickyNotesContainer = () => {
   const [creating, setCreating] = useState(false);
 
   const colores = [
-    { nombre: 'amarillo', clase: 'bg-yellow-200 border-yellow-300 hover:bg-yellow-300', value: 'yellow' },
-    { nombre: 'rosa', clase: 'bg-pink-200 border-pink-300 hover:bg-pink-300', value: 'pink' },
-    { nombre: 'azul', clase: 'bg-blue-200 border-blue-300 hover:bg-blue-300', value: 'blue' },
-    { nombre: 'verde', clase: 'bg-green-200 border-green-300 hover:bg-green-300', value: 'green' }
+    { nombre: 'amarillo', clase: 'bg-yellow-200 border-yellow-300 hover:bg-yellow-300 dark:bg-yellow-500/25 dark:border-yellow-400/60 dark:text-yellow-50 dark:hover:bg-yellow-500/35', value: 'yellow' },
+    { nombre: 'rosa', clase: 'bg-pink-200 border-pink-300 hover:bg-pink-300 dark:bg-pink-500/25 dark:border-pink-400/60 dark:text-pink-50 dark:hover:bg-pink-500/35', value: 'pink' },
+    { nombre: 'azul', clase: 'bg-blue-200 border-blue-300 hover:bg-blue-300 dark:bg-blue-500/25 dark:border-blue-400/60 dark:text-blue-50 dark:hover:bg-blue-500/35', value: 'blue' },
+    { nombre: 'verde', clase: 'bg-green-200 border-green-300 hover:bg-green-300 dark:bg-green-500/25 dark:border-green-400/60 dark:text-green-50 dark:hover:bg-green-500/35', value: 'green' }
   ];
 
   const fetchStickyNotes = async () => {
@@ -106,7 +106,7 @@ const StickyNotesContainer = () => {
         }
       );
 
-      setStickyNotes([response.data, ...stickyNotes]);
+      setStickyNotes(notes => sortNotes([response.data, ...notes]));
       setNewNoteText('');
       setNewNoteColor('yellow');
       setNewNoteFijada(false);
@@ -126,11 +126,22 @@ const StickyNotesContainer = () => {
     }
   };
 
+  const sortNotes = (notes) => {
+    const refFecha = (n) =>
+      n.fecha_actualizacion
+        ? new Date(n.fecha_actualizacion).getTime()
+        : new Date(n.timestamp || 0).getTime();
+    return [...notes].sort((a, b) => {
+      if (a.fijada !== b.fijada) return a.fijada ? -1 : 1;
+      return refFecha(b) - refFecha(a);
+    });
+  };
+
   const handleUpdateNote = (updatedNote) => {
     setStickyNotes(notes => 
-      notes.map(note => 
+      sortNotes(notes.map(note => 
         note.id === updatedNote.id ? { ...note, ...updatedNote } : note
-      )
+      ))
     );
   };
 
@@ -194,10 +205,10 @@ const StickyNotesContainer = () => {
             {/* Nota de creación */}
             {showCreateForm && (
               <div className={`relative border-2 rounded-lg p-4 min-h-[150px] w-full max-w-xs transition-all duration-200 ${
-                newNoteColor === 'yellow' ? 'bg-yellow-200 border-yellow-300' :
-                newNoteColor === 'pink' ? 'bg-pink-200 border-pink-300' :
-                newNoteColor === 'blue' ? 'bg-blue-200 border-blue-300' :
-                'bg-green-200 border-green-300'
+                newNoteColor === 'yellow' ? 'bg-yellow-200 border-yellow-300 dark:bg-yellow-500/25 dark:border-yellow-400/60 dark:text-yellow-50' :
+                newNoteColor === 'pink' ? 'bg-pink-200 border-pink-300 dark:bg-pink-500/25 dark:border-pink-400/60 dark:text-pink-50' :
+                newNoteColor === 'blue' ? 'bg-blue-200 border-blue-300 dark:bg-blue-500/25 dark:border-blue-400/60 dark:text-blue-50' :
+                'bg-green-200 border-green-300 dark:bg-green-500/25 dark:border-green-400/60 dark:text-green-50'
               } ${newNoteFijada ? 'ring-2 ring-red-400 shadow-lg' : 'shadow-md hover:shadow-lg'}`}>
                 
                 {/* Indicador de nota fijada */}
@@ -208,12 +219,12 @@ const StickyNotesContainer = () => {
                 )}
 
                 {/* Header con autor */}
-                <div className="mb-2 border-b border-gray-400 pb-1">
+                <div className="mb-2 border-b border-gray-400 pb-1 dark:border-white/20">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-gray-700">
+                    <span className="text-xs font-semibold text-inherit">
                       {user?.nombre || 'Tú'}
                     </span>
-                    <span className="text-xs text-gray-600">
+                    <span className="text-xs text-inherit">
                       Nueva nota
                     </span>
                   </div>
@@ -223,7 +234,7 @@ const StickyNotesContainer = () => {
                   <Textarea
                     value={newNoteText}
                     onChange={(e) => setNewNoteText(e.target.value)}
-                    className="min-h-[80px] text-sm resize-none bg-white/50"
+                    className="min-h-[80px] text-sm resize-none bg-white/50 dark:bg-black/20"
                     placeholder="Escribe tu nota aquí..."
                     autoFocus
                   />

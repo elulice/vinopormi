@@ -20,9 +20,11 @@ import {
   ChevronRight,
   ChevronDown,
   LogOut,
-  ChevronUp
+  ChevronUp,
+  Moon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { useState, useRef, useEffect } from 'react';
 import { logoImage } from '@/assets/images';
 import MercadopagoIcon from '@/components/MercadopagoIcon';
@@ -30,7 +32,7 @@ import BackgroundSync from '@/components/BackgroundSync';
 
 const Layout = () => {
   const { user, logout } = useAuth();
-  const { sidebarWidth, setSidebarWidth, floatingMenu } = useConfig();
+  const { sidebarWidth, setSidebarWidth, floatingMenu, darkMode, setDarkMode } = useConfig();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -79,7 +81,7 @@ const Layout = () => {
   };
 
   const getSidebarClasses = () => {
-    const baseClasses = 'fixed left-0 top-0 z-50 h-full bg-white border-r border-gray-200 flex flex-col shadow-lg transform transition-all duration-300 ease-in-out';
+    const baseClasses = 'fixed left-0 top-0 z-50 h-full bg-card border-r border-border flex flex-col shadow-lg transform transition-all duration-300 ease-in-out';
     const widthClasses = {
       compact: 'w-30 lg:w-30',
       normal: 'w-56 lg:w-56',
@@ -121,9 +123,9 @@ const Layout = () => {
   const configMenuItems = getConfigMenuItems();
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* MOBILE HEADER - Solo visible en móviles */}
-      <div className="lg:hidden bg-white border-b border-gray-200 fixed top-0 left-0 right-0 z-40">
+      <div className="lg:hidden bg-card border-b border-border fixed top-0 left-0 right-0 z-40">
         <div className="flex items-center px-4 py-3">
           <Button
             variant="ghost"
@@ -147,7 +149,7 @@ const Layout = () => {
       {/* SIDEBAR - Responsive */}
       <div className={`${!sidebarVisible ? 'hidden' : ''} ${getSidebarClasses()}`}>
         {/* Close button for mobile */}
-        <div className="lg:hidden p-4 border-b border-gray-200 flex justify-end">
+        <div className="lg:hidden p-4 border-b border-border flex justify-end">
           <Button
             variant="ghost"
             size="sm"
@@ -158,7 +160,7 @@ const Layout = () => {
           </Button>
         </div>
 
-        <div className={`${sidebarWidth === 'compact' ? 'p-3' : 'p-4'} border-b border-gray-200`}>
+        <div className={`${sidebarWidth === 'compact' ? 'p-3' : 'p-4'} border-b border-border`}>
           <div className="flex items-center justify-between">
             <div className={`flex items-center ${sidebarWidth === 'compact' ? '' : 'gap-3'}`}>
               <img 
@@ -198,7 +200,7 @@ const Layout = () => {
                     className={`flex items-center ${sidebarWidth === 'compact' ? 'justify-center' : 'gap-3'} px-3 py-2 rounded-md transition-colors ${
                       isActive
                         ? 'bg-primary text-primary-foreground'
-                        : 'text-gray-700 hover:bg-gray-100'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                     }`}
                     onClick={() => {
                       // Cerrar sidebar en móviles al navegar
@@ -219,7 +221,7 @@ const Layout = () => {
           </ul>
         </nav>
 
-        <div className={`${sidebarWidth === 'compact' ? 'p-2' : 'p-4'} border-t border-gray-200`}>
+        <div className={`${sidebarWidth === 'compact' ? 'p-2' : 'p-4'} border-t border-border`}>
           <div className={`mb-3 ${sidebarWidth === 'compact' ? 'text-center' : 'px-2'}`}>
             {sidebarWidth !== 'compact' ? (
               <>
@@ -271,16 +273,16 @@ const Layout = () => {
 
               {/* Menú flotante */}
               {configMenuOpen && (
-                <div className={`absolute bottom-full ${sidebarWidth === 'compact' ? 'left-1/2 transform -translate-x-1/2' : 'left-0 right-0'} mb-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-12`}>
+                 <div className={`absolute bottom-full ${sidebarWidth === 'compact' ? 'left-1/2 transform -translate-x-1/2' : 'left-0 right-0'} mb-2 bg-popover border border-border rounded-lg shadow-lg z-50 min-w-12`}>
                   <div className="py-1">
                     {configMenuItems.map((item, index) => (
                       <Link
                         key={item.path}
                         to={item.path}
-                        className={`flex items-center ${sidebarWidth === 'compact' ? 'justify-center' : ''} px-4 py-3 text-sm hover:bg-gray-50 transition-colors ${
+                        className={`flex items-center ${sidebarWidth === 'compact' ? 'justify-center' : ''} px-4 py-3 text-sm hover:bg-muted transition-colors ${
                           location.pathname === item.path
-                            ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600'
-                            : 'text-gray-700'
+                            ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400 border-r-2 border-blue-600 dark:border-blue-500'
+                            : 'text-muted-foreground'
                         }`}
                         title={sidebarWidth === 'compact' ? item.label : undefined}
                         onClick={() => {
@@ -294,6 +296,21 @@ const Layout = () => {
                         )}
                       </Link>
                     ))}
+
+                    {/* Modo oscuro - última opción */}
+                    <div className="border-t border-border my-1"></div>
+                    <div className="flex items-center justify-between px-4 py-2">
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <Moon className="w-4 h-4 flex-shrink-0" />
+                        {sidebarWidth !== 'compact' && (
+                          <span className="font-medium ml-3">Modo oscuro</span>
+                        )}
+                      </div>
+                      <Switch
+                        checked={darkMode}
+                        onCheckedChange={setDarkMode}
+                      />
+                    </div>
                   </div>
                 </div>
               )}
