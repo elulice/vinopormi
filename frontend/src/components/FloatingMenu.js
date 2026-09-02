@@ -4,7 +4,7 @@ import {
   Users, 
   Truck, 
   TrendingDown, 
-  Zap
+  Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -130,7 +130,7 @@ const FloatingMenu = () => {
           className="h-12 w-12 rounded-full shadow-lg bg-primary text-primary-foreground hover:bg-primary/90 p-0"
           title="Accesos rápidos"
         >
-          <Zap className="w-5 h-5" />
+          <Sparkles className="w-5 h-5" />
         </Button>
       </div>
     </div>
