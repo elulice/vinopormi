@@ -109,7 +109,7 @@ export const ConfigProvider = ({ children, forceDark = false }) => {
     } finally {
       setLoading(false);
     }
-  }, [user, getAuthHeader]);
+  }, [user, getAuthHeader, forceDark]);
 
   // Persistir una preferencia en el backend (best-effort)
   const savePref = async (payload) => {
