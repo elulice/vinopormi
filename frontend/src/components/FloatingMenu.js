@@ -3,7 +3,8 @@ import {
   Package, 
   Users, 
   Truck, 
-  TrendingDown
+  TrendingDown, 
+  Zap
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -60,11 +61,13 @@ const FloatingMenu = () => {
 
   return (
     <>
-      {/* Menú flotante */}
-      <div 
-        className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-card rounded-lg shadow-lg border border-border p-2"
-      >
-        <div className="flex flex-row gap-2">
+      {/* Menú flotante comprimido */}
+      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50">
+        <div className="group flex flex-col items-center">
+          {/* Panel que se expande al hacer hover */}
+          <div className="opacity-0 invisible translate-y-1 transition-all duration-200 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0">
+            <div className="p-2 bg-card rounded-xl shadow-lg border border-border">
+              <div className="flex flex-row items-center gap-1">
           {quickActions.map((action) => {
             const Icon = action.icon;
             return (
@@ -115,8 +118,22 @@ const FloatingMenu = () => {
               </Dialog>
             );
           })}
+            </div>
+          </div>
         </div>
+
+        {/* Puente de hover que mantiene el menú expandido al mover el cursor */}
+        <div className="h-3 w-16" />
+
+        {/* Botón principal */}
+        <Button
+          className="h-12 w-12 rounded-full shadow-lg bg-primary text-primary-foreground hover:bg-primary/90 p-0"
+          title="Accesos rápidos"
+        >
+          <Zap className="w-5 h-5" />
+        </Button>
       </div>
+    </div>
 
       {/* Contenido de los modales */}
     </>

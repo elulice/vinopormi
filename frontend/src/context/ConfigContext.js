@@ -21,7 +21,8 @@ const MIRROR_KEYS = {
   floatingMenu: 'vinopormi_floating_menu',
   autoLogout: 'vinopormi_auto_logout',
   calcularVuelto: 'vinopormi_calcular_vuelto',
-  darkMode: 'vinopormi_dark_mode'
+  darkMode: 'vinopormi_dark_mode',
+  totalFlotante: 'vinopormi_total_flotante'
 };
 
 const readMirror = (key, fallback) => {
@@ -50,6 +51,7 @@ export const ConfigProvider = ({ children, forceDark = false }) => {
   const [autoLogout, setAutoLogoutState] = useState(() => readMirror(MIRROR_KEYS.autoLogout, true)); // Por defecto habilitado
   const [calcularVuelto, setCalcularVueltoState] = useState(() => readMirror(MIRROR_KEYS.calcularVuelto, true)); // Por defecto habilitado
   const [darkMode, setDarkModeState] = useState(() => forceDark ? true : readMirror(MIRROR_KEYS.darkMode, true));
+  const [totalFlotante, setTotalFlotanteState] = useState(() => readMirror(MIRROR_KEYS.totalFlotante, false)); // Total fijo/flotante al fondo
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -77,11 +79,12 @@ export const ConfigProvider = ({ children, forceDark = false }) => {
       
       const preferencias = response.data;
       const showCentsVal = preferencias.showCents !== undefined ? preferencias.showCents : true;
+      const calcularVueltoVal = preferencias.calcularVuelto !== undefined ? preferencias.calcularVuelto : true;
       const sidebarWidthVal = preferencias.sidebarWidth !== undefined ? preferencias.sidebarWidth : 'normal';
       const floatingMenuVal = preferencias.floatingMenu !== undefined ? preferencias.floatingMenu : false;
       const autoLogoutVal = preferencias.autoLogout !== undefined ? preferencias.autoLogout : false;
-      const calcularVueltoVal = preferencias.calcularVuelto !== undefined ? preferencias.calcularVuelto : true;
-      const darkModeVal = forceDark ? true : (preferencias.darkMode !== undefined ? preferencias.darkMode : true);
+      const darkModeVal = forceDark ? true : (preferencias.darkMode !== undefined ? preferencias.darkMode : false);
+      const totalFlotanteVal = preferencias.totalFlotante !== undefined ? preferencias.totalFlotante : false;
 
       setShowCentsState(showCentsVal);
       setSidebarWidthState(sidebarWidthVal);
@@ -89,6 +92,7 @@ export const ConfigProvider = ({ children, forceDark = false }) => {
       setAutoLogoutState(autoLogoutVal);
       setCalcularVueltoState(calcularVueltoVal);
       setDarkModeState(darkModeVal);
+      setTotalFlotanteState(totalFlotanteVal);
 
       // Mantener el espejo de localStorage sincronizado con el backend
       writeMirror(MIRROR_KEYS.showCents, showCentsVal);
@@ -97,6 +101,7 @@ export const ConfigProvider = ({ children, forceDark = false }) => {
       writeMirror(MIRROR_KEYS.autoLogout, autoLogoutVal);
       writeMirror(MIRROR_KEYS.calcularVuelto, calcularVueltoVal);
       writeMirror(MIRROR_KEYS.darkMode, darkModeVal);
+      writeMirror(MIRROR_KEYS.totalFlotante, totalFlotanteVal);
     } catch (err) {
       console.error('Error cargando preferencias:', err);
       // En caso de error, usar valor por defecto
@@ -161,6 +166,13 @@ export const ConfigProvider = ({ children, forceDark = false }) => {
     await savePref({ darkMode: enabled });
   };
 
+  // Guardar totalFlotante en el backend (y espejo en localStorage)
+  const setTotalFlotante = async (enabled) => {
+    setTotalFlotanteState(enabled);
+    writeMirror(MIRROR_KEYS.totalFlotante, enabled);
+    await savePref({ totalFlotante: enabled });
+  };
+
   // Cargar preferencias cuando el usuario cambia
   useEffect(() => {
     if (user) {
@@ -172,6 +184,7 @@ export const ConfigProvider = ({ children, forceDark = false }) => {
       setFloatingMenuState(false);
       setAutoLogoutState(false);
       setCalcularVueltoState(true);
+      setTotalFlotanteState(false);
       setLoading(false);
     }
   }, [user, loadPreferences]);
@@ -191,6 +204,8 @@ export const ConfigProvider = ({ children, forceDark = false }) => {
       setCalcularVuelto,
       darkMode,
       setDarkMode,
+      totalFlotante,
+      setTotalFlotante,
       loading,
       error
     }}>

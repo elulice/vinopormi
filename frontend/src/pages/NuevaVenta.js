@@ -16,7 +16,7 @@ import { apiGet, apiPost } from '@/lib/api';
 import { actualizarCacheProductos, actualizarCacheClientes, obtenerTodosProductos, obtenerTodosClientes, guardarVentaOffline } from '@/db/offlineDB';
 
 const NuevaVenta = () => {
-  const { showCents, calcularVuelto: mostrarCalculadoraVuelto } = useConfig();
+  const { showCents, calcularVuelto: mostrarCalculadoraVuelto, totalFlotante, sidebarWidth } = useConfig();
   const navigate = useNavigate();
   const [productos, setProductos] = useState([]);
 
@@ -626,19 +626,21 @@ const NuevaVenta = () => {
     }
   };
 
+  const fixedBarMargin = sidebarWidth === 'compact' ? 'lg:left-24' : sidebarWidth === 'expanded' ? 'lg:left-72' : 'lg:left-56';
+
   return (
-    <div className="space-y-4">
+    <div className={totalFlotante ? 'space-y-4 pb-36' : 'space-y-4'}>
       <div>
         <h1 className="text-2xl font-bold text-foreground">Nueva Venta</h1>
         <p className="text-sm text-muted-foreground">Registra una nueva venta</p>
       </div>
 
       <form className="space-y-4">
-        <Card className="py-3">
-          <CardHeader className="py-3 pb-2">
+        <Card className="py-2">
+          <CardHeader className="py-1 px-4">
             <CardTitle className="text-base">Información de la Venta</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 py-0">
+          <CardContent className="space-y-3 py-1 px-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -800,9 +802,9 @@ const NuevaVenta = () => {
           </CardContent>
         </Card>
 
-        <Card className="py-3">
-          <CardHeader className="py-2 pb-1">
-            <div className="flex justify-between items-center py-1">
+        <Card className="py-2">
+          <CardHeader className="py-1 px-4">
+            <div className="flex justify-between items-center">
               <CardTitle className="text-base">Productos</CardTitle>
               <div className="flex gap-2">
                 <Button 
@@ -823,7 +825,7 @@ const NuevaVenta = () => {
               </div>
             </div>
           </CardHeader>
-          <CardContent className="py-2">
+          <CardContent className="py-1 px-4">
             {detalles.length === 0 ? (
               <p className="text-center text-muted-foreground py-4 text-sm">
                 No hay productos. Agrega uno para empezar.
@@ -1063,16 +1065,16 @@ const NuevaVenta = () => {
 
         {/* Calculadora de Vuelto - Solo visible cuando hay efectivo y está habilitada */}
         {mostrarCalculadoraVuelto && hayEfectivo() && (
-          <Card className="py-3 border-2 border-blue-200 bg-blue-50/50">
-            <CardHeader className="py-2 pb-2">
-              <CardTitle className="text-base text-blue-800">Cálculo de Vuelto</CardTitle>
+          <Card className="py-2 border-2 border-blue-200 bg-blue-50/50 dark:border-blue-400/50 dark:bg-blue-950/40">
+            <CardHeader className="py-1 px-4">
+              <CardTitle className="text-sm text-blue-800 dark:text-blue-300">Cálculo de Vuelto</CardTitle>
             </CardHeader>
-            <CardContent className="py-0">
-              <div className="flex flex-col lg:flex-row gap-3 items-end">
+            <CardContent className="py-1 px-4">
+              <div className="flex flex-col sm:flex-row gap-2 items-end">
                 <div className="flex-1 w-full">
-                  <Label className="text-xs text-blue-700 mb-1 block">Paga con</Label>
+                  <Label className="text-xs text-blue-700 dark:text-blue-300 mb-1 block">Paga con</Label>
                   <div className="relative">
-                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-blue-600 font-semibold text-xs">$</span>
+                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-blue-600 dark:text-blue-400 font-semibold text-xs">$</span>
                     <Input
                       type="number"
                       step="100"
@@ -1080,7 +1082,7 @@ const NuevaVenta = () => {
                       placeholder="0"
                       value={pagaCon}
                       onChange={(e) => setPagaCon(e.target.value)}
-                      className="h-7 pl-5 pr-6 text-sm font-semibold border-blue-300 focus:border-blue-500 bg-white [-moz-appearance:_textfield] [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none"
+                      className="h-7 pl-5 pr-6 text-sm font-semibold border-blue-300 focus:border-blue-500 bg-white dark:bg-background dark:border-blue-500/60 [-moz-appearance:_textfield] [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none"
                     />
                   </div>
                 </div>
@@ -1088,14 +1090,14 @@ const NuevaVenta = () => {
                   <button
                     type="button"
                     onClick={() => setPagaCon('10000')}
-                    className="px-2 py-1 text-xs rounded border bg-white text-gray-600 border-gray-300 hover:bg-gray-50 font-medium"
+                    className="px-2 py-1 text-xs rounded border bg-white text-gray-600 border-gray-300 hover:bg-gray-50 dark:bg-background dark:text-muted-foreground dark:border-border dark:hover:bg-muted font-medium"
                   >
                     $10.000
                   </button>
                   <button
                     type="button"
                     onClick={() => setPagaCon('20000')}
-                    className="px-2 py-1 text-xs rounded border bg-white text-gray-600 border-gray-300 hover:bg-gray-50 font-medium"
+                    className="px-2 py-1 text-xs rounded border bg-white text-gray-600 border-gray-300 hover:bg-gray-50 dark:bg-background dark:text-muted-foreground dark:border-border dark:hover:bg-muted font-medium"
                   >
                     $20.000
                   </button>
@@ -1104,11 +1106,11 @@ const NuevaVenta = () => {
 
               {/* Resultado del vuelto */}
               {pagaCon && parseFloat(pagaCon) > 0 && (
-                <div className="mt-4 pt-3 border-t border-blue-200">
+                <div className="mt-2 pt-2 border-t border-blue-200 dark:border-blue-400/50">
                   {calcularVuelto() >= 0 ? (
-                    <div className="text-center">
-                      <p className="text-blue-600 text-sm mb-1">Vuelto</p>
-                      <p className="font-['Manrope'] text-4xl font-bold text-blue-800">
+                    <div className="text-center flex items-center justify-center gap-2 flex-wrap">
+                      <p className="text-blue-600 dark:text-blue-400 text-sm">Vuelto</p>
+                      <p className="font-['Manrope'] text-2xl font-bold text-blue-800 dark:text-blue-300">
                         ${calcularVuelto().toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                       </p>
                     </div>
@@ -1125,36 +1127,71 @@ const NuevaVenta = () => {
           </Card>
         )}
 
-        <Card className="py-3">
-          <CardContent className="py-2">
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-lg font-bold">Total:</span>
-              <span className="text-2xl font-bold text-primary" data-testid="total-venta">
-                {formatCurrency(calcularTotal(), showCents)}
-              </span>
+        {totalFlotante ? (
+          <div className={`fixed bottom-0 left-0 right-0 z-40 bg-background border-t border-border shadow-lg p-3 ${fixedBarMargin}`}>
+            <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+              <div className="flex items-center gap-2 sm:flex-1">
+                <span className="text-lg font-bold">Total:</span>
+                <span className="text-2xl font-bold text-primary" data-testid="total-venta">
+                  {formatCurrency(calcularTotal(), showCents)}
+                </span>
+              </div>
+              <div className="flex gap-2 sm:justify-end">
+                <Button
+                  type="button"
+                  className="flex-1 sm:flex-none h-9"
+                  onClick={handleSubmit}
+                  disabled={loading || detalles.length === 0}
+                  data-testid="submit-venta-button"
+                >
+                  <ShoppingCart className="w-4 h-4 mr-2" />
+                  {loading ? 'Procesando...' : 'Registrar Venta'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={resetForm}
+                  className="flex-1 sm:flex-none h-9"
+                >
+                  Cancelar
+                </Button>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                className="flex-1 h-9"
-                onClick={handleSubmit}
-                disabled={loading || detalles.length === 0}
-                data-testid="submit-venta-button"
-              >
-                <ShoppingCart className="w-4 h-4 mr-2" />
-                {loading ? 'Procesando...' : 'Registrar Venta'}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={resetForm}
-                className="h-9"
-              >
-                Cancelar
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        ) : (
+          <Card className="py-2">
+            <CardContent className="py-1 px-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                <div className="flex items-center gap-2 sm:flex-1">
+                  <span className="text-lg font-bold">Total:</span>
+                  <span className="text-2xl font-bold text-primary" data-testid="total-venta">
+                    {formatCurrency(calcularTotal(), showCents)}
+                  </span>
+                </div>
+                <div className="flex gap-2 sm:justify-end">
+                  <Button
+                    type="button"
+                    className="flex-1 sm:flex-none h-9"
+                    onClick={handleSubmit}
+                    disabled={loading || detalles.length === 0}
+                    data-testid="submit-venta-button"
+                  >
+                    <ShoppingCart className="w-4 h-4 mr-2" />
+                    {loading ? 'Procesando...' : 'Registrar Venta'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={resetForm}
+                    className="flex-1 sm:flex-none h-9"
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </form>
     </div>
   );

@@ -6,7 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { useConfig } from '@/context/ConfigContext';
 import { useAuth } from '@/context/AuthContext';
-import { Settings as SettingsIcon, Package, Users, Truck, TrendingDown, DollarSign, Loader2, AlertCircle, Menu, LogOut, Calculator } from 'lucide-react';
+import { Settings as SettingsIcon, Package, Users, Truck, TrendingDown, DollarSign, Loader2, AlertCircle, Menu, LogOut, Calculator, PanelBottom } from 'lucide-react';
 import MercadopagoIcon from '@/components/MercadopagoIcon';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/currency';
@@ -14,7 +14,7 @@ import { API } from '@/lib/config';
 import { apiGet, apiPost } from '@/lib/api';
 
 const Configuracion = () => {
-  const { showCents, toggleShowCents, floatingMenu, setFloatingMenu, autoLogout, setAutoLogout, loading, error, calcularVuelto, setCalcularVuelto } = useConfig();
+  const { showCents, toggleShowCents, floatingMenu, setFloatingMenu, autoLogout, setAutoLogout, loading, error, calcularVuelto, setCalcularVuelto, totalFlotante, setTotalFlotante } = useConfig();
   const { user } = useAuth();
   const [localShowCents, setLocalShowCents] = useState(showCents);
   const [localFloatingMenu, setLocalFloatingMenu] = useState(floatingMenu);
@@ -290,6 +290,33 @@ const handleFloatingMenuToggle = () => {
               id="calcular-vuelto"
               checked={localCalcularVuelto}
               onCheckedChange={handleCalcularVueltoToggle}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Tarjeta de total flotante/fijo al fondo */}
+      <Card className="py-2">
+        <CardHeader className="py-2">
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <PanelBottom className="w-4 h-4" />
+            Total en Nueva Venta
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="py-2 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="total-flotante" className="text-sm font-medium">
+                Total fijo al fondo
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Mostrar el total y botones fijos en la parte inferior de Nueva Venta
+              </p>
+            </div>
+            <Switch
+              id="total-flotante"
+              checked={totalFlotante}
+              onCheckedChange={setTotalFlotante}
             />
           </div>
         </CardContent>

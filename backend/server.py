@@ -52,7 +52,7 @@ class Usuario(BaseModel):
     username: str
     nombre: str
     rol: str = "comun"  # "admin" o "comun"
-    preferencias: dict = Field(default_factory=lambda: {"showCents": True, "sidebarWidth": "normal", "floatingMenu": False, "autoLogout": True, "soloMisDatos": False, "calcularVuelto": True, "darkMode": True})  # Preferencias del usuario
+    preferencias: dict = Field(default_factory=lambda: {"showCents": True, "sidebarWidth": "normal", "floatingMenu": False, "autoLogout": True, "soloMisDatos": False, "calcularVuelto": True, "darkMode": True, "totalFlotante": False})  # Preferencias del usuario
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     lastActivity: Optional[datetime] = None  # Última actividad del usuario
 
@@ -77,6 +77,7 @@ class PreferenciasUpdate(BaseModel):
     soloMisDatos: Optional[bool] = None  # Mostrar solo mis datos en dashboard
     calcularVuelto: Optional[bool] = None  # Habilitar/deshabilitar calculadora de vuelto
     darkMode: Optional[bool] = None  # Modo oscuro de la interfaz
+    totalFlotante: Optional[bool] = None  # Total fijo/flotante al fondo en nueva venta
 
 class LoginRequest(BaseModel):
     username: str
@@ -755,6 +756,8 @@ async def update_preferencias(
         preferencias_actuales['calcularVuelto'] = preferencias.calcularVuelto
     if preferencias.darkMode is not None:
         preferencias_actuales['darkMode'] = preferencias.darkMode
+    if preferencias.totalFlotante is not None:
+        preferencias_actuales['totalFlotante'] = preferencias.totalFlotante
     
     # Guardar en la base de datos
     result = await db.usuarios.update_one(
