@@ -6,7 +6,8 @@ import LandingPage from "@/pages/LandingPage";
 import PaginaCatalogo from "@/pages/PaginaCatalogo";
 import SeccionClientes from "@/pages/SeccionClientes";
 import Dashboard from "@/pages/Dashboard";
-import Productos from "@/pages/Productos";
+import Productos from "@/pages/Productos";                                
+import Recomendaciones from "@/pages/Recomendaciones";
 import Clientes from "@/pages/Clientes";
 import Proveedores from "@/pages/Proveedores";
 import Ventas from "@/pages/Ventas";
@@ -64,7 +65,8 @@ function App() {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/nueva-venta" element={<NuevaVenta />} />
-          <Route path="/productos" element={<Productos />} />
+          <Route path="/productos" element={<Productos />} />             
+          <Route path="/recomendaciones" element={<Recomendaciones />} />
           <Route path="/proveedores" element={<Proveedores />} />
           <Route path="/ventas" element={<Ventas />} />
           <Route path="/egresos" element={<Egresos />} />

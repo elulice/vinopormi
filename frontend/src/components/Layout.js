@@ -21,7 +21,8 @@ import {
   ChevronDown,
   LogOut,
   ChevronUp,
-  Moon
+  Moon,
+  Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -91,14 +92,15 @@ const Layout = () => {
   };
 
   const menuItems = [
-    { path: '/dashboard', icon: LayoutDashboard, label: 'Escritorio' },
-    { path: '/nueva-venta', icon: Plus, label: 'Nueva Venta' },
-    { path: '/ventas', icon: ShoppingCart, label: 'Ventas' },
-    { path: '/productos', icon: Package, label: 'Productos' },
+{ path: '/dashboard', icon: LayoutDashboard, label: 'Escritorio' },    
+    { path: '/nueva-venta', icon: Plus, label: 'Nueva Venta' },            
+    { path: '/ventas', icon: ShoppingCart, label: 'Ventas' },              
+{ path: '/productos', icon: Package, label: 'Productos' },             
     { path: '/clientes', icon: Users, label: 'Ctas. Ctes.' },
     { path: '/proveedores', icon: Truck, label: 'Proveedores' },
     { path: '/egresos', icon: TrendingDown, label: 'Egresos' },
-    { path: '/mercadopago', icon: MercadopagoIcon, label: 'Mercadopago' },
+    { path: '/mercadopago', icon: MercadopagoIcon, label: 'Mercadopago' }, 
+    { path: '/recomendaciones', icon: Sparkles, label: 'IA' },
   ];
 
   // Items del menú de configuración según rol

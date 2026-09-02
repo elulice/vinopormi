@@ -4,7 +4,7 @@ import {
   Users, 
   Truck, 
   TrendingDown, 
-  Sparkles
+  Menu
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -62,7 +62,7 @@ const FloatingMenu = () => {
   return (
     <>
       {/* Menú flotante comprimido */}
-      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50">
+      <div className="fixed bottom-28 right-4 z-50">
         <div className="group flex flex-col items-center">
           {/* Panel que se expande al hacer hover */}
           <div className="opacity-0 invisible translate-y-1 transition-all duration-200 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0">
@@ -130,7 +130,7 @@ const FloatingMenu = () => {
           className="h-12 w-12 rounded-full shadow-lg bg-primary text-primary-foreground hover:bg-primary/90 p-0"
           title="Accesos rápidos"
         >
-          <Sparkles className="w-5 h-5" />
+          <Menu className="w-5 h-5" />
         </Button>
       </div>
     </div>

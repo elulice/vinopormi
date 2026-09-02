@@ -307,7 +307,7 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
                   ref={editTextareaRef}
                   value={editText}
                   onChange={(e) => setEditText(e.target.value)}
-                  className="min-h-[80px] text-sm resize-none bg-white/50 dark:bg-black/20"
+                  className="min-h-[150px] max-h-40 overflow-y-auto text-sm resize-none bg-white/50 dark:bg-black/20"
                   placeholder="Escribe tu nota..."
                 />
                 
@@ -328,7 +328,7 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
                     variant="outline"
                     size="sm"
                     onClick={() => setEditFijada(!editFijada)}
-                    className={`h-6 text-xs ${editFijada ? 'bg-red-100 border-red-300' : ''}`}
+                    className={`h-6 text-xs ${editFijada ? 'bg-red-100 border-red-300 dark:bg-red-500/30 dark:border-red-400/60 dark:text-red-50' : 'dark:bg-black/20 dark:border-white/20'}`}
                   >
                     {editFijada ? <Pin className="w-3 h-3 mr-1" /> : <PinOff className="w-3 h-3 mr-1" />}
                     {editFijada ? 'Fijada' : 'Fijar'}
@@ -379,7 +379,7 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
               </div>
             ) : (
               <div>
-                <p className="text-sm text-inherit whitespace-pre-wrap mb-2">
+                <p className="text-sm text-inherit whitespace-pre-wrap mb-2 max-h-40 overflow-y-auto">
                   {note.texto}
                 </p>
                 

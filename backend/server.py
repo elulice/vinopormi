@@ -1729,6 +1729,140 @@ async def get_ventas(
             }
         }
 
+# --- MODELOS DE RECOMENDACIONES / INSIGHTS ---
+class ProductoTop(BaseModel):
+    producto_id: str
+    nombre: str
+    unidades: int
+    monto: float
+
+class RecomendacionReponer(BaseModel):
+    producto_id: str
+    nombre: str
+    stock_actual: int
+    unidades_vendidas_30d: int
+    velocidad_diaria: float
+    dias_cobertura: float
+    cantidad_sugerida: int
+
+class RecomendacionExceso(BaseModel):
+    producto_id: str
+    nombre: str
+    stock_actual: int
+    unidades_vendidas_30d: int
+    velocidad_diaria: float
+    dias_cobertura: float
+
+class Recomendaciones(BaseModel):
+    periodo_dias: int
+    fecha_calculo: str
+    top_productos: List[ProductoTop]
+    a_reponer: List[RecomendacionReponer]
+    exceso_stock: List[RecomendacionExceso]
+
+@api_router.get("/recomendaciones", response_model=Recomendaciones)
+async def get_recomendaciones(current_user: Usuario = Depends(get_current_user)):
+    """Recomendaciones de stock basadas en velocidad de venta (últimos 30 días).
+
+    Calcula:
+      - Top productos vendidos (por unidades).
+      - Productos a reponer (el stock no cubre ~7 días según la velocidad de venta).
+      - Productos con mucho stock y baja rotación (candidatos a no reponer / ofertar).
+    """
+    periodo_dias = 30
+    now = datetime.now(timezone.utc)
+    fecha_limite = (now - timedelta(days=periodo_dias)).isoformat()
+
+    # 1) Unidades vendidas por producto en los últimos 30 días
+    pipeline = [
+        {'$match': {'fecha': {'$gte': fecha_limite}}},
+        {'$unwind': '$detalles'},
+        {'$group': {
+            '_id': '$detalles.producto_id',
+            'nombre': {'$first': '$detalles.producto_nombre'},
+            'unidades': {'$sum': '$detalles.cantidad'},
+            'monto': {'$sum': '$detalles.subtotal'}
+        }}
+    ]
+    ventas_agg_list = await db.ventas.aggregate(pipeline).to_list(10000)
+
+    ventas_por_producto = {}
+    for v in ventas_agg_list:
+        ventas_por_producto[v['_id']] = {
+            'nombre': v.get('nombre') or 'Producto',
+            'unidades': int(v.get('unidades', 0)),
+            'monto': round(float(v.get('monto', 0)), 2)
+        }
+
+    # 2) Productos y su stock actual
+    productos = await db.productos.find({}, {'_id': 0, 'id': 1, 'nombre': 1, 'stock': 1}).to_list(10000)
+    info_productos = {p.get('id'): p for p in productos if p.get('id')}
+
+    # Top productos (por unidades vendidas)
+    top = [
+        {
+            'producto_id': pid,
+            'nombre': ventas_por_producto[pid]['nombre'],
+            'unidades': ventas_por_producto[pid]['unidades'],
+            'monto': ventas_por_producto[pid]['monto'],
+        }
+        for pid in ventas_por_producto
+    ]
+    top.sort(key=lambda x: x['unidades'], reverse=True)
+    top = top[:10]
+
+    # Reposición y exceso
+    a_reponer = []
+    exceso_stock = []
+    UMBRAL_DIAS_COBERTURA = 7       # reponer si el stock cubre menos de 7 días
+    UMBRAL_DIAS_EXCESO = 90         # exceso si el stock cubre más de 90 días
+    CANTIDAD_DIAS_PRONOSTICO = 7    # stock objetivo para 7 días
+    STOCK_MIN_EXCESO = 30           # stock mínimo para considerar exceso
+
+    for pid, p in info_productos.items():
+        stock = int(p.get('stock', 0))
+        vendido = ventas_por_producto.get(pid, {}).get('unidades', 0)
+        nombre = p.get('nombre') or ventas_por_producto.get(pid, {}).get('nombre', 'Producto')
+        velocidad = vendido / periodo_dias if vendido > 0 else 0.0
+        dias_cobertura = (stock / velocidad) if velocidad > 0 else float('inf')
+
+        # Reponer: tiene rotación y el stock no cubre 7 días
+        if velocidad > 0 and dias_cobertura < UMBRAL_DIAS_COBERTURA:
+            objetivo = math.ceil(velocidad * CANTIDAD_DIAS_PRONOSTICO)
+            cantidad_sugerida = max(objetivo - stock, 0)
+            a_reponer.append(RecomendacionReponer(
+                producto_id=pid,
+                nombre=nombre,
+                stock_actual=stock,
+                unidades_vendidas_30d=vendido,
+                velocidad_diaria=round(velocidad, 3),
+                dias_cobertura=round(dias_cobertura, 1),
+                cantidad_sugerida=cantidad_sugerida,
+            ))
+
+        # Exceso: stock alto con poca o ninguna rotación
+        if stock >= STOCK_MIN_EXCESO and dias_cobertura > UMBRAL_DIAS_EXCESO:
+            cobertura_mostrada = round(dias_cobertura, 1) if dias_cobertura != float('inf') else 999.0
+            exceso_stock.append(RecomendacionExceso(
+                producto_id=pid,
+                nombre=nombre,
+                stock_actual=stock,
+                unidades_vendidas_30d=vendido,
+                velocidad_diaria=round(velocidad, 3),
+                dias_cobertura=cobertura_mostrada,
+            ))
+
+    a_reponer.sort(key=lambda x: x.dias_cobertura)
+    exceso_stock.sort(key=lambda x: x.stock_actual, reverse=True)
+
+    return Recomendaciones(
+        periodo_dias=periodo_dias,
+        fecha_calculo=now.isoformat(),
+        top_productos=top,
+        a_reponer=a_reponer,
+        exceso_stock=exceso_stock,
+    )
+
 @api_router.get("/ventas/{venta_id}", response_model=Venta)
 async def get_venta(venta_id: str, current_user: Usuario = Depends(get_current_user)):
     venta = await db.ventas.find_one({'id': venta_id}, {'_id': 0})
