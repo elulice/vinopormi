@@ -6,9 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Plus, Trash2, ShoppingCart, Search, RefreshCw, X } from 'lucide-react';
+import { Plus, Trash2, ShoppingCart, Search, RefreshCw, X, Split } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency, formatNumber } from '@/lib/currency';
 import { capitalizeWords } from '@/lib/utils';
@@ -36,10 +34,6 @@ const NuevaVenta = () => {
   const [productoSearchTerm, setProductoSearchTerm] = useState('');
   const [refreshingProductos, setRefreshingProductos] = useState(false);
   const [activeDetalleIndex, setActiveDetalleIndex] = useState(null);
-  const [activeTab, setActiveTab] = useState('productos');
-  const [openSearchDialog, setOpenSearchDialog] = useState(false);
-
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 1024;
 
   // Estado para múltiples pagos
   const [pagos, setPagos] = useState([
@@ -84,27 +78,31 @@ const NuevaVenta = () => {
       if (searchRefs.current[0] && productos.length > 0) {
         searchRefs.current[0].focus();
         initialFocusSet.current = true;
-        if (isMobile) setOpenSearchDialog(true);
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [productos, isMobile]);
+  }, [productos]);
 
-  // Cerrar dropdown de búsqueda al hacer clic fuera (escritorio)
+  // Cerrar dropdown de búsqueda al hacer clic fuera
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (isMobile || openSearchDialog) return;
+      // Si no hay dropdown activo, no hacer nada
       if (activeDetalleIndex === null) return;
       
       const target = event.target;
+      
+      // Verificar si el click fue dentro del input de búsqueda activo
       const activeInput = searchRefs.current[activeDetalleIndex];
       if (activeInput && activeInput.contains(target)) return;
       
+      // Verificar si el click fue dentro de algún dropdown de resultados
       const dropdowns = document.querySelectorAll('.search-dropdown');
       for (const dropdown of dropdowns) {
         if (dropdown.contains(target)) return;
       }
       
+      // Si llegamos aquí, el click fue fuera, cerrar el dropdown
+      // NO limpiar el término de búsqueda para que el usuario pueda retomar
       setActiveDetalleIndex(null);
       setSelectedResultIndex(0);
     };
@@ -113,7 +111,7 @@ const NuevaVenta = () => {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [activeDetalleIndex, productoSearchTerm, isMobile]);
+  }, [activeDetalleIndex, productoSearchTerm]);
 
   const fetchProductos = useCallback(async () => {
     try {
@@ -332,15 +330,8 @@ const NuevaVenta = () => {
     return monto - calcularTotal();
   };
 
-  const handleOpenSearch = (index) => {
-    setActiveDetalleIndex(index);
-    setProductoSearchTerm('');
-    setOpenSearchDialog(true);
-  };
-
   const handleKeyDown = (e, index) => {
     if (!activeDetalleIndex === index || !productoSearchTerm) return;
-    if (isMobile && openSearchDialog) return;
 
     switch (e.key) {
       case 'ArrowDown':
@@ -402,19 +393,21 @@ const NuevaVenta = () => {
   };
 
   const agregarDetalle = () => {
+    // Buscar si hay un item vacío (sin producto seleccionado)
     const emptyIndex = detalles.findIndex(detalle => !detalle.producto_id);
     
     if (emptyIndex !== -1) {
+      // Si hay un item vacío, hacer focus en su campo de búsqueda
       setActiveDetalleIndex(emptyIndex);
       setSelectedResultIndex(0);
       setProductoSearchTerm('');
-      if (isMobile) setOpenSearchDialog(true);
       setTimeout(() => {
         if (searchRefs.current[emptyIndex]) {
           searchRefs.current[emptyIndex].focus();
         }
       }, 100);
     } else {
+      // Si no hay items vacíos, agregar uno nuevo
       const newDetalleIndex = detalles.length;
       const newDetalle = {
         producto_id: '',
@@ -425,7 +418,7 @@ const NuevaVenta = () => {
       };
       setDetalles([...detalles, newDetalle]);
       setActiveDetalleIndex(newDetalleIndex);
-      if (isMobile) setOpenSearchDialog(true);
+      // Focus on search field after adding new row
       setTimeout(() => {
         if (searchRefs.current[newDetalleIndex]) {
           searchRefs.current[newDetalleIndex].focus();
@@ -474,7 +467,6 @@ const NuevaVenta = () => {
     setAjusteMonto('');
     setAjusteDetalle('');
     setPagaCon('');
-    setOpenSearchDialog(false);
     // Auto-focus on first product search field
     setTimeout(() => {
       if (searchRefs.current[0]) {
@@ -650,321 +642,430 @@ const NuevaVenta = () => {
 
   const fixedBarMargin = sidebarWidth === 'compact' ? 'lg:left-24' : sidebarWidth === 'expanded' ? 'lg:left-72' : 'lg:left-56';
 
-  const renderDatosTab = () => (
-    <Card className="py-2 mb-4">
-      <CardHeader className="py-1 px-4">
-        <CardTitle className="text-base">Información de la Venta</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3 py-1 px-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs">Medios de Pago</Label>
-              <div className="flex bg-muted rounded-md p-0.5">
-                <button
-                  type="button"
-                  onClick={() => setMultiplesPagos(false)}
-                  className={`text-xs px-2 py-1 rounded transition-colors ${
-                    !multiplesPagos ? 'bg-background shadow-sm' : 'text-muted-foreground'
-                  }`}
-                >
-                  Simple
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMultiplesPagos(true)}
-                  className={`text-xs px-2 py-1 rounded transition-colors ${
-                    multiplesPagos ? 'bg-background shadow-sm' : 'text-muted-foreground'
-                  }`}
-                >
-                  Múltiple
-                </button>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex gap-2 items-center">
-                <Select value={pagos[0].medio} onValueChange={(value) => actualizarPagoMedio(0, value)}>
-                  <SelectTrigger className="h-8 w-32 text-xs">
-                    <SelectValue placeholder="Medio" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getMediosDisponibles(0).map(medio => (
-                      <SelectItem key={medio} value={medio}>
-                        {medio === 'efectivo' ? 'Efectivo' : medio === 'posnet' ? 'PosNet' : medio === 'transferencia' ? 'Transferencia' : 'Cta. Cte.'}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <div className="relative flex-1">
-                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">$</span>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0"
-                    value={pagos[0].monto}
-                    onChange={(e) => actualizarPagoMonto(0, e.target.value)}
-                    onKeyDown={(e) => {
-                      const permitidas = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'];
-                      if (permitidas.includes(e.key)) return;
-                      if (/^[0-9.]$/.test(e.key)) return;
-                      e.preventDefault();
-                    }}
-                    readOnly={!multiplesPagos}
-                    className={`h-8 pl-5 pr-7 text-xs [-moz-appearance:_textfield] [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none ${!multiplesPagos ? 'bg-muted/30' : 'bg-background border-input'}`}
-                  />
-                  {multiplesPagos && (pagos[0].monto || pagos[0].monto === 0) && pagos[0].monto !== '' && (
-                    <button type="button" onClick={() => actualizarPagoMonto(0, '')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                      <X className="w-3 h-3" />
+  return (
+    <div className={totalFlotante ? 'space-y-4 pb-36' : 'space-y-4'}>
+      <div>
+        <h1 className="text-2xl font-bold text-foreground">Nueva Venta</h1>
+        <p className="text-sm text-muted-foreground">Registra una nueva venta</p>
+      </div>
+
+      <form ref={formRef} className="space-y-4">
+        <Card className="py-2">
+          <CardHeader className="py-1 px-4">
+            <CardTitle className="text-base">Información de la Venta</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 py-1 px-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Medios de Pago</Label>
+                  <div className="flex bg-muted rounded-md p-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setMultiplesPagos(false)}
+                      className={`text-xs px-2 py-1 rounded transition-colors ${
+                        !multiplesPagos ? 'bg-background shadow-sm' : 'text-muted-foreground'
+                      }`}
+                    >
+                      Simple
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => setMultiplesPagos(true)}
+                      className={`text-xs px-2 py-1 rounded transition-colors ${
+                        multiplesPagos ? 'bg-background shadow-sm' : 'text-muted-foreground'
+                      }`}
+                    >
+                      Múltiple
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  {/* Primer pago - siempre visible */}
+                  <div className="flex gap-2 items-center">
+                    <Select 
+                      value={pagos[0].medio} 
+                      onValueChange={(value) => actualizarPagoMedio(0, value)}
+                    >
+                      <SelectTrigger className="h-8 w-32 text-xs">
+                        <SelectValue placeholder="Medio" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getMediosDisponibles(0).map(medio => (
+                          <SelectItem key={medio} value={medio}>
+                            {medio === 'efectivo' ? 'Efectivo' : 
+                             medio === 'posnet' ? 'PosNet' : 
+                             medio === 'transferencia' ? 'Transferencia' : 'Cta. Cte.'}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                      <div className="relative flex-1">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">$</span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="0"
+                          value={pagos[0].monto}
+                          onChange={(e) => actualizarPagoMonto(0, e.target.value)}
+                          onKeyDown={(e) => {
+                            // Permitir: teclas de control, números, punto decimal
+                            const permitidas = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'];
+                            if (permitidas.includes(e.key)) return;
+                            if (/^[0-9.]$/.test(e.key)) return;
+                            e.preventDefault();
+                          }}
+                          readOnly={!multiplesPagos}
+                          className={`h-8 pl-5 pr-7 text-xs [-moz-appearance:_textfield] [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none ${!multiplesPagos ? 'bg-muted/30' : 'bg-background border-input'}`}
+                        />
+                        {multiplesPagos && (pagos[0].monto || pagos[0].monto === 0) && pagos[0].monto !== '' && (
+                          <button
+                            type="button"
+                            onClick={() => actualizarPagoMonto(0, '')}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                  </div>
+                  
+                  {/* Segundo pago - solo visible cuando múltiples pagos está activo */}
+                  {multiplesPagos && (
+                    <div className="flex gap-2 items-center">
+                      <Select 
+                        value={pagos[1].medio} 
+                        onValueChange={(value) => actualizarPagoMedio(1, value)}
+                      >
+                        <SelectTrigger className="h-8 w-32 text-xs">
+                          <SelectValue placeholder="Medio" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {getMediosDisponibles(1).map(medio => (
+                            <SelectItem key={medio} value={medio}>
+                              {medio === 'efectivo' ? 'Efectivo' : 
+                               medio === 'posnet' ? 'PosNet' : 
+                               medio === 'transferencia' ? 'Transferencia' : 'Cta. Cte.'}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <div className="relative flex-1">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">$</span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="0"
+                          value={pagos[1].monto}
+                          onChange={(e) => actualizarPagoMonto(1, e.target.value)}
+                          onKeyDown={(e) => {
+                            // Permitir: teclas de control, números, punto decimal
+                            const permitidas = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'];
+                            if (permitidas.includes(e.key)) return;
+                            if (/^[0-9.]$/.test(e.key)) return;
+                            e.preventDefault();
+                          }}
+                          className="h-8 pl-5 pr-7 text-xs [-moz-appearance:_textfield] [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                        {(pagos[1].monto || pagos[1].monto === 0) && pagos[1].monto !== '' && (
+                          <button
+                            type="button"
+                            onClick={() => actualizarPagoMonto(1, '')}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   )}
+                  
+                  {/* Totales */}
+                  <div className="flex justify-between items-center pt-2 border-t text-xs">
+                    <div>
+                      <span className="text-muted-foreground">Total: </span>
+                      <span className="font-semibold">{formatCurrency(calcularTotal(), showCents)}</span>
+                    </div>
+                    <div className={pagosCuadran() ? 'text-green-600' : 'text-red-500'}>
+                      {pagosCuadran() ? '✓ Cuadrado' : `Pendiente: ${formatCurrency(getDiferencia(), showCents)}`}
+                    </div>
+                  </div>
                 </div>
               </div>
-              {multiplesPagos && (
-                <div className="flex gap-2 items-center">
-                  <Select value={pagos[1].medio} onValueChange={(value) => actualizarPagoMedio(1, value)}>
-                    <SelectTrigger className="h-8 w-32 text-xs">
-                      <SelectValue placeholder="Medio" />
+
+              {(pagos[0].medio === 'cuenta_corriente' || pagos[1].medio === 'cuenta_corriente') && (
+                <div className="space-y-2">
+                  <Label htmlFor="cliente" className="text-xs">Cliente</Label>
+                  <Select value={clienteId} onValueChange={setClienteId}>
+                    <SelectTrigger id="cliente" data-testid="cliente-select" className="h-8">
+                      <SelectValue placeholder="Selecciona un cliente" />
                     </SelectTrigger>
                     <SelectContent>
-                      {getMediosDisponibles(1).map(medio => (
-                        <SelectItem key={medio} value={medio}>
-                          {medio === 'efectivo' ? 'Efectivo' : medio === 'posnet' ? 'PosNet' : medio === 'transferencia' ? 'Transferencia' : 'Cta. Cte.'}
+                      {clientes.map(cliente => (
+                        <SelectItem key={cliente.id} value={cliente.id}>
+                          {cliente.nombre}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  <div className="relative flex-1">
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="py-2">
+          <CardHeader className="py-1 px-4">
+            <div className="flex justify-between items-center">
+              <CardTitle className="text-base">Productos</CardTitle>
+              <div className="flex gap-2">
+                <Button 
+                  type="button" 
+                  onClick={refreshProductos} 
+                  size="sm" 
+                  variant="outline"
+                  className="h-7 text-xs"
+                  disabled={refreshingProductos}
+                >
+                  <RefreshCw className={`w-3 h-3 mr-1 ${refreshingProductos ? 'animate-spin' : ''}`} />
+                  {refreshingProductos ? 'Actualizando...' : 'Actualizar'}
+                </Button>
+                <Button type="button" onClick={agregarDetalle} size="sm" className="h-7 text-xs" data-testid="add-detalle-button">
+                  <Plus className="w-3 h-3 mr-1" />
+                  Agregar
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="py-1 px-4">
+            {detalles.length === 0 ? (
+              <p className="text-center text-muted-foreground py-4 text-sm">
+                No hay productos. Agrega uno para empezar.
+              </p>
+            ) : (
+              <div>
+                <div className="flex gap-2 items-end pb-2 mb-2 border-b">
+                  <div className="flex-[2]">
+                    <Label className="text-xs font-semibold">Producto</Label>
+                  </div>
+                  <div className="w-16">
+                    <Label className="text-xs font-semibold">Cant.</Label>
+                  </div>
+                  <div className="w-24 text-right">
+                    <Label className="text-xs font-semibold">Subtotal</Label>
+                  </div>
+                  <div className="w-8">
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  {detalles.map((detalle, index) => (
+                      <div key={index} className="flex gap-2 items-center p-2 bg-muted rounded-md" data-testid={`detalle-${index}`}>
+                        <div className="flex-[2]">
+                          <div className="relative">
+                          {detalle.producto_id ? (
+                             <div className="h-7 px-2 py-1 bg-muted border rounded-md flex items-center font-medium text-sm">
+                              {capitalizeWords(detalle.producto_nombre)}
+                              <div className="ml-auto text-right text-xs">
+                                {(() => {
+                                  const producto = productos.find(p => p.id === detalle.producto_id);
+                                  const tieneDescuento = producto && producto.descuento_cantidad_minima && producto.descuento_precio_unitario && detalle.cantidad >= producto.descuento_cantidad_minima;
+                                  
+                                  if (tieneDescuento) {
+                                    return (
+                                      <>
+                                        <span className="text-muted-foreground text-xs line-through">
+                                          ${detalle.precio_unitario}
+                                        </span>
+                                          <div className="text-green-500 font-bold">
+                                            ${producto.descuento_precio_unitario}
+                                          </div>
+                                      </>
+                                    );
+                                  } else {
+                                    return (
+                                      <span className="text-muted-foreground">
+                                        ${detalle.precio_unitario} c/u
+                                      </span>
+                                    );
+                                  }
+                                })()}
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="relative">
+                                <Input
+                                  ref={el => searchRefs.current[index] = el}
+                                  id={`producto-search-${index}`}
+                                  name={`producto-search-${index}`}
+                                  placeholder="Buscar..."
+                                  value={productoSearchTerm ? productoSearchTerm : (activeDetalleIndex === index ? productoSearchTerm : '')}
+                                  onChange={(e) => {
+                                    setProductoSearchTerm(e.target.value);
+                                    setActiveDetalleIndex(index);
+                                  }}
+                                  onFocus={() => {
+                                    setActiveDetalleIndex(index);
+                                      setProductoSearchTerm(productoSearchTerm ? productoSearchTerm : '');
+                                  }}
+                                  onKeyDown={(e) => handleKeyDown(e, index)}
+                                  className="h-7 text-sm pr-8"
+                                />
+                                {activeDetalleIndex === index && (
+                                  <Search className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground w-3 h-3 pointer-events-none" />
+                                )}
+                                {activeDetalleIndex === index && productoSearchTerm && (
+                                  <div className="search-dropdown absolute z-10 left-0 right-0 mt-1 bg-background border border-border rounded-md shadow-lg max-h-40 overflow-auto">
+                          {filteredProductos.length > 0 ? (
+                             filteredProductos.map((producto, resultIndex) => (
+                              <div
+                                key={producto.id}
+                                ref={el => resultRefs.current[resultIndex] = el}
+                                className={`px-2 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/40 cursor-pointer flex justify-between items-center transition-colors text-sm ${
+                                  resultIndex === selectedResultIndex ? 'bg-blue-100 dark:bg-blue-900/50 border-l-4 border-blue-500 dark:border-blue-400' : ''
+                                }`}
+                                onClick={() => {
+                                  actualizarDetalle(index, 'producto_id', producto.id);
+                                  setProductoSearchTerm('');
+                                  setActiveDetalleIndex(null);
+                                  setSelectedResultIndex(0);
+                                  resultRefs.current = [];
+                                  setTimeout(() => {
+                                    if (cantidadRefs.current[index]) {
+                                      cantidadRefs.current[index].focus();
+                                      cantidadRefs.current[index].select();
+                                    }
+                                  }, 100);
+                                }}
+                              >
+                                <div>
+                                  <span>{capitalizeWords(producto.nombre)} - ${producto.precio_unitario}</span>
+                                  {producto.descuento_cantidad_minima && producto.descuento_precio_unitario && (
+                                    <div className="text-xs text-green-600 font-medium">
+                                      ≥{producto.descuento_cantidad_minima}: ${producto.descuento_precio_unitario}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                              {productos.length === 0 
+                                ? 'No hay productos' 
+                                : 'Todos agregados o no coinciden'}
+                            </div>
+                          )}
+                                  </div>
+                                )}
+                              </div>
+                              </>
+                          )}
+                          </div>
+
+                        {(!detalle.producto_id && !activeDetalleIndex === index) && (
+                        <Select
+                          value={detalle.producto_id}
+                          onValueChange={(value) => actualizarDetalle(index, 'producto_id', value)}
+                        >
+                          <SelectTrigger className="h-7 text-sm" data-testid={`producto-select-${index}`}>
+                            <SelectValue placeholder="Selecciona" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {getProductosDisponibles().map(producto => (
+                              <SelectItem key={producto.id} value={producto.id}>
+                                {capitalizeWords(producto.nombre)} - ${producto.precio_unitario}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                        </div>
+                        <div className="w-16">
+                          <Input
+                            ref={el => cantidadRefs.current[index] = el}
+                            type="number"
+                            min="1"
+                            value={detalle.cantidad}
+                            onChange={(e) => actualizarDetalle(index, 'cantidad', e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                setTimeout(() => {
+                                  agregarDetalle();
+                                }, 100);
+                              }
+                            }}
+                            className="h-7 text-sm"
+                            data-testid={`cantidad-input-${index}`}
+                          />
+                        </div>
+                        <div className="w-24 text-right">
+                          <div className="h-7 px-2 py-1 bg-background border rounded-md flex items-center justify-end font-semibold text-sm">
+                            {formatCurrency(detalle.subtotal, showCents)}
+                          </div>
+                        </div>
+                        <div className="w-8 flex justify-center">
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => eliminarDetalle(index)}
+                            data-testid={`remove-detalle-${index}`}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </div>
+                  ))}
+                </div>
+              </div>
+              )}
+            <div className="mt-3 pt-3 border-t">
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="flex-1 min-w-[140px]">
+                  <Label htmlFor="ajuste-monto" className="text-xs text-muted-foreground">
+                    Descuento/Recargo
+                  </Label>
+                  <div className="relative">
                     <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">$</span>
                     <Input
+                      id="ajuste-monto"
                       type="number"
                       step="0.01"
-                      min="0"
                       placeholder="0"
-                      value={pagos[1].monto}
-                      onChange={(e) => actualizarPagoMonto(1, e.target.value)}
-                      onKeyDown={(e) => {
-                        const permitidas = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'];
-                        if (permitidas.includes(e.key)) return;
-                        if (/^[0-9.]$/.test(e.key)) return;
-                        e.preventDefault();
-                      }}
-                      className="h-8 pl-5 pr-7 text-xs [-moz-appearance:_textfield] [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none"
+                      value={ajusteMonto}
+                      onChange={(e) => setAjusteMonto(e.target.value)}
+                      className={`h-7 pl-5 pr-6 text-xs [-moz-appearance:_textfield] [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none ${
+                        ajusteMonto && parseFloat(ajusteMonto) < 0 ? 'border-green-500 text-green-600' : 
+                        ajusteMonto && parseFloat(ajusteMonto) > 0 ? 'border-red-500 text-red-600' : ''
+                      }`}
                     />
-                    {(pagos[1].monto || pagos[1].monto === 0) && pagos[1].monto !== '' && (
-                      <button type="button" onClick={() => actualizarPagoMonto(1, '')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                    {ajusteMonto && (
+                      <button
+                        type="button"
+                        onClick={() => { setAjusteMonto(''); setAjusteDetalle(''); }}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
                         <X className="w-3 h-3" />
                       </button>
                     )}
                   </div>
                 </div>
-              )}
-              <div className="flex justify-between items-center pt-2 border-t text-xs">
-                <div><span className="text-muted-foreground">Total: </span><span className="font-semibold">{formatCurrency(calcularTotal(), showCents)}</span></div>
-                <div className={pagosCuadran() ? 'text-green-600' : 'text-red-500'}>
-                  {pagosCuadran() ? '✓ Cuadrado' : `Pendiente: ${formatCurrency(getDiferencia(), showCents)}`}
-                </div>
-              </div>
-            </div>
-          </div>
-          {(pagos[0].medio === 'cuenta_corriente' || pagos[1].medio === 'cuenta_corriente') && (
-            <div className="space-y-2">
-              <Label htmlFor="cliente" className="text-xs">Cliente</Label>
-              <Select value={clienteId} onValueChange={setClienteId}>
-                <SelectTrigger id="cliente" className="h-8">
-                  <SelectValue placeholder="Selecciona un cliente" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clientes.map(cliente => (
-                    <SelectItem key={cliente.id} value={cliente.id}>{cliente.nombre}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-
-  const renderProductosTab = () => (
-    <>
-      <Card className="py-2">
-        <CardHeader className="py-1 px-4">
-          <div className="flex justify-between items-center">
-            <CardTitle className="text-base">Productos</CardTitle>
-            <Button type="button" onClick={agregarDetalle} size="sm" className="h-7 text-xs lg:hidden" data-testid="add-detalle-button">
-              <Plus className="w-3 h-3 mr-1" /> Agregar
-            </Button>
-          </div>
-        </CardHeader>
-      <CardContent className="py-1 px-4">
-        {detalles.length === 0 ? (
-          <p className="text-center text-muted-foreground py-4 text-sm">No hay productos. Agrega uno para empezar.</p>
-        ) : (
-          <>
-            <div className="flex gap-2 items-end pb-2 mb-2 border-b lg:hidden">
-              <div className="flex-1"><Label className="text-xs font-semibold">Producto</Label></div>
-              <div className="w-16"><Label className="text-xs font-semibold">Cant.</Label></div>
-              <div className="w-24 text-right"><Label className="text-xs font-semibold">Subtotal</Label></div>
-              <div className="w-8"></div>
-            </div>
-            <div className="space-y-2">
-              {detalles.map((detalle, index) => (
-                <div key={index} className="flex gap-2 items-center p-3 bg-muted rounded-lg" data-testid={`detalle-${index}`}>
-                  <div className="flex-[2] min-w-0">
-                    <div className="relative">
-                      {detalle.producto_id ? (
-                        <div className="h-9 px-2 py-1.5 bg-background border rounded-md flex items-center font-medium text-sm overflow-hidden">
-                          <span className="truncate">{capitalizeWords(detalle.producto_nombre)}</span>
-                          <div className="ml-auto text-right text-xs flex-shrink-0">
-                            {(() => {
-                              const producto = productos.find(p => p.id === detalle.producto_id);
-                              const tieneDescuento = producto && producto.descuento_cantidad_minima && producto.descuento_precio_unitario && detalle.cantidad >= producto.descuento_cantidad_minima;
-                              if (tieneDescuento) {
-                                return (
-                                  <>
-                                    <span className="text-muted-foreground text-xs line-through block">${detalle.precio_unitario}</span>
-                                    <div className="text-green-500 font-bold">${producto.descuento_precio_unitario}</div>
-                                  </>
-                                );
-                              } else {
-                                return <span className="text-muted-foreground text-xs">${detalle.precio_unitario} c/u</span>;
-                              }
-                            })()}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="relative">
-                          <Input
-                            ref={el => searchRefs.current[index] = el}
-                            id={`producto-search-${index}`}
-                            placeholder="Buscar..."
-                            value={activeDetalleIndex === index ? productoSearchTerm : ''}
-                            onChange={(e) => { setProductoSearchTerm(e.target.value); }}
-                            onFocus={() => { setActiveDetalleIndex(index); if (isMobile) setOpenSearchDialog(true); }}
-                            onKeyDown={(e) => handleKeyDown(e, index)}
-                            className="h-9 text-sm pr-8"
-                          />
-                          {activeDetalleIndex === index && (
-                            <Search className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground w-3 h-3 pointer-events-none" />
-                          )}
-                          {!isMobile && activeDetalleIndex === index && productoSearchTerm && (
-                            <div className="search-dropdown absolute z-10 left-0 right-0 mt-1 bg-background border border-border rounded-md shadow-lg max-h-48 overflow-auto">
-                              {filteredProductos.length > 0 ? (
-                                filteredProductos.map((producto, resultIndex) => (
-                                  <div
-                                    key={producto.id}
-                                    ref={el => resultRefs.current[resultIndex] = el}
-                                    className={`px-3 py-2 hover:bg-blue-50 dark:hover:bg-blue-900/40 cursor-pointer flex justify-between items-center transition-colors text-sm ${
-                                      resultIndex === selectedResultIndex ? 'bg-blue-100 dark:bg-blue-900/50 border-l-4 border-blue-500 dark:border-blue-400' : ''
-                                    }`}
-                                    onClick={() => {
-                                      actualizarDetalle(index, 'producto_id', producto.id);
-                                      setProductoSearchTerm('');
-                                      setActiveDetalleIndex(null);
-                                      setSelectedResultIndex(0);
-                                      resultRefs.current = [];
-                                      setTimeout(() => {
-                                        if (cantidadRefs.current[index]) {
-                                          cantidadRefs.current[index].focus();
-                                          cantidadRefs.current[index].select();
-                                        }
-                                      }, 100);
-                                    }}
-                                  >
-                                    <div>
-                                      <span>{capitalizeWords(producto.nombre)} - ${producto.precio_unitario}</span>
-                                      {producto.descuento_cantidad_minima && producto.descuento_precio_unitario && (
-                                        <div className="text-xs text-green-600 font-medium">≥{producto.descuento_cantidad_minima}: ${producto.descuento_precio_unitario}</div>
-                                      )}
-                                    </div>
-                                  </div>
-                                ))
-                              ) : (
-                                <div className="px-3 py-2 text-xs text-muted-foreground">
-                                  {productos.length === 0 ? 'No hay productos' : 'Todos agregados o no coinciden'}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {isMobile && activeDetalleIndex === index && !detalle.producto_id && (
-                        <Select value={detalle.producto_id} onValueChange={(value) => actualizarDetalle(index, 'producto_id', value)}>
-                          <SelectTrigger className="h-9 text-sm" data-testid={`producto-select-${index}`}>
-                            <SelectValue placeholder="Selecciona" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {getProductosDisponibles().map(producto => (
-                              <SelectItem key={producto.id} value={producto.id}>{capitalizeWords(producto.nombre)} - ${producto.precio_unitario}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    </div>
-                  </div>
-<div className="flex items-center">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const newCant = Math.max(1, (parseInt(detalle.cantidad) || 1) - 1);
-                          actualizarDetalle(index, 'cantidad', newCant);
-                        }}
-                        className="h-9 w-9 rounded-l-md bg-muted border border-r-0 border-input flex items-center justify-center text-sm font-bold hover:bg-muted/80"
-                      >-</button>
-                      <Input
-                        ref={el => cantidadRefs.current[index] = el}
-                        type="tel"
-                        inputMode="numeric"
-                        value={detalle.cantidad}
-                        onChange={(e) => actualizarDetalle(index, 'cantidad', e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            setTimeout(() => { agregarDetalle(); }, 100);
-                          }
-                        }}
-                        className="h-9 w-14 text-center text-sm border-l-0 border-r-0 [-moz-appearance:_textfield] [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none"
-                        data-testid={`cantidad-input-${index}`}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const newCant = (parseInt(detalle.cantidad) || 1) + 1;
-                          actualizarDetalle(index, 'cantidad', newCant);
-                        }}
-                        className="h-9 w-9 rounded-r-md bg-muted border border-l-0 border-input flex items-center justify-center text-sm font-bold hover:bg-muted/80"
-                      >+</button>
-                    </div>
-                  <div className="w-24 text-right">
-                    <div className="h-9 px-2 py-1 bg-background border rounded-md flex items-center justify-end font-semibold text-sm">
-                      {formatCurrency(detalle.subtotal, showCents)}
-                    </div>
-                  </div>
-                  <div className="w-8 flex justify-center">
-                    <Button type="button" variant="destructive" size="icon" className="h-6 w-6" onClick={() => eliminarDetalle(index)} data-testid={`remove-detalle-${index}`}>
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-3 pt-3 border-t">
-              <div className="flex flex-wrap items-end gap-2">
-                <div className="flex-1 min-w-[140px]">
-                  <Label htmlFor="ajuste-monto" className="text-xs text-muted-foreground">Descuento/Recargo</Label>
-                  <div className="relative">
-                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">$</span>
-                    <Input id="ajuste-monto" type="number" step="0.01" placeholder="0" value={ajusteMonto} onChange={(e) => setAjusteMonto(e.target.value)} className={`h-8 pl-5 pr-6 text-xs [-moz-appearance:_textfield] [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none ${ajusteMonto && parseFloat(ajusteMonto) < 0 ? 'border-green-500 text-green-600' : ajusteMonto && parseFloat(ajusteMonto) > 0 ? 'border-red-500 text-red-600' : ''}`} />
-                    {ajusteMonto && (
-                      <button type="button" onClick={() => { setAjusteMonto(''); setAjusteDetalle(''); }} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"><X className="w-3 h-3" /></button>
-                    )}
-                  </div>
-                </div>
                 <div className="flex-[2] min-w-[200px]">
-                  <Label htmlFor="ajuste-detalle" className="text-xs text-muted-foreground">Detalle</Label>
-                  <Input id="ajuste-detalle" type="text" placeholder="Motivo (opcional)" value={ajusteDetalle} onChange={(e) => setAjusteDetalle(e.target.value)} className="h-8 text-xs" />
+                  <Label htmlFor="ajuste-detalle" className="text-xs text-muted-foreground">
+                    Detalle
+                  </Label>
+                  <Input
+                    id="ajuste-detalle"
+                    type="text"
+                    placeholder="Motivo (opcional)"
+                    value={ajusteDetalle}
+                    onChange={(e) => setAjusteDetalle(e.target.value)}
+                    className="h-7 text-xs"
+                  />
                 </div>
                 {ajusteMonto && parseFloat(ajusteMonto) !== 0 && (
                   <div className={`flex items-center px-2 py-1 rounded text-xs font-medium ${parseFloat(ajusteMonto) < 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
@@ -973,173 +1074,139 @@ const NuevaVenta = () => {
                 )}
               </div>
             </div>
-          </>
-        )}
-      </CardContent>
-      </Card>
-      {/* Total bar fixed at bottom of productos tab */}
-      <div className="fixed bottom-0 left-0 right-0 z-20 bg-background border-t border-border shadow-lg p-3 lg:hidden">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <span className="text-lg font-bold">Total:</span>
-          <span className="text-2xl font-bold text-primary">{formatCurrency(calcularTotal(), showCents)}</span>
-        </div>
-      </div>
-    </>
-  );
-
-  const renderPagoTab = () => (
-    <>
-      {renderDatosTab()}
-      {mostrarCalculadoraVuelto && hayEfectivo() && (
-        <Card className="py-2 border-2 border-blue-200 bg-blue-50/50 dark:border-blue-400/50 dark:bg-blue-950/40">
-          <CardHeader className="py-1 px-4">
-            <CardTitle className="text-sm text-blue-800 dark:text-blue-300">Cálculo de Vuelto</CardTitle>
-          </CardHeader>
-          <CardContent className="py-1 px-4">
-            <div className="flex flex-col sm:flex-row gap-2 items-end">
-              <div className="flex-1 w-full">
-                <Label className="text-xs text-blue-700 dark:text-blue-300 mb-1 block">Paga con</Label>
-                <div className="relative">
-                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-blue-600 dark:text-blue-400 font-semibold text-xs">$</span>
-                  <Input type="number" step="100" min="0" placeholder="0" value={pagaCon} onChange={(e) => setPagaCon(e.target.value)} className="h-8 pl-5 pr-6 text-sm font-semibold border-blue-300 focus:border-blue-500 bg-white dark:bg-background dark:border-blue-500/60 [-moz-appearance:_textfield] [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none" />
-                </div>
-              </div>
-              <div className="flex gap-1">
-                <button type="button" onClick={() => setPagaCon('10000')} className="px-3 py-1.5 text-xs rounded border bg-white text-gray-600 border-gray-300 hover:bg-gray-50 dark:bg-background dark:text-muted-foreground dark:border-border dark:hover:bg-muted font-medium">$10.000</button>
-                <button type="button" onClick={() => setPagaCon('20000')} className="px-3 py-1.5 text-xs rounded border bg-white text-gray-600 border-gray-300 hover:bg-gray-50 dark:bg-background dark:text-muted-foreground dark:border-border dark:hover:bg-muted font-medium">$20.000</button>
-              </div>
-            </div>
-            {pagaCon && parseFloat(pagaCon) > 0 && (
-              <div className="mt-2 pt-2 border-t border-blue-200 dark:border-blue-400/50">
-                {calcularVuelto() >= 0 ? (
-                  <div className="text-center flex items-center justify-center gap-2 flex-wrap">
-                    <p className="text-blue-600 dark:text-blue-400 text-sm">Vuelto</p>
-                    <p className="font-['Manrope'] text-2xl font-bold text-blue-800 dark:text-blue-300">${calcularVuelto().toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
-                  </div>
-                ) : (
-                  <div className="text-center"><p className="text-red-500 text-sm font-medium">Faltan: ${Math.abs(calcularVuelto()).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p></div>
-                )}
-              </div>
-            )}
           </CardContent>
         </Card>
-      )}
-      <Card className="py-2">
-        <CardContent className="py-1 px-4">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-            <div className="flex items-center gap-2 sm:flex-1">
-              <span className="text-lg font-bold">Total:</span>
-              <span className="text-2xl font-bold text-primary" data-testid="total-venta">{formatCurrency(calcularTotal(), showCents)}</span>
-            </div>
-            <div className="flex gap-2 sm:justify-end">
-              <Button type="button" className="flex-1 sm:flex-none h-10" onClick={handleSubmit} disabled={loading || detalles.length === 0} data-testid="submit-venta-button">
-                <ShoppingCart className="w-4 h-4 mr-2" />
-                {loading ? 'Procesando...' : 'Registrar Venta'}
-              </Button>
-              <Button type="button" variant="outline" onClick={resetForm} className="flex-1 sm:flex-none h-10">Cancelar</Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </>
-  );
 
-  return (
-    <div className={totalFlotante ? 'space-y-4 pb-28' : 'space-y-4'}>
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Nueva Venta</h1>
-        <p className="text-sm text-muted-foreground">Registra una nueva venta</p>
-      </div>
-
-      <form ref={formRef} className="space-y-4">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-<div className="sticky top-0 z-10 bg-background border-b">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="productos" className="text-xs">🛒 Productos ({detalles.length})</TabsTrigger>
-              <TabsTrigger value="pago" className="text-xs">💰 Pagar</TabsTrigger>
-            </TabsList>
-          </div>
-
-          <TabsContent value="productos" className="mt-2">
-            {renderProductosTab()}
-          </TabsContent>
-
-          <TabsContent value="pago" className="mt-2">
-            {renderPagoTab()}
-          </TabsContent>
-        </Tabs>
-
-        {/* FAB button para móvil */}
-        <Button
-          type="button"
-          onClick={agregarDetalle}
-          size="icon"
-          className="fixed bottom-28 left-4 h-12 w-12 rounded-full shadow-lg lg:hidden z-30"
-          data-testid="fab-add-product"
-        >
-          <Plus className="w-6 h-6" />
-        </Button>
-      </form>
-
-      {/* Buscador modal en móvil */}
-      <Dialog open={openSearchDialog} onOpenChange={(v) => { if (!v) { setOpenSearchDialog(false); setActiveDetalleIndex(null); setProductoSearchTerm(''); } }}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Buscar Producto</DialogTitle>
-            <DialogDescription>Busca y selecciona un producto</DialogDescription>
-          </DialogHeader>
-          <Input
-            placeholder="Buscar producto..."
-            value={productoSearchTerm}
-            onChange={(e) => setProductoSearchTerm(e.target.value)}
-            autoFocus
-            className="mb-2"
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') {
-                setOpenSearchDialog(false);
-                setActiveDetalleIndex(null);
-                setProductoSearchTerm('');
-              }
-            }}
-          />
-          <div className="space-y-1 max-h-64 overflow-auto">
-            {filteredProductos.length > 0 ? (
-              filteredProductos.map((producto) => (
-                <div
-                  key={producto.id}
-                  className="px-3 py-2 hover:bg-muted rounded-md cursor-pointer flex justify-between items-center transition-colors"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    if (activeDetalleIndex !== null) {
-                      actualizarDetalle(activeDetalleIndex, 'producto_id', producto.id);
-                      setProductoSearchTerm('');
-                      setActiveDetalleIndex(null);
-                      setOpenSearchDialog(false);
-                      setTimeout(() => {
-                        if (cantidadRefs.current[activeDetalleIndex]) {
-                          cantidadRefs.current[activeDetalleIndex].focus();
-                          cantidadRefs.current[activeDetalleIndex].select();
-                        }
-                      }, 100);
-                    }
-                  }}
-                >
-                  <div>
-                    <span>{capitalizeWords(producto.nombre)} - ${producto.precio_unitario}</span>
-                    {producto.descuento_cantidad_minima && producto.descuento_precio_unitario && (
-                      <div className="text-xs text-green-600 font-medium">≥{producto.descuento_cantidad_minima}: ${producto.descuento_precio_unitario}</div>
-                    )}
+        {/* Calculadora de Vuelto - Solo visible cuando hay efectivo y está habilitada */}
+        {mostrarCalculadoraVuelto && hayEfectivo() && (
+          <Card className="py-2 border-2 border-blue-200 bg-blue-50/50 dark:border-blue-400/50 dark:bg-blue-950/40">
+            <CardHeader className="py-1 px-4">
+              <CardTitle className="text-sm text-blue-800 dark:text-blue-300">Cálculo de Vuelto</CardTitle>
+            </CardHeader>
+            <CardContent className="py-1 px-4">
+              <div className="flex flex-col sm:flex-row gap-2 items-end">
+                <div className="flex-1 w-full">
+                  <Label className="text-xs text-blue-700 dark:text-blue-300 mb-1 block">Paga con</Label>
+                  <div className="relative">
+                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-blue-600 dark:text-blue-400 font-semibold text-xs">$</span>
+                    <Input
+                      type="number"
+                      step="100"
+                      min="0"
+                      placeholder="0"
+                      value={pagaCon}
+                      onChange={(e) => setPagaCon(e.target.value)}
+                      className="h-7 pl-5 pr-6 text-sm font-semibold border-blue-300 focus:border-blue-500 bg-white dark:bg-background dark:border-blue-500/60 [-moz-appearance:_textfield] [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none"
+                    />
                   </div>
                 </div>
-              ))
-            ) : (
-              <div className="px-3 py-4 text-center text-sm text-muted-foreground">
-                {productos.length === 0 ? 'No hay productos' : 'No se encontraron coincidencias'}
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setPagaCon('10000')}
+                    className="px-2 py-1 text-xs rounded border bg-white text-gray-600 border-gray-300 hover:bg-gray-50 dark:bg-background dark:text-muted-foreground dark:border-border dark:hover:bg-muted font-medium"
+                  >
+                    $10.000
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPagaCon('20000')}
+                    className="px-2 py-1 text-xs rounded border bg-white text-gray-600 border-gray-300 hover:bg-gray-50 dark:bg-background dark:text-muted-foreground dark:border-border dark:hover:bg-muted font-medium"
+                  >
+                    $20.000
+                  </button>
+                </div>
               </div>
-            )}
+
+              {/* Resultado del vuelto */}
+              {pagaCon && parseFloat(pagaCon) > 0 && (
+                <div className="mt-2 pt-2 border-t border-blue-200 dark:border-blue-400/50">
+                  {calcularVuelto() >= 0 ? (
+                    <div className="text-center flex items-center justify-center gap-2 flex-wrap">
+                      <p className="text-blue-600 dark:text-blue-400 text-sm">Vuelto</p>
+                      <p className="font-['Manrope'] text-2xl font-bold text-blue-800 dark:text-blue-300">
+                        ${calcularVuelto().toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <p className="text-red-500 text-sm font-medium">
+                        Faltan: ${Math.abs(calcularVuelto()).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {totalFlotante ? (
+          <div className={`fixed bottom-0 left-0 right-0 z-40 bg-background border-t border-border shadow-lg p-3 ${fixedBarMargin}`}>
+            <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+              <div className="flex items-center gap-2 sm:flex-1">
+                <span className="text-lg font-bold">Total:</span>
+                <span className="text-2xl font-bold text-primary" data-testid="total-venta">
+                  {formatCurrency(calcularTotal(), showCents)}
+                </span>
+              </div>
+              <div className="flex gap-2 sm:justify-end">
+                <Button
+                  type="button"
+                  className="flex-1 sm:flex-none h-9"
+                  onClick={handleSubmit}
+                  disabled={loading || detalles.length === 0}
+                  data-testid="submit-venta-button"
+                >
+                  <ShoppingCart className="w-4 h-4 mr-2" />
+                  {loading ? 'Procesando...' : 'Registrar Venta'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={resetForm}
+                  className="flex-1 sm:flex-none h-9"
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        ) : (
+          <Card className="py-2">
+            <CardContent className="py-1 px-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                <div className="flex items-center gap-2 sm:flex-1">
+                  <span className="text-lg font-bold">Total:</span>
+                  <span className="text-2xl font-bold text-primary" data-testid="total-venta">
+                    {formatCurrency(calcularTotal(), showCents)}
+                  </span>
+                </div>
+                <div className="flex gap-2 sm:justify-end">
+                  <Button
+                    type="button"
+                    className="flex-1 sm:flex-none h-9"
+                    onClick={handleSubmit}
+                    disabled={loading || detalles.length === 0}
+                    data-testid="submit-venta-button"
+                  >
+                    <ShoppingCart className="w-4 h-4 mr-2" />
+                    {loading ? 'Procesando...' : 'Registrar Venta'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={resetForm}
+                    className="flex-1 sm:flex-none h-9"
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </form>
     </div>
   );
 };
