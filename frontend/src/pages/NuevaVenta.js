@@ -55,6 +55,20 @@ const NuevaVenta = () => {
   const [selectedResultIndex, setSelectedResultIndex] = useState(0);
   const cantidadRefs = useRef([]);
   const resultRefs = useRef([]); // Para hacer scroll a los elementos de resultados
+  const formRef = useRef(null);
+
+  // Mantener el scroll siempre al final de la página al agregar productos
+  const prevDetallesLength = useRef(detalles.length);
+  useEffect(() => {
+    const added = detalles.length > prevDetallesLength.current;
+    prevDetallesLength.current = detalles.length;
+    if (!added || detalles.length === 0) return;
+    // Scroll al final de la página
+    const timer = setTimeout(() => {
+      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [detalles.length]);
 
   // Set initial focus on first product search field after component loads (solo una vez)
   const initialFocusSet = useRef(false);
@@ -635,7 +649,7 @@ const NuevaVenta = () => {
         <p className="text-sm text-muted-foreground">Registra una nueva venta</p>
       </div>
 
-      <form className="space-y-4">
+      <form ref={formRef} className="space-y-4">
         <Card className="py-2">
           <CardHeader className="py-1 px-4">
             <CardTitle className="text-base">Información de la Venta</CardTitle>

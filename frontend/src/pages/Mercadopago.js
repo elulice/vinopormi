@@ -311,7 +311,7 @@ const Mercadopago = () => {
                         key={venta.id}
                         className={`p-2 rounded-md text-xs cursor-pointer hover:opacity-80 ${
                           asociaciones[selectedTransferencia.id]?.venta_id === venta.id 
-                            ? 'bg-green-50 border border-green-200' 
+                            ? 'bg-green-50 border border-green-200 dark:bg-green-500/15 dark:border-green-400/40' 
                             : 'bg-muted'
                         }`}
                         onClick={() => setSelectedVenta(venta)}
@@ -333,7 +333,7 @@ const Mercadopago = () => {
                             </p>
                           </div>
                           {asociaciones[selectedTransferencia.id]?.venta_id === venta.id ? (
-                            <div className="flex items-center gap-1 text-green-600">
+                            <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
                               <CheckCircle className="w-4 h-4" />
                               <span className="text-xs font-medium">Asociada</span>
                             </div>
