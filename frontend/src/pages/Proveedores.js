@@ -321,10 +321,10 @@ const Proveedores = () => {
               }`}>
                 {formatCurrency(Math.abs(proveedor.saldo || 0), showCents)}
                 {proveedor.saldo < 0 && (
-                  <span className="text-xs font-normal text-muted-foreground ml-1">(adeuda)</span>
+                  <span className="text-xs font-normal text-muted-foreground ml-1">(le debemos)</span>
                 )}
                 {proveedor.saldo > 0 && (
-                  <span className="text-xs font-normal text-muted-foreground ml-1">(a favor)</span>
+                  <span className="text-xs font-normal text-muted-foreground ml-1">(a favor del proveedor)</span>
                 )}
               </div>
             </td>
@@ -382,10 +382,10 @@ const Proveedores = () => {
               }`}>
                 {formatCurrency(Math.abs(proveedor.saldo || 0), showCents)}
                 {proveedor.saldo < 0 && (
-                  <span className="font-normal ml-1">(adeuda)</span>
+                  <span className="font-normal ml-1">(le debemos)</span>
                 )}
                 {proveedor.saldo > 0 && (
-                  <span className="font-normal ml-1">(a favor)</span>
+                  <span className="font-normal ml-1">(a favor del proveedor)</span>
                 )}
               </div>
             </div>
@@ -479,7 +479,7 @@ const Proveedores = () => {
                             />
                           </div>
                           <div>
-                            <Label htmlFor="monto" className="text-xs">Monto (positivo para pago, negativo para deuda)</Label>
+                            <Label htmlFor="monto" className="text-xs">Monto (positivo para pago, negativo si le debemos al proveedor)</Label>
                             <Input
                               id="monto"
                               type="number"
@@ -513,7 +513,8 @@ const Proveedores = () => {
                     cuentaInfo.saldo < 0 ? 'text-destructive' : 'text-primary'
                   }`}>
                     {formatCurrency(Math.abs(cuentaInfo.saldo), showCents)}
-                    {cuentaInfo.saldo < 0 && ' (adeuda)'}
+                    {cuentaInfo.saldo < 0 && ' (le debemos)'}
+                    {cuentaInfo.saldo > 0 && ' (a favor del proveedor)'}
                   </div>
                 </CardContent>
               </Card>

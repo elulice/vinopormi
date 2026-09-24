@@ -223,58 +223,55 @@ const Layout = () => {
           </ul>
         </nav>
 
-        <div className={`${sidebarWidth === 'compact' ? 'p-2' : 'p-4'} border-t border-border`}>
-          <div className={`mb-3 ${sidebarWidth === 'compact' ? 'text-center' : 'px-2'}`}>
-            {sidebarWidth !== 'compact' ? (
-              <>
-                <p className="text-sm font-medium text-foreground">
-                  {user?.nombre}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  @{user?.username}
-                </p>
-              </>
-            ) : (
-              <div className="flex justify-center">
-                <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                  <span className="text-xs font-bold text-white">
-                    {user?.nombre?.charAt(0)?.toUpperCase()}
-                  </span>
-                </div>
-              </div>
+<div className="p-2 border-t border-border">
+          {/* Usuario - fila compacta */}
+          <div
+            className={`flex items-center mb-2 ${sidebarWidth === 'compact' ? 'justify-center' : 'gap-2 px-1'}`}
+            title={`${user?.nombre} (@${user?.username})`}
+          >
+            <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
+              <span className="text-[10px] font-bold text-white">
+                {user?.nombre?.charAt(0)?.toUpperCase()}
+              </span>
+            </div>
+            {sidebarWidth !== 'compact' && (
+              <p className="text-xs text-foreground truncate min-w-0">
+                {user?.nombre}{' '}
+                <span className="text-muted-foreground">@{user?.username}</span>
+              </p>
             )}
           </div>
 
-          {/* Menú de configuración - Para todos los usuarios */}
-          {user && (
-            <div className="relative text-center mb-2" ref={configMenuRef}>
-              <Button
-                onClick={() => {
-                  toggleConfigMenu();
-                }}
-                variant="outline"
-                className={`${sidebarWidth === 'compact' ? 'p-2' : 'w-full justify-between'}`}
-                title={sidebarWidth === 'compact' ? 'Configuración' : undefined}
-              >
-                {sidebarWidth === 'compact' ? (
-                  <SettingsIcon className="w-4 h-4" />
-                ) : (
-                  <>
-                    <div className="flex items-center">
-                      <SettingsIcon className="w-4 h-4 mr-2" />
-                      Configuración
-                    </div>
-                    {configMenuOpen ? (
-                      <ChevronUp className="w-4 h-4" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4" />
+          {/* Configuración + Cerrar sesión en una sola fila */}
+          <div className={`flex items-center gap-2 ${sidebarWidth === 'compact' ? 'justify-center' : ''}`}>
+            {user && (
+              <div className={`relative ${sidebarWidth === 'compact' ? '' : 'flex-1 min-w-0'}`} ref={configMenuRef}>
+                <Button
+                  onClick={() => {
+                    toggleConfigMenu();
+                  }}
+                  variant="outline"
+                  size="sm"
+                  className={`${sidebarWidth === 'compact' ? 'w-8 px-0 justify-center' : 'w-full justify-between'}`}
+                  title={sidebarWidth === 'compact' ? 'Configuración' : undefined}
+                >
+                  <span className="flex items-center min-w-0">
+                    <SettingsIcon className="w-4 h-4 flex-shrink-0" />
+                    {sidebarWidth !== 'compact' && (
+                      <span className="ml-2 truncate">Configuración</span>
                     )}
-                  </>
-                )}
-              </Button>
+                  </span>
+                  {sidebarWidth !== 'compact' && (
+                    configMenuOpen ? (
+                      <ChevronUp className="w-3 h-3 flex-shrink-0" />
+                    ) : (
+                      <ChevronDown className="w-3 h-3 flex-shrink-0" />
+                    )
+                  )}
+                </Button>
 
-              {/* Menú flotante */}
-              {configMenuOpen && (
+                {/* Menú flotante */}
+                {configMenuOpen && (
                  <div className={`absolute bottom-full ${sidebarWidth === 'compact' ? 'left-1/2 transform -translate-x-1/2' : 'left-0 right-0'} mb-2 bg-popover border border-border rounded-lg shadow-lg z-50 min-w-12`}>
                   <div className="py-1">
                     {configMenuItems.map((item, index) => (
@@ -315,28 +312,22 @@ const Layout = () => {
                     </div>
                   </div>
                 </div>
-              )}
-            </div>
-          )}
-<div className="relative text-center mb-2">
-          <Button
-            onClick={() => {
-              handleLogout();
-              setSidebarOpen(false); // Cerrar sidebar en móviles
-            }}
-            variant="outline"
-            className={`${sidebarWidth === 'compact' ? 'p-2' : 'w-full justify-start'}`}
-            title={sidebarWidth === 'compact' ? 'Cerrar Sesión' : undefined}
-          >
-            {sidebarWidth === 'compact' ? (
-              <LogOut className="w-4 h-4" />
-            ) : (
-              <>
-                <LogOut className="w-4 h-4 mr-2" />
-                Cerrar Sesión
-              </>
+                )}
+              </div>
             )}
-          </Button>
+
+            <Button
+              onClick={() => {
+                handleLogout();
+                setSidebarOpen(false); // Cerrar sidebar en móviles
+              }}
+              variant="outline"
+              size="sm"
+              className={`flex-shrink-0 w-8 px-0 ${!user ? 'flex-1' : ''}`}
+              title="Cerrar Sesión"
+            >
+              <LogOut className="w-4 h-4" />
+            </Button>
           </div>
         </div>
       </div>
