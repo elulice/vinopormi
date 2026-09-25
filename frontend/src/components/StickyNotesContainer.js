@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import StickyNote from './StickyNote';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,35 @@ const StickyNotesContainer = () => {
   const [newNoteFijada, setNewNoteFijada] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [creating, setCreating] = useState(false);
+  const gridRef = useRef(null);
+
+  useEffect(() => {
+    const grid = gridRef.current;
+    if (!grid) return;
+
+    const rowHeight = 8;
+    const gap = 16;
+
+    const applyMasonry = () => {
+      const items = Array.from(grid.children);
+      if (!items.length) return;
+      items.forEach((item) => {
+        const h = item.getBoundingClientRect().height;
+        const span = Math.max(1, Math.ceil((h + gap) / (rowHeight + gap)));
+        if (item.style.gridRowEnd !== `span ${span}`) {
+          item.style.gridRowEnd = `span ${span}`;
+        }
+      });
+    };
+
+    applyMasonry();
+
+    const observer = new ResizeObserver(applyMasonry);
+    observer.observe(grid);
+    Array.from(grid.children).forEach((child) => observer.observe(child));
+
+    return () => observer.disconnect();
+  }, [stickyNotes, showCreateForm, loading]);
 
   const colores = [
     { nombre: 'amarillo', clase: 'bg-yellow-200 border-yellow-300 hover:bg-yellow-300 dark:bg-yellow-500/25 dark:border-yellow-400/60 dark:text-yellow-50 dark:hover:bg-yellow-500/35', value: 'yellow' },
@@ -201,7 +230,11 @@ const StickyNotesContainer = () => {
             <p className="text-sm">Crea tu primera nota para comenzar</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-start">
+          <div
+            ref={gridRef}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-start"
+            style={{ gridAutoRows: '8px' }}
+          >
             {/* Nota de creación */}
             {showCreateForm && (
               <div className={`relative border-2 rounded-lg p-4 min-h-[150px] w-full max-w-xs transition-all duration-200 ${
