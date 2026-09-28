@@ -9,7 +9,11 @@ export const downloadVentaAsImage = async (contentRef, ventaId) => {
     const canvas = await html2canvas(contentRef, {
       backgroundColor: '#ffffff',
       scale: 2,
-      useCORS: true
+      useCORS: true,
+      // Al clonar el documento, quitar el modo oscuro para que la captura salga legible en claro
+      onclone: (clonedDoc) => {
+        clonedDoc.documentElement.classList.remove('dark');
+      }
     });
     const link = document.createElement('a');
     link.download = `venta-${ventaId}-${format(new Date(), 'yyyyMMdd-HHmmss')}.png`;
@@ -29,7 +33,11 @@ export const downloadVentaAsPDF = async (contentRef, ventaId) => {
     const canvas = await html2canvas(contentRef, {
       backgroundColor: '#ffffff',
       scale: 2,
-      useCORS: true
+      useCORS: true,
+      // Al clonar el documento, quitar el modo oscuro para que la captura salga legible en claro
+      onclone: (clonedDoc) => {
+        clonedDoc.documentElement.classList.remove('dark');
+      }
     });
     const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF({
