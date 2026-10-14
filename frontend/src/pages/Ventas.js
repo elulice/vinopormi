@@ -278,6 +278,14 @@ const Ventas = () => {
     return sorted;
   }, [filteredVentas, sortConfig]);
 
+  // Monto a mostrar/sumar: si hay filtro de medio activo, el backend manda
+  // `monto_filtrado` (solo la porción cobrada con ese medio en ventas combinadas).
+  const getMonto = useCallback((venta) => (
+    venta.monto_filtrado !== undefined && venta.monto_filtrado !== null
+      ? venta.monto_filtrado
+      : venta.total
+  ), []);
+
   // Función para obtener etiqueta de fecha inteligente
   const getDateLabel = useCallback((date) => {
     const parsedDate = safeParseDate(date);
@@ -311,7 +319,7 @@ const Ventas = () => {
       }
       
       groups[dateKey].ventas.push(venta);
-      groups[dateKey].total += venta.total;
+      groups[dateKey].total += getMonto(venta);
       groups[dateKey].ganancia_neta += venta.ganancia_neta || 0;
       groups[dateKey].count += 1;
     });
@@ -329,7 +337,7 @@ const Ventas = () => {
     });
     
     return sortedGroups;
-  }, [getDateLabel, safeParseDate]);
+  }, [getDateLabel, safeParseDate, getMonto]);
 
   // Datos agrupados para vista agrupada
   const groupedVentas = useMemo(() => {
@@ -576,7 +584,7 @@ const clearFilters = () => {
       </div>
       <div className="col-span-1 flex items-center">
         <div className="font-semibold text-primary text-xs px-1">
-          {formatCurrency(venta.total, showCents)}
+          {formatCurrency(getMonto(venta), showCents)}
         </div>
       </div>
       <div className="col-span-1 flex items-center">
@@ -727,7 +735,7 @@ const clearFilters = () => {
                 </div>
                 <div className="col-span-1 flex items-center">
                   <div className="font-semibold text-primary text-xs">
-                    {formatCurrency(venta.total, showCents)}
+                    {formatCurrency(getMonto(venta), showCents)}
                   </div>
                 </div>
                 <div className="col-span-1 flex items-center">
@@ -1051,7 +1059,7 @@ const clearFilters = () => {
                       </div>
                       <div className="text-right">
                         <div className="text-base font-bold text-primary">
-                          {formatCurrency(venta.total, showCents)}
+                          {formatCurrency(getMonto(venta), showCents)}
                         </div>
                         <div className="text-xs text-muted-foreground">
                           {venta.detalles.length} prod{venta.detalles.length !== 1 ? 's' : ''}
@@ -1173,7 +1181,7 @@ const clearFilters = () => {
                                 </div>
                                 <div className="text-right">
                                   <span className="font-semibold text-primary text-xs">
-                                    {formatCurrency(venta.total, showCents)}
+                                    {formatCurrency(getMonto(venta), showCents)}
                                   </span>
                                   <span className={`ml-2 text-xs ${(venta.ganancia_neta || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                     {formatCurrency(venta.ganancia_neta || 0, showCents)}

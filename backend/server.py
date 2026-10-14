@@ -19,6 +19,14 @@ import math
 import bcrypt
 import jwt
 
+from recommendations import (
+    ProductoTop,
+    RecomendacionReponer,
+    RecomendacionExceso,
+    Recomendaciones,
+    calcular as calcular_recomendaciones,
+)
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
@@ -1478,6 +1486,38 @@ async def create_venta(input: VentaCreate, current_user: Usuario = Depends(get_c
     
     return venta_obj
 
+def _monto_medio_expr(metodo_pago):
+    """Expresión de agregación que devuelve el monto cobrado con `metodo_pago`.
+
+    - Si la venta tiene pagos combinados, suma solo los pagos de ese medio.
+    - Si es una venta vieja sin `pagos`, usa el total cuando el medio coincide.
+    - Sin filtro, devuelve el total completo de la venta.
+    """
+    if not metodo_pago:
+        return "$total"
+    return {
+        "$cond": [
+            {"$gt": [{"$size": {"$ifNull": ["$pagos", []]}}, 0]},
+            {"$sum": {
+                "$map": {
+                    "input": "$pagos",
+                    "as": "p",
+                    "in": {"$cond": [{"$eq": ["$$p.medio_pago", metodo_pago]}, "$$p.monto", 0]}
+                }
+            }},
+            "$total"
+        ]
+    }
+
+def _monto_medio_doc(venta, metodo_pago):
+    """Versión en Python de _monto_medio_expr para los documentos devueltos."""
+    if not metodo_pago:
+        return None
+    pagos = venta.get('pagos') or []
+    if pagos:
+        return sum(p.get('monto', 0) for p in pagos if p.get('medio_pago') == metodo_pago)
+    return venta.get('total', 0) if venta.get('medio_pago') == metodo_pago else 0
+
 @api_router.get("/ventas")
 async def get_ventas(
     page: int = Query(1, ge=1),
@@ -1526,7 +1566,10 @@ async def get_ventas(
             dt_fin_utc = dt_fin_local.astimezone(timezone.utc)
             match_stage['fecha']['$lte'] = dt_fin_utc.isoformat()
     # ------------------------------------------------
-    
+
+    # Monto a sumar en las estadísticas: si hay filtro de medio, solo la porción de ese medio
+    monto_expr = _monto_medio_expr(metodo_pago)
+
     if agrupar_por_dia:
         pipeline = [
             {"$match": match_stage},
@@ -1546,7 +1589,7 @@ async def get_ventas(
                 "$group": {
                     "_id": {"$substr": ["$fecha_str", 0, 10]},
                     "ventas": {"$push": "$$ROOT"},
-                    "total_bruto": {"$sum": "$total"},
+                    "total_bruto": {"$sum": monto_expr},
                     "total_neto": {"$sum": {"$ifNull": ["$ganancia_neta", 0]}},
                     "cantidad_ventas": {"$sum": 1}
                 }
@@ -1586,19 +1629,6 @@ async def get_ventas(
         stats_pipeline = [
             {"$match": match_stage},
             {
-                "$group": {
-                    "_id": None,
-                    "total_bruto": {"$sum": "$total"},
-                    "total_neto": {"$sum": {"$ifNull": ["$ganancia_neta", 0]}},
-                    "dias_unicos": {"$addToSet": {
-                        "$dateToString": {"format": "%Y-%m-%d", "date": "$fecha"}
-                    }}
-                }
-            }
-        ]
-        stats_pipeline = [
-            {"$match": match_stage},
-            {
                 "$addFields": {
                     "fecha_str": {
                         "$cond": {
@@ -1612,7 +1642,7 @@ async def get_ventas(
             {
                 "$group": {
                     "_id": None,
-                    "total_bruto": {"$sum": "$total"},
+                    "total_bruto": {"$sum": monto_expr},
                     "total_neto": {"$sum": {"$ifNull": ["$ganancia_neta", 0]}},
                     "dias_unicos": {"$addToSet": {"$substr": ["$fecha_str", 0, 10]}}
                 }
@@ -1639,6 +1669,8 @@ async def get_ventas(
             for v in grupo.get('ventas', []):
                 if isinstance(v.get('fecha'), str):
                     v['fecha'] = datetime.fromisoformat(v['fecha'])
+                if metodo_pago:
+                    v['monto_filtrado'] = _monto_medio_doc(v, metodo_pago)
             ventas_result.extend(grupo.get('ventas', []))
         
         return {
@@ -1687,7 +1719,7 @@ async def get_ventas(
             {
                 "$group": {
                     "_id": None,
-                    "total_bruto": {"$sum": "$total"},
+                    "total_bruto": {"$sum": monto_expr},
                     "total_neto": {"$sum": {"$ifNull": ["$ganancia_neta", 0]}},
                     "dias_unicos": {"$addToSet": {"$substr": ["$fecha_str", 0, 10]}}
                 }
@@ -1711,6 +1743,8 @@ async def get_ventas(
         for v in ventas_paginadas:
             if isinstance(v.get('fecha'), str):
                 v['fecha'] = datetime.fromisoformat(v['fecha'])
+            if metodo_pago:
+                v['monto_filtrado'] = _monto_medio_doc(v, metodo_pago)
         
         return {
             "ventas": ventas_paginadas,
@@ -1729,36 +1763,7 @@ async def get_ventas(
             }
         }
 
-# --- MODELOS DE RECOMENDACIONES / INSIGHTS ---
-class ProductoTop(BaseModel):
-    producto_id: str
-    nombre: str
-    unidades: int
-    monto: float
-
-class RecomendacionReponer(BaseModel):
-    producto_id: str
-    nombre: str
-    stock_actual: int
-    unidades_vendidas_30d: int
-    velocidad_diaria: float
-    dias_cobertura: float
-    cantidad_sugerida: int
-
-class RecomendacionExceso(BaseModel):
-    producto_id: str
-    nombre: str
-    stock_actual: int
-    unidades_vendidas_30d: int
-    velocidad_diaria: float
-    dias_cobertura: float
-
-class Recomendaciones(BaseModel):
-    periodo_dias: int
-    fecha_calculo: str
-    top_productos: List[ProductoTop]
-    a_reponer: List[RecomendacionReponer]
-    exceso_stock: List[RecomendacionExceso]
+# --- RECOMENDACIONES / INSIGHTS (modelos y lógica en recommendations.py) ---
 
 @api_router.get("/recomendaciones", response_model=Recomendaciones)
 async def get_recomendaciones(current_user: Usuario = Depends(get_current_user)):
@@ -1798,69 +1803,12 @@ async def get_recomendaciones(current_user: Usuario = Depends(get_current_user))
     productos = await db.productos.find({}, {'_id': 0, 'id': 1, 'nombre': 1, 'stock': 1}).to_list(10000)
     info_productos = {p.get('id'): p for p in productos if p.get('id')}
 
-    # Top productos (por unidades vendidas)
-    top = [
-        {
-            'producto_id': pid,
-            'nombre': ventas_por_producto[pid]['nombre'],
-            'unidades': ventas_por_producto[pid]['unidades'],
-            'monto': ventas_por_producto[pid]['monto'],
-        }
-        for pid in ventas_por_producto
-    ]
-    top.sort(key=lambda x: x['unidades'], reverse=True)
-    top = top[:10]
-
-    # Reposición y exceso
-    a_reponer = []
-    exceso_stock = []
-    UMBRAL_DIAS_COBERTURA = 7       # reponer si el stock cubre menos de 7 días
-    UMBRAL_DIAS_EXCESO = 90         # exceso si el stock cubre más de 90 días
-    CANTIDAD_DIAS_PRONOSTICO = 7    # stock objetivo para 7 días
-    STOCK_MIN_EXCESO = 30           # stock mínimo para considerar exceso
-
-    for pid, p in info_productos.items():
-        stock = int(p.get('stock', 0))
-        vendido = ventas_por_producto.get(pid, {}).get('unidades', 0)
-        nombre = p.get('nombre') or ventas_por_producto.get(pid, {}).get('nombre', 'Producto')
-        velocidad = vendido / periodo_dias if vendido > 0 else 0.0
-        dias_cobertura = (stock / velocidad) if velocidad > 0 else float('inf')
-
-        # Reponer: tiene rotación y el stock no cubre 7 días
-        if velocidad > 0 and dias_cobertura < UMBRAL_DIAS_COBERTURA:
-            objetivo = math.ceil(velocidad * CANTIDAD_DIAS_PRONOSTICO)
-            cantidad_sugerida = max(objetivo - stock, 0)
-            a_reponer.append(RecomendacionReponer(
-                producto_id=pid,
-                nombre=nombre,
-                stock_actual=stock,
-                unidades_vendidas_30d=vendido,
-                velocidad_diaria=round(velocidad, 3),
-                dias_cobertura=round(dias_cobertura, 1),
-                cantidad_sugerida=cantidad_sugerida,
-            ))
-
-        # Exceso: stock alto con poca o ninguna rotación
-        if stock >= STOCK_MIN_EXCESO and dias_cobertura > UMBRAL_DIAS_EXCESO:
-            cobertura_mostrada = round(dias_cobertura, 1) if dias_cobertura != float('inf') else 999.0
-            exceso_stock.append(RecomendacionExceso(
-                producto_id=pid,
-                nombre=nombre,
-                stock_actual=stock,
-                unidades_vendidas_30d=vendido,
-                velocidad_diaria=round(velocidad, 3),
-                dias_cobertura=cobertura_mostrada,
-            ))
-
-    a_reponer.sort(key=lambda x: x.dias_cobertura)
-    exceso_stock.sort(key=lambda x: x.stock_actual, reverse=True)
-
-    return Recomendaciones(
+    # La lógica de cálculo vive en recommendations.py: es una función pura, testable sin BD
+    return calcular_recomendaciones(
+        ventas_por_producto=ventas_por_producto,
+        info_productos=info_productos,
         periodo_dias=periodo_dias,
-        fecha_calculo=now.isoformat(),
-        top_productos=top,
-        a_reponer=a_reponer,
-        exceso_stock=exceso_stock,
+        now=now,
     )
 
 @api_router.get("/ventas/{venta_id}", response_model=Venta)

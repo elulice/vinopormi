@@ -25,6 +25,29 @@ const MIRROR_KEYS = {
   totalFlotante: 'vinopormi_total_flotante'
 };
 
+// Valores por defecto según la fuente: espejo local (primer render) y backend (usuario logueado)
+const MIRROR_DEFAULTS = {
+  showCents: true,
+  sidebarWidth: 'normal',
+  floatingMenu: false,
+  autoLogout: true,
+  calcularVuelto: true,
+  darkMode: true,
+  totalFlotante: false
+};
+
+const BACKEND_DEFAULTS = {
+  showCents: true,
+  sidebarWidth: 'normal',
+  floatingMenu: false,
+  autoLogout: false,
+  calcularVuelto: true,
+  darkMode: false,
+  totalFlotante: false
+};
+
+const PREF_KEYS = ['showCents', 'sidebarWidth', 'floatingMenu', 'autoLogout', 'calcularVuelto', 'darkMode', 'totalFlotante'];
+
 const readMirror = (key, fallback) => {
   try {
     const v = localStorage.getItem(key);
@@ -45,13 +68,13 @@ const writeMirror = (key, value) => {
 
 export const ConfigProvider = ({ children, forceDark = false }) => {
   const { user, getAuthHeader, updateAutoLogoutSetting } = useAuth();
-  const [showCents, setShowCentsState] = useState(() => readMirror(MIRROR_KEYS.showCents, true)); // Por defecto mostrar centavos
-  const [sidebarWidth, setSidebarWidthState] = useState(() => readMirror(MIRROR_KEYS.sidebarWidth, 'normal')); // 'compact', 'normal', 'expanded'
-  const [floatingMenu, setFloatingMenuState] = useState(() => readMirror(MIRROR_KEYS.floatingMenu, false)); // Por defecto deshabilitado
-  const [autoLogout, setAutoLogoutState] = useState(() => readMirror(MIRROR_KEYS.autoLogout, true)); // Por defecto habilitado
-  const [calcularVuelto, setCalcularVueltoState] = useState(() => readMirror(MIRROR_KEYS.calcularVuelto, true)); // Por defecto habilitado
-  const [darkMode, setDarkModeState] = useState(() => forceDark ? true : readMirror(MIRROR_KEYS.darkMode, true));
-  const [totalFlotante, setTotalFlotanteState] = useState(() => readMirror(MIRROR_KEYS.totalFlotante, false)); // Total fijo/flotante al fondo
+  const [showCents, setShowCentsState] = useState(() => readMirror(MIRROR_KEYS.showCents, MIRROR_DEFAULTS.showCents));
+  const [sidebarWidth, setSidebarWidthState] = useState(() => readMirror(MIRROR_KEYS.sidebarWidth, MIRROR_DEFAULTS.sidebarWidth));
+  const [floatingMenu, setFloatingMenuState] = useState(() => readMirror(MIRROR_KEYS.floatingMenu, MIRROR_DEFAULTS.floatingMenu));
+  const [autoLogout, setAutoLogoutState] = useState(() => readMirror(MIRROR_KEYS.autoLogout, MIRROR_DEFAULTS.autoLogout));
+  const [calcularVuelto, setCalcularVueltoState] = useState(() => readMirror(MIRROR_KEYS.calcularVuelto, MIRROR_DEFAULTS.calcularVuelto));
+  const [darkMode, setDarkModeState] = useState(() => forceDark ? true : readMirror(MIRROR_KEYS.darkMode, MIRROR_DEFAULTS.darkMode));
+  const [totalFlotante, setTotalFlotanteState] = useState(() => readMirror(MIRROR_KEYS.totalFlotante, MIRROR_DEFAULTS.totalFlotante));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -76,32 +99,23 @@ export const ConfigProvider = ({ children, forceDark = false }) => {
       const response = await axios.get(`${API}/auth/preferencias`, {
         headers: getAuthHeader()
       });
-      
+
       const preferencias = response.data;
-      const showCentsVal = preferencias.showCents !== undefined ? preferencias.showCents : true;
-      const calcularVueltoVal = preferencias.calcularVuelto !== undefined ? preferencias.calcularVuelto : true;
-      const sidebarWidthVal = preferencias.sidebarWidth !== undefined ? preferencias.sidebarWidth : 'normal';
-      const floatingMenuVal = preferencias.floatingMenu !== undefined ? preferencias.floatingMenu : false;
-      const autoLogoutVal = preferencias.autoLogout !== undefined ? preferencias.autoLogout : false;
-      const darkModeVal = forceDark ? true : (preferencias.darkMode !== undefined ? preferencias.darkMode : false);
-      const totalFlotanteVal = preferencias.totalFlotante !== undefined ? preferencias.totalFlotante : false;
+      const valores = {};
+      for (const key of PREF_KEYS) {
+        let valor = preferencias[key] !== undefined ? preferencias[key] : BACKEND_DEFAULTS[key];
+        if (key === 'darkMode') valor = forceDark ? true : valor;
+        valores[key] = valor;
+        writeMirror(MIRROR_KEYS[key], valor);
+      }
 
-      setShowCentsState(showCentsVal);
-      setSidebarWidthState(sidebarWidthVal);
-      setFloatingMenuState(floatingMenuVal);
-      setAutoLogoutState(autoLogoutVal);
-      setCalcularVueltoState(calcularVueltoVal);
-      setDarkModeState(darkModeVal);
-      setTotalFlotanteState(totalFlotanteVal);
-
-      // Mantener el espejo de localStorage sincronizado con el backend
-      writeMirror(MIRROR_KEYS.showCents, showCentsVal);
-      writeMirror(MIRROR_KEYS.sidebarWidth, sidebarWidthVal);
-      writeMirror(MIRROR_KEYS.floatingMenu, floatingMenuVal);
-      writeMirror(MIRROR_KEYS.autoLogout, autoLogoutVal);
-      writeMirror(MIRROR_KEYS.calcularVuelto, calcularVueltoVal);
-      writeMirror(MIRROR_KEYS.darkMode, darkModeVal);
-      writeMirror(MIRROR_KEYS.totalFlotante, totalFlotanteVal);
+      setShowCentsState(valores.showCents);
+      setSidebarWidthState(valores.sidebarWidth);
+      setFloatingMenuState(valores.floatingMenu);
+      setAutoLogoutState(valores.autoLogout);
+      setCalcularVueltoState(valores.calcularVuelto);
+      setDarkModeState(valores.darkMode);
+      setTotalFlotanteState(valores.totalFlotante);
     } catch (err) {
       console.error('Error cargando preferencias:', err);
       // En caso de error, usar valor por defecto
@@ -123,54 +137,24 @@ export const ConfigProvider = ({ children, forceDark = false }) => {
     }
   };
 
-  // Guardar preferencias en el backend (y espejo en localStorage)
-  const setShowCents = async (show) => {
-    setShowCentsState(show);
-    writeMirror(MIRROR_KEYS.showCents, show);
-    await savePref({ showCents: show });
+  // Fábrica de setters: actualiza estado + espejo local + backend en un solo lugar
+  const makeSetter = (key, setState, extra = null) => async (value) => {
+    setState(value);
+    writeMirror(MIRROR_KEYS[key], value);
+    if (extra) extra(value);
+    await savePref({ [key]: value });
   };
 
-  const setSidebarWidth = async (width) => {
-    setSidebarWidthState(width);
-    writeMirror(MIRROR_KEYS.sidebarWidth, width);
-    await savePref({ sidebarWidth: width });
-  };
-
-  const setFloatingMenu = async (enabled) => {
-    setFloatingMenuState(enabled);
-    writeMirror(MIRROR_KEYS.floatingMenu, enabled);
-    await savePref({ floatingMenu: enabled });
-  };
-
-  const setAutoLogout = async (enabled) => {
-    setAutoLogoutState(enabled);
-    writeMirror(MIRROR_KEYS.autoLogout, enabled);
-    updateAutoLogoutSetting(enabled);
-    await savePref({ autoLogout: enabled });
-  };
-
-  const setCalcularVuelto = async (enabled) => {
-    setCalcularVueltoState(enabled);
-    writeMirror(MIRROR_KEYS.calcularVuelto, enabled);
-    await savePref({ calcularVuelto: enabled });
-  };
+  const setShowCents = makeSetter('showCents', setShowCentsState);
+  const setSidebarWidth = makeSetter('sidebarWidth', setSidebarWidthState);
+  const setFloatingMenu = makeSetter('floatingMenu', setFloatingMenuState);
+  const setAutoLogout = makeSetter('autoLogout', setAutoLogoutState, updateAutoLogoutSetting);
+  const setCalcularVuelto = makeSetter('calcularVuelto', setCalcularVueltoState);
+  const setDarkMode = makeSetter('darkMode', setDarkModeState);
+  const setTotalFlotante = makeSetter('totalFlotante', setTotalFlotanteState);
 
   const toggleShowCents = () => {
     setShowCents(!showCents);
-  };
-
-  // Guardar darkMode en el backend (y espejo en localStorage)
-  const setDarkMode = async (enabled) => {
-    setDarkModeState(enabled);
-    writeMirror(MIRROR_KEYS.darkMode, enabled);
-    await savePref({ darkMode: enabled });
-  };
-
-  // Guardar totalFlotante en el backend (y espejo en localStorage)
-  const setTotalFlotante = async (enabled) => {
-    setTotalFlotanteState(enabled);
-    writeMirror(MIRROR_KEYS.totalFlotante, enabled);
-    await savePref({ totalFlotante: enabled });
   };
 
   // Cargar preferencias cuando el usuario cambia
