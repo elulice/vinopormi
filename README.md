@@ -24,6 +24,8 @@ Una solución web responsiva que combina la potencia de FastAPI + MongoDB en el 
 - **Notificaciones**: Alertas automáticas de bajo stock
 - **Registros de Login**: Control de accesos y seguridad
 - **Herramientas Administrativas**: Utilidades de gestión avanzada
+- **Recomendaciones**: Módulo inteligente por reglas que analiza la velocidad de venta para sugerir reposición y detectar exceso de stock
+- **Modo Offline / Sincronización automática**: Almacenamiento local con Dexie (IndexedDB) para ventas y egresos sin conexión, con sincronización automática al restaurarse la conectividad
 
 ## 🛠️ Arquitectura y Tecnologías
 
@@ -34,7 +36,7 @@ Una solución web responsiva que combina la potencia de FastAPI + MongoDB en el 
 - **React 18**, **React Router**, **Tailwind CSS**, **Radix UI**, **Axios**, **Lucide React**, **Date-fns**, **Sonner**, **Vaul**
 
 ### Infraestructura y DevOps
-- **Node.js**, **Yarn**, **CRACO**, **Python 3.11+**, **UVicorn**
+- **Node.js**, **Yarn**, **CRACO** (configuración personalizada de Create React App), **Python 3.11+**, **UVicorn**, **Vercel** (despliegue de frontend), **Health Check Plugin** (endpoints de salud para desarrollo)
 
 ## 📁 Estructura del Proyecto
 
@@ -42,36 +44,42 @@ Una solución web responsiva que combina la potencia de FastAPI + MongoDB en el 
 vinopormi/
 ├── backend/                 # API FastAPI
 │   ├── server.py           # Servidor principal y endpoints
+│   ├── recommendations.py  # Módulo de recomendaciones por velocidad de venta
+│   ├── check_tipos.py      # Utilidad de verificación de tipos
+│   ├── test_recomendaciones.py # Tests del módulo de recomendaciones
 │   ├── requirements.txt    # Dependencias Python
 │   └── .env               # Variables de entorno
 ├── frontend/               # Aplicación React
 │   ├── src/
 │   │   ├── components/     # Componentes UI reutilizables
-│   │   │   ├── ui/        # Componentes UI base (optimizado)
-│   │   │   ├── FloatingMenu.js
+│   │   │   ├── ui/        # Componentes UI base (shadcn/ui)
+│   │   │   ├── common/    # Componentes comunes reutilizables
+│   │   │   ├── BackgroundSync.jsx # Sincronización offline con Dexie
 │   │   │   ├── Layout.js
+│   │   │   ├── FloatingMenu.js
 │   │   │   ├── ResponsiveTable.js
 │   │   │   └── StickyNotesContainer.js
 │   │   ├── pages/         # Páginas principales
-│   │   │   ├── Dashboard.js
-│   │   │   ├── Productos.js
-│   │   │   ├── Ventas.js
-│   │   │   ├── Clientes.js
-│   │   │   ├── Proveedores.js
-│   │   │   ├── Egresos.js
-│   │   │   ├── Usuarios.js
-│   │   │   └── Más...
+│   │   │   ├── Dashboard.js, Productos.js, Ventas.js, NuevaVenta.js
+│   │   │   ├── Clientes.js, Proveedores.js, Egresos.js, Usuarios.js
+│   │   │   ├── Recomendaciones.js, Auditoria.js, Configuracion.js
+│   │   │   ├── Herramientas.js, LoginRegistros.js, Mercadopago.js
+│   │   │   ├── PaginaCatalogo.js, SeccionClientes.js
+│   │   │   └── LandingPage.js, Login.js
 │   │   ├── hooks/         # Hooks personalizados
 │   │   │   ├── useDebounce.js
 │   │   │   └── use-toast.js
 │   │   ├── lib/           # Utilidades y helpers
-│   │   │   ├── currency.js
-│   │   │   └── utils.js
+│   │   │   ├── api.js, config.js, currency.js, downloadUtils.js, utils.js
 │   │   ├── context/       # Contextos de React
 │   │   │   ├── AuthContext.js
 │   │   │   └── ConfigContext.js
+│   │   ├── db/            # Configuración Dexie (IndexedDB) para modo offline
 │   │   └── assets/        # Imágenes y recursos
-│   ├── package.json       # Dependencias Node.js (optimizado)
+│   ├── plugins/           # Plugins custom de webpack (health-check)
+│   ├── craco.config.js    # Configuración CRACO
+│   ├── vercel.json        # Configuración de despliegue Vercel
+│   ├── package.json       # Dependencias Node.js
 │   └── tailwind.config.js # Configuración Tailwind
 └── README.md              # Este archivo
 ```
@@ -85,6 +93,7 @@ vinopormi/
 - **Ventas**: Transacciones con detalles y medios de pago
 - **Usuarios**: Roles y permisos del sistema
 - **Auditoría**: Traza completa de acciones
+- **Sincronización Offline**: Cola de ventas y egresos pendientes con sincronización automática (Dexie + IndexedDB)
 
 ## 🔐 Seguridad
 
