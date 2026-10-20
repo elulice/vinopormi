@@ -36,22 +36,22 @@ Una solución web responsiva que combina la potencia de FastAPI + MongoDB en el 
 - **React 18**, **React Router**, **Tailwind CSS**, **Radix UI**, **Axios**, **Lucide React**, **Date-fns**, **Sonner**, **Vaul**
 
 ### Infraestructura y DevOps
-- **Node.js**, **Yarn**, **CRACO** (configuración personalizada de Create React App), **Python 3.11+**, **UVicorn**, **Vercel** (despliegue de frontend), **Health Check Plugin** (endpoints de salud para desarrollo)
+- **Node.js**, **Yarn**, **CRACO**, **Python 3.11+**, **UVicorn**, **Vercel**, **Health Check Plugin**
 
 ## 📁 Estructura del Proyecto
 
 ```
 vinopormi/
-├── backend/                 # API FastAPI
+├── backend/                # API FastAPI
 │   ├── server.py           # Servidor principal y endpoints
 │   ├── recommendations.py  # Módulo de recomendaciones por velocidad de venta
 │   ├── check_tipos.py      # Utilidad de verificación de tipos
 │   ├── test_recomendaciones.py # Tests del módulo de recomendaciones
 │   ├── requirements.txt    # Dependencias Python
-│   └── .env               # Variables de entorno
+│   └── .env                # Variables de entorno
 ├── frontend/               # Aplicación React
 │   ├── src/
-│   │   ├── components/     # Componentes UI reutilizables
+│   │   ├── components/    # Componentes UI reutilizables
 │   │   │   ├── ui/        # Componentes UI base (shadcn/ui)
 │   │   │   ├── common/    # Componentes comunes reutilizables
 │   │   │   ├── BackgroundSync.jsx # Sincronización offline con Dexie
