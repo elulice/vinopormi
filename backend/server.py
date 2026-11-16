@@ -26,6 +26,7 @@ from recommendations import (
     Recomendaciones,
     calcular as calcular_recomendaciones,
 )
+from ai_chat import run_chat
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -3105,6 +3106,98 @@ async def set_configuracion_mercadopago(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+# ===== CHAT IA (solo lectura) =====
+
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+
+class ChatRequest(BaseModel):
+    messages: Optional[List[ChatMessage]] = None
+    message: Optional[str] = None
+
+
+class ChatResponse(BaseModel):
+    reply: str
+
+
+class ChatHistoryItem(BaseModel):
+    role: str
+    content: str
+    fecha: Optional[datetime] = None
+
+
+async def _save_chat_message(user_id: str, role: str, content: str):
+    doc = {
+        "user_id": user_id,
+        "role": role,
+        "content": content,
+        "fecha": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.chat_mensajes.insert_one(doc)
+
+
+@api_router.get("/chat/history", response_model=List[ChatHistoryItem])
+async def get_chat_history(
+    limit: int = 200,
+    current_user: Usuario = Depends(get_current_user)
+):
+    limit = max(1, min(int(limit or 200), 500))
+    docs = await db.chat_mensajes.find(
+        {"user_id": current_user.id},
+        {"_id": 0, "role": 1, "content": 1, "fecha": 1}
+    ).sort("fecha", 1).limit(limit).to_list(limit)
+    items = []
+    for d in docs:
+        fecha = d.get("fecha")
+        if isinstance(fecha, str):
+            try:
+                fecha = datetime.fromisoformat(fecha)
+            except Exception:
+                fecha = None
+        items.append(ChatHistoryItem(role=d.get("role", "assistant"), content=d.get("content", ""), fecha=fecha))
+    return items
+
+
+@api_router.delete("/chat/history")
+async def clear_chat_history(current_user: Usuario = Depends(get_current_user)):
+    await db.chat_mensajes.delete_many({"user_id": current_user.id})
+    return {"message": "Historial eliminado"}
+
+
+@api_router.post("/chat", response_model=ChatResponse)
+async def chat_ia(request: ChatRequest, current_user: Usuario = Depends(get_current_user)):
+    # Determinar el nuevo mensaje del usuario
+    user_text = (request.message or "").strip()
+    if not user_text and request.messages:
+        for m in reversed(request.messages):
+            if m.role == "user" and m.content and m.content.strip():
+                user_text = m.content.strip()
+                break
+    if not user_text:
+        raise HTTPException(status_code=400, detail="Falta el mensaje del usuario")
+
+    # Cargar historial persistido como contexto
+    history_docs = await db.chat_mensajes.find(
+        {"user_id": current_user.id},
+        {"_id": 0, "role": 1, "content": 1}
+    ).sort("fecha", 1).to_list(200)
+    msgs = [{"role": d.get("role"), "content": d.get("content", "")} for d in history_docs if d.get("role") in ("user", "assistant")]
+    msgs.append({"role": "user", "content": user_text})
+
+    reply = await run_chat(msgs, db, current_user)
+
+    # Persistir intercambio
+    try:
+        await _save_chat_message(current_user.id, "user", user_text)
+        await _save_chat_message(current_user.id, "assistant", reply or "")
+    except Exception:
+        pass
+
+    return ChatResponse(reply=reply)
+
 app.include_router(api_router)
 app.include_router(public_router)
 
@@ -3468,6 +3561,13 @@ async def create_indexes():
     except Exception as e:
         print(f"Error creando índice único en clientes.dni: {e}")
     
+
+    # CHAT - historial por usuario
+    try:
+        await db.chat_mensajes.create_index([("user_id", 1), ("fecha", 1)])
+    except Exception as e:
+        print(f"Error creando índice en chat_mensajes: {e}")
+
     # Confirmación de creación de índices
     print("=" * 50)
     print("ÍNDICES CREADOS:")

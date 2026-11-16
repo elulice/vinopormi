@@ -8,6 +8,7 @@ import SeccionClientes from "@/pages/SeccionClientes";
 import Dashboard from "@/pages/Dashboard";
 import Productos from "@/pages/Productos";                                
 import Recomendaciones from "@/pages/Recomendaciones";
+import ChatIA from "@/pages/ChatIA";
 import Clientes from "@/pages/Clientes";
 import Proveedores from "@/pages/Proveedores";
 import Ventas from "@/pages/Ventas";
@@ -67,6 +68,7 @@ function App() {
           <Route path="/nueva-venta" element={<NuevaVenta />} />
           <Route path="/productos" element={<Productos />} />             
           <Route path="/recomendaciones" element={<Recomendaciones />} />
+          <Route path="/ia" element={<ChatIA />} />
           <Route path="/proveedores" element={<Proveedores />} />
           <Route path="/ventas" element={<Ventas />} />
           <Route path="/egresos" element={<Egresos />} />
