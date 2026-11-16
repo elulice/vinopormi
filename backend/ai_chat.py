@@ -2,12 +2,23 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 from typing import Any, Dict, List, Optional
 
 from fastapi import HTTPException
+
+try:
+    import litellm  # carga anticipada para reducir latencia de la primera consulta
+    try:
+        litellm.suppress_debug_info = True
+    except Exception:
+        pass
+except Exception:
+    litellm = None  # type: ignore[assignment]
 
 # Límites bajos para reducir tokens/latencia (especialmente en CPU con Ollama)
 DEFAULT_LIMIT = 10
@@ -646,10 +657,8 @@ SYSTEM_PROMPT = (
 
 
 async def run_chat(messages: List[Dict[str, str]], db, current_user) -> str:
-    try:
-        import litellm
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Dependencia de IA no disponible: {e}")
+    if litellm is None:
+        raise HTTPException(status_code=500, detail="Dependencia de IA no disponible: litellm no está instalado.")
 
     model = os.environ.get("CHAT_MODEL", "gpt-4o-mini")
     api_key = os.environ.get("CHAT_API_KEY") or os.environ.get("OPENAI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
@@ -755,3 +764,35 @@ async def run_chat(messages: List[Dict[str, str]], db, current_user) -> str:
             )
 
     return "No pude completar la consulta (demasiados pasos). Probá reformular la pregunta de forma más específica."
+
+
+async def warmup_chat_model() -> None:
+    """Dispara una consulta mínima en segundo plano para reducir la latencia de la primera consulta real."""
+    if litellm is None:
+        return
+    model = os.environ.get("CHAT_MODEL", "gpt-4o-mini")
+    api_key = os.environ.get("CHAT_API_KEY") or os.environ.get("OPENAI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    api_base = os.environ.get("CHAT_API_BASE")
+    keep_alive = os.environ.get("CHAT_KEEP_ALIVE", "60m")
+    kwargs: Dict[str, Any] = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": "Respondé solo: ok"},
+            {"role": "user", "content": "ping"},
+        ],
+        "temperature": 0,
+        "max_tokens": 1,
+        "timeout": 30,
+    }
+    if api_key:
+        kwargs["api_key"] = api_key
+    if api_base:
+        kwargs["api_base"] = api_base
+    model_l = (model or "").lower()
+    if model_l.startswith("ollama/") or model_l.startswith("ollama_chat/"):
+        kwargs["keep_alive"] = keep_alive
+    try:
+        await asyncio.to_thread(litellm.completion, **kwargs)
+    except Exception:
+        # Warm-up best-effort: no debe impedir el arranque ni afectar al usuario
+        return

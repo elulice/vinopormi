@@ -10,6 +10,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import os
 import logging
+import asyncio
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
@@ -26,7 +27,7 @@ from recommendations import (
     Recomendaciones,
     calcular as calcular_recomendaciones,
 )
-from ai_chat import run_chat
+from ai_chat import run_chat, warmup_chat_model
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -3583,6 +3584,8 @@ async def create_indexes():
 @app.on_event("startup")
 async def startup_event():
     await create_indexes()
+    # Warm-up best-effort del modelo para que la primera consulta del usuario sea más rápida
+    asyncio.create_task(warmup_chat_model())
 
 app.add_middleware(SecurityMiddleware)
 
