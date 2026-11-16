@@ -83,6 +83,7 @@ frontend/frontend.rar
 backend/run_backend.bat
 backend/backend_log.txt
 backend/clonar_db.bat
+backend/.env
 .gitignore
 backend/sync_db.py
 clonar_db.bat
@@ -94,4 +95,3 @@ deploy_prod.bat
 yarn.lock
 backend_log.txt
 run_backend.bat
-backend/.env
