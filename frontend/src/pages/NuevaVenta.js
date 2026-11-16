@@ -15,39 +15,76 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { apiGet, apiPost } from '@/lib/api';
 import { actualizarCacheProductos, actualizarCacheClientes, obtenerTodosProductos, obtenerTodosClientes, guardarVentaOffline } from '@/db/offlineDB';
 
+const DRAFT_KEY = 'nuevaVentaDraft';
+
+const getEmptyDetalle = () => ({
+  producto_id: '',
+  producto_nombre: '',
+  cantidad: 1,
+  precio_unitario: 0,
+  subtotal: 0
+});
+
+const getDefaultPagos = () => ([
+  { medio: 'efectivo', monto: '' },
+  { medio: 'transferencia', monto: '' }
+]);
+
+const loadVentaDraft = () => {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
 const NuevaVenta = () => {
   const { showCents, calcularVuelto: mostrarCalculadoraVuelto, totalFlotante, sidebarWidth } = useConfig();
   const navigate = useNavigate();
+  const [draft] = useState(() => loadVentaDraft());
   const [productos, setProductos] = useState([]);
 
   const [clientes, setClientes] = useState([]);
   const [medioPago, setMedioPago] = useState('efectivo');
-  const [clienteId, setClienteId] = useState('');
-  const [detalles, setDetalles] = useState([{
-    producto_id: '',
-    producto_nombre: '',
-    cantidad: 1,
-    precio_unitario: 0,
-    subtotal: 0
-  }]);
+  const [clienteId, setClienteId] = useState(() => draft?.clienteId || '');
+  const [detalles, setDetalles] = useState(() => {
+    if (Array.isArray(draft?.detalles) && draft.detalles.length > 0) {
+      return draft.detalles.map((d) => ({
+        producto_id: d?.producto_id || '',
+        producto_nombre: d?.producto_nombre || '',
+        cantidad: Number(d?.cantidad) > 0 ? Number(d.cantidad) : 1,
+        precio_unitario: Number(d?.precio_unitario) || 0,
+        subtotal: Number(d?.subtotal) || 0,
+      }));
+    }
+    return [getEmptyDetalle()];
+  });
   const [loading, setLoading] = useState(false);
   const [productoSearchTerm, setProductoSearchTerm] = useState('');
   const [refreshingProductos, setRefreshingProductos] = useState(false);
   const [activeDetalleIndex, setActiveDetalleIndex] = useState(null);
 
   // Estado para múltiples pagos
-  const [pagos, setPagos] = useState([
-    { medio: 'efectivo', monto: '' },
-    { medio: 'transferencia', monto: '' }
-  ]);
-  const [multiplesPagos, setMultiplesPagos] = useState(false);
+  const [pagos, setPagos] = useState(() => {
+    if (Array.isArray(draft?.pagos) && draft.pagos.length >= 2) {
+      return [
+        { medio: draft.pagos[0]?.medio || 'efectivo', monto: draft.pagos[0]?.monto ?? '' },
+        { medio: draft.pagos[1]?.medio || 'transferencia', monto: draft.pagos[1]?.monto ?? '' },
+      ];
+    }
+    return getDefaultPagos();
+  });
+  const [multiplesPagos, setMultiplesPagos] = useState(() => Boolean(draft?.multiplesPagos));
   
   // Estado para cálculo de vuelto
-  const [pagaCon, setPagaCon] = useState('');
+  const [pagaCon, setPagaCon] = useState(() => draft?.pagaCon ?? '');
   
   // Estado para ajustes de venta
-  const [ajusteMonto, setAjusteMonto] = useState('');
-  const [ajusteDetalle, setAjusteDetalle] = useState('');
+  const [ajusteMonto, setAjusteMonto] = useState(() => draft?.ajusteMonto ?? '');
+  const [ajusteDetalle, setAjusteDetalle] = useState(() => draft?.ajusteDetalle ?? '');
   
   // Aplicar debouncing al término de búsqueda de productos (300ms)
   const debouncedProductoSearchTerm = useDebounce(productoSearchTerm, 300);
@@ -445,24 +482,20 @@ const NuevaVenta = () => {
     }
   };
 
-  const resetForm = () => {
-    const newDetalle = {
-      producto_id: '',
-      producto_nombre: '',
-      cantidad:1,
-      precio_unitario: 0,
-      subtotal: 0
-    };
-    setDetalles([newDetalle]);
+  const resetForm = (options = {}) => {
+    const { clearDraft = true } = options;
+    if (clearDraft) {
+      try {
+        localStorage.removeItem(DRAFT_KEY);
+      } catch {}
+    }
+    setDetalles([getEmptyDetalle()]);
     setMedioPago('efectivo');
     setClienteId('');
     setProductoSearchTerm('');
     setActiveDetalleIndex(0); // Set focus on first product search field
     setSelectedResultIndex(0);
-    setPagos([
-      { medio: 'efectivo', monto: '' },
-      { medio: 'transferencia', monto: '' }
-    ]);
+    setPagos(getDefaultPagos());
     setMultiplesPagos(false);
     setAjusteMonto('');
     setAjusteDetalle('');
@@ -474,6 +507,30 @@ const NuevaVenta = () => {
       }
     }, 100);
   };
+
+  // Persistir borrador para no perder datos al cambiar de pantalla
+  useEffect(() => {
+    const isEmptyDraft =
+      (!Array.isArray(detalles) || detalles.length === 0 || (detalles.length === 1 && !detalles[0]?.producto_id && !detalles[0]?.producto_nombre && (Number(detalles[0]?.cantidad) || 1) === 1 && !detalles[0]?.subtotal)) &&
+      !clienteId &&
+      !multiplesPagos &&
+      (pagos?.[0]?.medio || 'efectivo') === 'efectivo' && (pagos?.[0]?.monto === '' || pagos?.[0]?.monto === null || pagos?.[0]?.monto === undefined) &&
+      (pagos?.[1]?.medio || 'transferencia') === 'transferencia' && (pagos?.[1]?.monto === '' || pagos?.[1]?.monto === null || pagos?.[1]?.monto === undefined) &&
+      (ajusteMonto === '' || ajusteMonto === null || ajusteMonto === undefined) &&
+      !ajusteDetalle &&
+      (pagaCon === '' || pagaCon === null || pagaCon === undefined);
+
+    try {
+      if (isEmptyDraft) {
+        localStorage.removeItem(DRAFT_KEY);
+      } else {
+        localStorage.setItem(
+          DRAFT_KEY,
+          JSON.stringify({ detalles, pagos, multiplesPagos, clienteId, ajusteMonto, ajusteDetalle, pagaCon })
+        );
+      }
+    } catch {}
+  }, [detalles, pagos, multiplesPagos, clienteId, ajusteMonto, ajusteDetalle, pagaCon]);
 
   const actualizarDetalle = (index, field, value) => {
     const nuevosDetalles = [...detalles];
@@ -626,12 +683,12 @@ const NuevaVenta = () => {
       await apiPost(`${API}/ventas`, data);
       
       toast.success('Venta registrada exitosamente');
-      resetForm();
+      resetForm({ clearDraft: true });
     } catch (error) {
       if (error.code === 'ECONNABORTED' || error.response?.status >= 500 || error.response?.status === 0 || !error.response) {
         await guardarVentaOffline(data);
         toast.success('⚠️ Servidor inaccesible. Venta guardada localmente. Se sincronizará cuando vuelva la conexión.');
-        resetForm();
+        resetForm({ clearDraft: true });
       } else {
         toast.error(error.response?.data?.detail || 'Error al registrar venta');
       }
@@ -1164,7 +1221,7 @@ const NuevaVenta = () => {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={resetForm}
+                  onClick={() => resetForm({ clearDraft: true })}
                   className="flex-1 sm:flex-none h-9"
                 >
                   Cancelar
@@ -1196,7 +1253,7 @@ const NuevaVenta = () => {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={resetForm}
+                    onClick={() => resetForm({ clearDraft: true })}
                     className="flex-1 sm:flex-none h-9"
                   >
                     Cancelar
