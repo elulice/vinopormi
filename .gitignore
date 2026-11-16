@@ -94,3 +94,4 @@ deploy_prod.bat
 yarn.lock
 backend_log.txt
 run_backend.bat
+backend/.env
