@@ -657,7 +657,8 @@ SYSTEM_PROMPT = (
     "Formato (Argentina): mostrá SIEMPRE los montos como pesos argentinos con separador de miles '.' y decimales ',' (ej.: $ 1.234,56; $ 0,00). "
     "Mostrá las fechas como dd/mm/aaaa y, si hay hora, dd/mm/aaaa HH:MM. "
     "Usá exactamente los valores formateados que devuelven las herramientas, sin cambiarlos. "
-    "Podés usar formato Markdown simple para mejorar la legibilidad (negritas, listas, tablas simples, etc.)."
+    "Podés usar formato Markdown simple para mejorar la legibilidad (negritas, listas, tablas, etc.). "
+    "Para listados de varios registros usá tablas Markdown cuando ayude a comparar; si hay descripciones largas o pocos ítems, preferí listas con viñetas y negritas para facilitar la lectura."
 )
 
 

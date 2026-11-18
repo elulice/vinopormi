@@ -3111,7 +3111,7 @@ async def set_configuracion_mercadopago(
 # ===== NOVEDADES (modal forzado por backend) =====
 
 DEFAULT_NOVEDADES = {
-    "version": "v1.05",
+    "version": "v1.05.2",
     "features": [
         {
             "icon": "Save",
@@ -3127,6 +3127,11 @@ DEFAULT_NOVEDADES = {
             "icon": "Bot",
             "title": "Chat IA",
             "description": "Implementamos el Chat IA para consultar datos del sistema (ventas, productos, cuentas corrientes, proveedores, egresos, MercadoPago y auditoría) con historial por usuario.",
+        },
+        {
+            "icon": "Mic",
+            "title": "Dictado por voz en el Chat IA",
+            "description": "Ahora podés dictar tus consultas en el Chat IA usando el micrófono. Tu voz se transcribe automáticamente para que puedas revisarla y enviarla.",
         },
     ],
 }

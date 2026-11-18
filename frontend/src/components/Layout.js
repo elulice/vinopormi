@@ -31,6 +31,7 @@ import { useState, useRef, useEffect } from 'react';
 import { logoImage } from '@/assets/images';
 import MercadopagoIcon from '@/components/MercadopagoIcon';
 import BackgroundSync from '@/components/BackgroundSync';
+import WelcomeModal from '@/components/WelcomeModal';
 
 const Layout = () => {
   const { user, logout } = useAuth();
@@ -357,6 +358,7 @@ const Layout = () => {
       {/* FloatingMenu - Solo para usuarios autenticados y con la configuración activada */}
       {user && floatingMenu && <FloatingMenu />}
       <BackgroundSync />
+      <WelcomeModal />
     </div>
   );
 };

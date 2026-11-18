@@ -40,13 +40,74 @@ const renderMarkdown = (content) => {
   let html = '';
   let inUl = false;
   let inOl = false;
+  let i = 0;
 
   const closeLists = () => {
     if (inUl) { html += '</ul>'; inUl = false; }
     if (inOl) { html += '</ol>'; inOl = false; }
   };
 
-  for (const line of lines) {
+  const isTableSep = (line) => /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)+\|?\s*$/.test(line || '');
+  const splitRow = (line) => {
+    let s = (line || '').trim();
+    if (s.startsWith('|')) s = s.slice(1);
+    if (s.endsWith('|')) s = s.slice(0, -1);
+    return s.split('|').map((c) => c.trim());
+  };
+  const isTableRow = (line) => {
+    if (!line) return false;
+    const t = line.trim();
+    if (!t.includes('|')) return false;
+    if (/^\s*[-*]\s+/.test(t)) return false;
+    if (/^#{1,6}\s+/.test(t)) return false;
+    return true;
+  };
+  const alignClass = (sepCell) => {
+    const s = (sepCell || '').trim();
+    const left = s.startsWith(':');
+    const right = s.endsWith(':');
+    if (left && right) return 'text-center';
+    if (right) return 'text-right';
+    return 'text-left';
+  };
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // GFM table: header + separator + rows
+    if (isTableRow(line) && i + 1 < lines.length && isTableSep(lines[i + 1])) {
+      closeLists();
+      const headers = splitRow(line);
+      const sepCells = splitRow(lines[i + 1]);
+      const aligns = headers.map((_, idx) => alignClass(sepCells[idx] || ''));
+      const rows = [];
+      i += 2;
+      while (i < lines.length && isTableRow(lines[i]) && !isTableSep(lines[i])) {
+        if (lines[i].trim() === '') break;
+        rows.push(splitRow(lines[i]));
+        i++;
+      }
+      html += '<div class="my-2 overflow-x-auto rounded-md border border-border"><table class="min-w-full text-sm border-collapse">';
+      html += '<thead class="bg-muted/70"><tr>';
+      headers.forEach((h, idx) => {
+        const a = aligns[idx] || 'text-left';
+        html += `<th class="px-3 py-2 font-semibold border-b border-border ${a} whitespace-nowrap">${renderInline(h)}</th>`;
+      });
+      html += '</tr></thead><tbody>';
+      rows.forEach((row, rIdx) => {
+        const stripe = rIdx % 2 === 1 ? ' bg-muted/20' : '';
+        html += `<tr class="${stripe}">`;
+        headers.forEach((_, idx) => {
+          const a = aligns[idx] || 'text-left';
+          const cell = row[idx] != null ? row[idx] : '';
+          html += `<td class="px-3 py-2 border-b border-border align-top ${a}">${renderInline(cell)}</td>`;
+        });
+        html += '</tr>';
+      });
+      html += '</tbody></table></div>';
+      continue;
+    }
+
     const ulMatch = line.match(/^\s*[-*]\s+(.*)$/);
     const olMatch = line.match(/^\s*\d+\.\s+(.*)$/);
     const h3 = line.match(/^###\s+(.*)$/);
@@ -57,26 +118,29 @@ const renderMarkdown = (content) => {
       if (inOl) { html += '</ol>'; inOl = false; }
       if (!inUl) { html += '<ul class="list-disc pl-5 my-1 space-y-0.5">'; inUl = true; }
       html += `<li>${renderInline(ulMatch[1])}</li>`;
+      i++;
       continue;
     }
     if (olMatch) {
       if (inUl) { html += '</ul>'; inUl = false; }
       if (!inOl) { html += '<ol class="list-decimal pl-5 my-1 space-y-0.5">'; inOl = true; }
       html += `<li>${renderInline(olMatch[1])}</li>`;
+      i++;
       continue;
     }
 
     closeLists();
 
-    if (h3) { html += `<div class="font-semibold mt-2 mb-1">${renderInline(h3[1])}</div>`; continue; }
-    if (h2) { html += `<div class="font-semibold text-base mt-2 mb-1">${renderInline(h2[1])}</div>`; continue; }
-    if (h1) { html += `<div class="font-bold text-base mt-2 mb-1">${renderInline(h1[1])}</div>`; continue; }
+    if (h3) { html += `<div class="font-semibold mt-2 mb-1">${renderInline(h3[1])}</div>`; i++; continue; }
+    if (h2) { html += `<div class="font-semibold text-base mt-2 mb-1">${renderInline(h2[1])}</div>`; i++; continue; }
+    if (h1) { html += `<div class="font-bold text-base mt-2 mb-1">${renderInline(h1[1])}</div>`; i++; continue; }
 
     if (line.trim() === '') {
       html += '<div class="h-2"></div>';
     } else {
       html += `<p class="my-0.5">${renderInline(line)}</p>`;
     }
+    i++;
   }
   closeLists();
   return html;
@@ -118,6 +182,11 @@ const ChatIA = () => {
   const audioChunksRef = useRef([]);
   const streamRef = useRef(null);
   const cooldownTimerRef = useRef(null);
+  const loadingRef = useRef(false);
+
+  useEffect(() => {
+    loadingRef.current = loading;
+  }, [loading]);
 
   useEffect(() => {
     return () => {
@@ -141,9 +210,15 @@ const ChatIA = () => {
   }, []);
 
   useEffect(() => {
-    const loadHistory = async () => {
+    let cancelled = false;
+
+    const loadHistory = async ({ initial = false } = {}) => {
+      if (initial) setLoadingHistory(true);
       try {
         const res = await apiGet(`${API}/chat/history`);
+        if (cancelled) return;
+        // No pisar el estado local mientras hay una consulta en curso
+        if (!initial && loadingRef.current) return;
         const history = Array.isArray(res?.data) ? res.data : [];
         if (history.length > 0) {
           setMessages(history.map((m) => ({ role: m.role, content: m.content })));
@@ -151,17 +226,35 @@ const ChatIA = () => {
           setMessages([GREETING]);
         }
       } catch (e) {
-        // Si falla la carga del historial, seguimos con saludo inicial
-        setMessages([GREETING]);
+        if (cancelled) return;
+        // En carga inicial, si falla seguimos con saludo; en refrescos mantenemos lo actual
+        if (initial) setMessages([GREETING]);
       } finally {
-        setLoadingHistory(false);
+        if (initial && !cancelled) setLoadingHistory(false);
       }
     };
-    loadHistory();
+
+    loadHistory({ initial: true });
+
+    const onFocus = () => {
+      if (!loadingRef.current) loadHistory();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible' && !loadingRef.current) loadHistory();
+    };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, []);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (loadingHistory) return;
+    endRef.current?.scrollIntoView({ behavior: 'auto' });
   }, [messages, loading, loadingHistory]);
 
   useEffect(() => {
@@ -214,10 +307,17 @@ const ChatIA = () => {
         }, waitMs);
       }
 
-      const assistantText = isRateLimit
-        ? `⚠️ ${detailText}`
-        : `⚠️ ${typeof detail === 'string' ? detail : 'Ocurrió un error al consultar el asistente.'}`;
-      setMessages((prev) => [...prev, { role: 'assistant', content: assistantText }]);
+      // Si no se pudo enviar, restaurar el mensaje en el textarea y quitar el mensaje optimista
+      setMessages((prev) => {
+        if (prev.length) {
+          const last = prev[prev.length - 1];
+          if (last.role === 'user' && last.content === content) {
+            return prev.slice(0, -1);
+          }
+        }
+        return prev;
+      });
+      setInput(content);
     } finally {
       setLoading(false);
       requestAnimationFrame(() => textareaRef.current?.focus());
@@ -409,7 +509,7 @@ const ChatIA = () => {
                       </div>
                     )}
                     <div
-                      className={`max-w-[85%] sm:max-w-[75%] rounded-lg px-4 py-2 text-sm leading-relaxed ${
+                      className={`max-w-[90%] sm:max-w-[85%] lg:max-w-[80%] rounded-lg px-4 py-2 text-sm leading-relaxed ${
                         isUser
                           ? 'bg-primary text-primary-foreground'
                           : 'bg-muted text-foreground border border-border'

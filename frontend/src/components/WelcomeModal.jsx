@@ -1,16 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Save, Move, Bot, Sparkles } from 'lucide-react';
+import { Save, Move, Bot, Sparkles, Mic } from 'lucide-react';
 import { apiGet } from '@/lib/api';
 import { API } from '@/lib/config';
 
 const SEEN_PREFIX = 'vpm_news_seen_';
 const POLL_MS = 60000;
 
-const ICONS = { Save, Move, Bot, Sparkles };
+const ICONS = { Save, Move, Bot, Sparkles, Mic };
 
 const DEFAULT_DATA = {
-  version: 'v1.05',
+  version: 'v1.05.2',
   features: [
     {
       icon: 'Save',
@@ -29,6 +29,12 @@ const DEFAULT_DATA = {
       title: 'Chat IA',
       description:
         'Implementamos el Chat IA para consultar datos del sistema (ventas, productos, cuentas corrientes, proveedores, egresos, MercadoPago y auditoría) con historial por usuario.',
+    },
+    {
+      icon: 'Mic',
+      title: 'Dictado por voz en el Chat IA',
+      description:
+        'Ahora podés dictar tus consultas en el Chat IA usando el micrófono. Tu voz se transcribe automáticamente para que puedas revisarla y enviarla.',
     },
   ],
 };
