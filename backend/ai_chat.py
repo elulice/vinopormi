@@ -5,7 +5,10 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
+import tempfile
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional
 
@@ -24,7 +27,9 @@ except Exception:
 DEFAULT_LIMIT = 10
 MAX_LIMIT = 25
 MAX_MOVIMIENTOS = 15
-MAX_MESSAGES = 12
+MAX_MESSAGES = 8
+MAX_MSG_CHARS = 1500
+MAX_TOOL_RESULT_CHARS = 4000
 MAX_TOOL_STEPS = 5
 
 
@@ -656,6 +661,38 @@ SYSTEM_PROMPT = (
 )
 
 
+def _is_rate_limit_error(err: Exception) -> bool:
+    if litellm is not None:
+        rate_err_cls = getattr(litellm, "RateLimitError", None)
+        if rate_err_cls and isinstance(err, rate_err_cls):
+            return True
+    msg = str(err).lower()
+    return (
+        "rate limit" in msg
+        or "ratelimit" in msg
+        or "rate_limit_exceeded" in msg
+        or " 429" in msg
+        or "status code 429" in msg
+    )
+
+
+def _extract_retry_seconds(err: Exception) -> Optional[float]:
+    msg = str(err)
+    m = re.search(r"try again in ([\d.]+)\s*s", msg, re.IGNORECASE)
+    if m:
+        try:
+            return float(m.group(1))
+        except Exception:
+            pass
+    m = re.search(r"retry[- ]?after[:\s]+([\d.]+)", msg, re.IGNORECASE)
+    if m:
+        try:
+            return float(m.group(1))
+        except Exception:
+            pass
+    return None
+
+
 async def run_chat(messages: List[Dict[str, str]], db, current_user) -> str:
     if litellm is None:
         raise HTTPException(status_code=500, detail="Dependencia de IA no disponible: litellm no está instalado.")
@@ -668,12 +705,14 @@ async def run_chat(messages: List[Dict[str, str]], db, current_user) -> str:
     # Build conversation
     convo: List[Dict[str, Any]] = [{"role": "system", "content": SYSTEM_PROMPT}]
     # keep last messages to limit context
-    for m in (messages or [])[-MAX_MESSAGES:]:
+    max_messages = int(os.environ.get("CHAT_MAX_MESSAGES", str(MAX_MESSAGES)) or MAX_MESSAGES)
+    max_msg_chars = int(os.environ.get("CHAT_MAX_MSG_CHARS", str(MAX_MSG_CHARS)) or MAX_MSG_CHARS)
+    for m in (messages or [])[-max_messages:]:
         role = m.get("role")
         content = m.get("content")
         if role in ("user", "assistant") and isinstance(content, str) and content.strip():
             # recortar mensajes muy largos del historial
-            convo.append({"role": role, "content": content.strip()[:4000]})
+            convo.append({"role": role, "content": content.strip()[:max_msg_chars]})
 
     if not any(m["role"] == "user" for m in convo):
         raise HTTPException(status_code=400, detail="Falta el mensaje del usuario")
@@ -697,16 +736,34 @@ async def run_chat(messages: List[Dict[str, str]], db, current_user) -> str:
         kwargs["keep_alive"] = keep_alive
 
     # Tool-calling loop
+    max_tool_chars = int(os.environ.get("CHAT_MAX_TOOL_RESULT_CHARS", str(MAX_TOOL_RESULT_CHARS)) or MAX_TOOL_RESULT_CHARS)
     for _ in range(MAX_TOOL_STEPS):
-        try:
-            resp = litellm.completion(**kwargs)
-        except Exception as e:
-            msg = str(e)
-            if "api key" in msg.lower() or "auth" in msg.lower() or "401" in msg or "403" in msg:
-                raise HTTPException(status_code=500, detail="Falta o es inválida la API key del modelo de IA. Configurá CHAT_API_KEY/OPENAI_API_KEY (según el modelo) en backend/.env.")
-            if "connect" in msg.lower() or "refused" in msg.lower() or "11434" in msg:
-                raise HTTPException(status_code=500, detail="No se pudo conectar con el servidor de Ollama. Verificá que esté en ejecución y que CHAT_API_BASE sea correcto (ej. http://localhost:11434).")
-            raise HTTPException(status_code=500, detail=f"Error al consultar el modelo de IA: {msg}")
+        resp = None
+        for attempt in range(2):
+            try:
+                resp = litellm.completion(**kwargs)
+                break
+            except Exception as e:
+                if _is_rate_limit_error(e):
+                    wait_s = _extract_retry_seconds(e)
+                    if attempt == 0 and wait_s is not None and 0 < wait_s <= 25:
+                        await asyncio.sleep(wait_s + 0.5)
+                        continue
+                    secs = int(round(wait_s)) if wait_s is not None and wait_s > 0 else None
+                    if secs:
+                        detail = f"Límite de tokens por minuto alcanzado. Reintentá en ~{secs} segundos."
+                    else:
+                        detail = "Límite de tokens por minuto alcanzado. Esperá unos segundos y reintentá."
+                    raise HTTPException(status_code=429, detail=detail)
+
+                msg = str(e)
+                if "api key" in msg.lower() or "auth" in msg.lower() or "401" in msg or "403" in msg:
+                    raise HTTPException(status_code=500, detail="Falta o es inválida la API key del modelo de IA. Configurá CHAT_API_KEY/OPENAI_API_KEY (según el modelo) en backend/.env.")
+                if "connect" in msg.lower() or "refused" in msg.lower() or "11434" in msg:
+                    raise HTTPException(status_code=500, detail="No se pudo conectar con el servidor de Ollama. Verificá que esté en ejecución y que CHAT_API_BASE sea correcto (ej. http://localhost:11434).")
+                raise HTTPException(status_code=500, detail=f"Error al consultar el modelo de IA: {msg}")
+        if resp is None:
+            raise HTTPException(status_code=500, detail="No se pudo obtener respuesta del modelo de IA.")
 
         choice = resp.choices[0]
         message = choice.message
@@ -754,12 +811,15 @@ async def run_chat(messages: List[Dict[str, str]], db, current_user) -> str:
             except Exception:
                 args = {}
             result = await execute_tool(name, args, db, current_user)
+            content = json.dumps(result, ensure_ascii=False, default=str)
+            if len(content) > max_tool_chars:
+                content = content[:max_tool_chars] + "\n...[resultado recortado por tamaño]"
             kwargs["messages"].append(
                 {
                     "role": "tool",
                     "tool_call_id": tc.id,
                     "name": name,
-                    "content": json.dumps(result, ensure_ascii=False, default=str),
+                    "content": content,
                 }
             )
 
@@ -796,3 +856,91 @@ async def warmup_chat_model() -> None:
     except Exception:
         # Warm-up best-effort: no debe impedir el arranque ni afectar al usuario
         return
+
+
+async def transcribe_audio(file_bytes: bytes, filename: str = "audio.webm", content_type: str = "") -> str:
+    """Transcribe audio a texto usando el proveedor configurado (Groq Whisper por defecto)."""
+    if litellm is None:
+        raise HTTPException(
+            status_code=503,
+            detail="El servicio de transcripción no está disponible (falta dependencia/configuración).",
+        )
+    if not file_bytes:
+        raise HTTPException(status_code=400, detail="El audio está vacío.")
+
+    model = os.environ.get("CHAT_TRANSCRIBE_MODEL", "groq/whisper-large-v3-turbo")
+    api_key = os.environ.get("GROQ_API_KEY") or os.environ.get("CHAT_API_KEY") or os.environ.get("OPENAI_API_KEY")
+    api_base = os.environ.get("CHAT_API_BASE")
+
+    suffix = Path(filename or "").suffix
+    if not suffix:
+        ct = (content_type or "").lower()
+        if "mp4" in ct or "m4a" in ct:
+            suffix = ".m4a"
+        elif "ogg" in ct:
+            suffix = ".ogg"
+        elif "wav" in ct:
+            suffix = ".wav"
+        elif "mpeg" in ct or "mp3" in ct:
+            suffix = ".mp3"
+        else:
+            suffix = ".webm"
+
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            tmp.write(file_bytes)
+            tmp_path = tmp.name
+
+        kwargs: Dict[str, Any] = {
+            "model": model,
+            "file": open(tmp_path, "rb"),
+            "language": "es",
+            "temperature": 0,
+        }
+        if api_key:
+            kwargs["api_key"] = api_key
+        if api_base:
+            kwargs["api_base"] = api_base
+
+        try:
+            try:
+                resp = await litellm.atranscription(**kwargs)
+            except TypeError:
+                # compat: si atranscription no acepta ciertos args, caer a sync en hilo
+                resp = await asyncio.to_thread(litellm.transcription, **kwargs)
+        finally:
+            try:
+                kwargs["file"].close()
+            except Exception:
+                pass
+
+        text = ""
+        if resp is None:
+            text = ""
+        elif isinstance(resp, str):
+            text = resp
+        elif isinstance(resp, dict):
+            text = resp.get("text") or resp.get("transcript") or ""
+        else:
+            text = getattr(resp, "text", None) or getattr(resp, "transcript", None) or ""
+            if not text and hasattr(resp, "model_dump"):
+                try:
+                    d = resp.model_dump()
+                    text = d.get("text") or d.get("transcript") or ""
+                except Exception:
+                    text = ""
+        return (text or "").strip()
+    except HTTPException:
+        raise
+    except Exception as e:
+        msg = str(e)
+        if "api_key" in msg.lower() or "authentication" in msg.lower() or "401" in msg:
+            raise HTTPException(status_code=502, detail="No se pudo autenticar con el servicio de transcripción.")
+        raise HTTPException(status_code=502, detail=f"Error al transcribir el audio: {msg[:200]}")
+    finally:
+        if tmp_path:
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass

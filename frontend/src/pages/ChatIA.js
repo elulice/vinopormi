@@ -1,11 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Bot, Loader2, Send, Trash2, User } from 'lucide-react';
+import { Bot, Loader2, Mic, MicOff, Send, Trash2, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiDelete, apiGet, apiPost } from '@/lib/api';
 import { API } from '@/lib/config';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+
+const canRecordAudio = () =>
+  typeof window !== 'undefined' &&
+  typeof navigator !== 'undefined' &&
+  !!navigator.mediaDevices?.getUserMedia &&
+  typeof MediaRecorder !== 'undefined';
 
 const escapeHtml = (str) =>
   String(str)
@@ -85,9 +91,11 @@ const MarkdownMessage = ({ content }) => (
 
 const SUGERENCIAS = [
   '¿Cuánto se vendió hoy?',
-  'Mostrame el saldo y últimos movimientos de cuenta corriente de un cliente',
-  'Buscá las transferencias de MercadoPago de las últimas 24 horas',
+  'Mostrame saldo y últimos movimientos de cta cte de un cliente',
+  'Buscá las transf de MercadoPago de las últimas 24 horas',
   'Mostrame los últimos registros de auditoría',
+  'Mostrame la últimas 10 ventas',
+  '¿Cuánto se vendió los últimos 3 días?'
 ];
 
 const GREETING = {
@@ -101,7 +109,36 @@ const ChatIA = () => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const [listening, setListening] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const [cooldown, setCooldown] = useState(false);
   const endRef = useRef(null);
+  const textareaRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const streamRef = useRef(null);
+  const cooldownTimerRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
+    };
+  }, []);
+
+  const speechSupported = canRecordAudio();
+
+  useEffect(() => {
+    return () => {
+      try {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+          mediaRecorderRef.current.stop();
+        }
+      } catch {}
+      try {
+        streamRef.current?.getTracks?.().forEach((t) => t.stop());
+      } catch {}
+    };
+  }, []);
 
   useEffect(() => {
     const loadHistory = async () => {
@@ -127,7 +164,18 @@ const ChatIA = () => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading, loadingHistory]);
 
-  const canSend = useMemo(() => input.trim().length > 0 && !loading && !loadingHistory, [input, loading, loadingHistory]);
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = '0px';
+    const next = Math.max(44, Math.min(el.scrollHeight, 128));
+    el.style.height = `${next}px`;
+  }, [input]);
+
+  const canSend = useMemo(
+    () => input.trim().length > 0 && !loading && !loadingHistory && !transcribing && !cooldown,
+    [input, loading, loadingHistory, transcribing, cooldown]
+  );
 
   const sendMessage = async (text) => {
     const content = (text ?? input).trim();
@@ -143,14 +191,36 @@ const ChatIA = () => {
       const reply = res?.data?.reply || 'No recibí respuesta del asistente.';
       setMessages((prev) => [...prev, { role: 'assistant', content: reply }]);
     } catch (error) {
+      const status = error?.response?.status;
       const detail = error?.response?.data?.detail || 'No se pudo obtener respuesta del asistente.';
-      toast.error(typeof detail === 'string' ? detail : 'Error al consultar el asistente');
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: `⚠️ ${typeof detail === 'string' ? detail : 'Ocurrió un error al consultar el asistente.'}` },
-      ]);
+      const detailText = typeof detail === 'string' ? detail : 'Error al consultar el asistente';
+      const isRateLimit =
+        status === 429 || /rate limit|límite de tokens|tokens por minuto/i.test(detailText);
+
+      toast.error(detailText);
+
+      if (isRateLimit) {
+        let waitMs = 20000;
+        const m = detailText.match(/~?\s*(\d+)\s*seg/i);
+        if (m) {
+          const secs = parseInt(m[1], 10);
+          if (!Number.isNaN(secs) && secs > 0) waitMs = Math.min(Math.max(secs, 3), 60) * 1000;
+        }
+        setCooldown(true);
+        if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
+        cooldownTimerRef.current = setTimeout(() => {
+          setCooldown(false);
+          cooldownTimerRef.current = null;
+        }, waitMs);
+      }
+
+      const assistantText = isRateLimit
+        ? `⚠️ ${detailText}`
+        : `⚠️ ${typeof detail === 'string' ? detail : 'Ocurrió un error al consultar el asistente.'}`;
+      setMessages((prev) => [...prev, { role: 'assistant', content: assistantText }]);
     } finally {
       setLoading(false);
+      requestAnimationFrame(() => textareaRef.current?.focus());
     }
   };
 
@@ -161,8 +231,130 @@ const ChatIA = () => {
     }
   };
 
+  const stopStreamTracks = () => {
+    try {
+      streamRef.current?.getTracks?.().forEach((t) => t.stop());
+    } catch {}
+    streamRef.current = null;
+  };
+
+  const toggleListening = async () => {
+    if (!speechSupported) {
+      toast.error('Tu navegador no soporta grabación de voz. Probá con un navegador actualizado (Chrome/Edge).');
+      return;
+    }
+    if (loading || loadingHistory || transcribing) return;
+
+    if (listening) {
+      try {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+          mediaRecorderRef.current.stop();
+        }
+      } catch {}
+      setListening(false);
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+
+      let mimeType = '';
+      if (typeof MediaRecorder.isTypeSupported === 'function') {
+        const candidates = [
+          'audio/webm;codecs=opus',
+          'audio/webm',
+          'audio/ogg;codecs=opus',
+          'audio/mp4',
+        ];
+        mimeType = candidates.find((t) => MediaRecorder.isTypeSupported(t)) || '';
+      }
+
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      audioChunksRef.current = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      recorder.onerror = () => {
+        toast.error('Error al grabar el audio.');
+        setListening(false);
+        stopStreamTracks();
+      };
+
+      recorder.onstop = async () => {
+        setListening(false);
+        const chunks = audioChunksRef.current || [];
+        audioChunksRef.current = [];
+        const usedMime = recorder.mimeType || mimeType || 'audio/webm';
+        stopStreamTracks();
+
+        if (!chunks.length) {
+          toast.error('No se grabó audio. Intentá de nuevo.');
+          return;
+        }
+
+        const blob = new Blob(chunks, { type: usedMime });
+        if (!blob.size) {
+          toast.error('No se grabó audio. Intentá de nuevo.');
+          return;
+        }
+
+        setTranscribing(true);
+        try {
+          const ext = usedMime.includes('mp4') || usedMime.includes('m4a')
+            ? 'm4a'
+            : usedMime.includes('ogg')
+            ? 'ogg'
+            : usedMime.includes('wav')
+            ? 'wav'
+            : 'webm';
+          const form = new FormData();
+          form.append('file', blob, `audio.${ext}`);
+
+          const res = await apiPost(`${API}/chat/transcribe`, form);
+          const text = (res?.data?.text || '').trim();
+          if (text) {
+            setInput((prev) => (prev && prev.trim() ? `${prev.trim()} ${text}` : text));
+          } else {
+            toast.error('No se pudo transcribir el audio. Intentá hablar más claro o de nuevo.');
+          }
+        } catch (error) {
+          const detail = error?.response?.data?.detail || 'No se pudo transcribir el audio.';
+          toast.error(typeof detail === 'string' ? detail : 'No se pudo transcribir el audio.');
+        } finally {
+          setTranscribing(false);
+        }
+      };
+
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      setListening(true);
+    } catch (e) {
+      stopStreamTracks();
+      setListening(false);
+      if (e?.name === 'NotAllowedError' || e?.name === 'PermissionDeniedError' || e?.name === 'SecurityError') {
+        toast.error('Permiso de micrófono denegado. Habilitalo en el navegador.');
+      } else if (e?.name === 'NotFoundError' || e?.name === 'DevicesNotFoundError') {
+        toast.error('No se encontró micrófono disponible.');
+      } else if (e?.name === 'NotReadableError' || e?.name === 'TrackStartError') {
+        toast.error('No se pudo acceder al micrófono (puede estar en uso por otra app).');
+      } else {
+        toast.error('No se pudo iniciar la grabación de voz.');
+      }
+    }
+  };
+
   const clearChat = async () => {
     if (loading) return;
+    try {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+      }
+    } catch {}
+    setListening(false);
+    stopStreamTracks();
     try {
       await apiDelete(`${API}/chat/history`);
       setMessages([
@@ -269,19 +461,58 @@ const ChatIA = () => {
           )}
           <div className="flex gap-2 items-end">
             <Textarea
+              ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={onKeyDown}
-              placeholder="Escribí tu consulta... (Enter para enviar, Shift+Enter para salto de línea)"
-              className="min-h-[44px] max-h-32 resize-y"
+              rows={1}
+              placeholder="Escribí o dictá tu consulta... (Enter para enviar, Shift+Enter para salto de línea)"
+              className="min-h-[44px] max-h-32 h-[44px] resize-none overflow-y-auto py-2.5 leading-5"
               disabled={loading || loadingHistory}
             />
-            <Button onClick={() => sendMessage()} disabled={!canSend} className="h-[44px] px-4">
+            <Button
+              type="button"
+              variant={listening ? 'destructive' : 'outline'}
+              onClick={toggleListening}
+              disabled={loading || loadingHistory || transcribing || !speechSupported}
+              className="h-[44px] px-3"
+              title={
+                !speechSupported
+                  ? 'Grabación de voz no soportada en este navegador'
+                  : transcribing
+                  ? 'Transcribiendo audio...'
+                  : listening
+                  ? 'Detener grabación'
+                  : 'Dictar por voz'
+              }
+            >
+              {transcribing ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : listening ? (
+                <MicOff className="w-4 h-4" />
+              ) : (
+                <Mic className="w-4 h-4" />
+              )}
+            </Button>
+            <Button
+              onClick={() => sendMessage()}
+              disabled={!canSend}
+              className="h-[44px] px-4"
+              title={cooldown ? 'Esperá unos segundos antes de reintentar' : undefined}
+            >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             </Button>
           </div>
-          <p className="text-[11px] text-muted-foreground">
-            El asistente solo puede consultar información (no crea ni modifica datos). El historial del chat se guarda para tu usuario.
+          <p className="text-[12px] text-muted-foreground flex justify-end">
+            {cooldown
+              ? 'Límite de uso alcanzado: esperá unos segundos antes de reintentar.'
+              : transcribing
+              ? 'Transcribiendo audio...'
+              : listening
+              ? 'Grabando... (tocá el micrófono para detener y transcribir)'
+              : speechSupported
+              ? 'Podés dictar con el micrófono.'
+              : 'Dictado por voz no disponible en este navegador.'}
           </p>
         </div>
       </Card>

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, status, Query
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, status, Query, UploadFile, File
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
@@ -27,7 +27,7 @@ from recommendations import (
     Recomendaciones,
     calcular as calcular_recomendaciones,
 )
-from ai_chat import run_chat, warmup_chat_model
+from ai_chat import run_chat, warmup_chat_model, transcribe_audio
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -3250,11 +3250,13 @@ async def chat_ia(request: ChatRequest, current_user: Usuario = Depends(get_curr
     if not user_text:
         raise HTTPException(status_code=400, detail="Falta el mensaje del usuario")
 
-    # Cargar historial persistido como contexto
+    # Cargar historial persistido como contexto (limitado para reducir consumo de tokens)
+    context_limit = max(2, int(os.environ.get("CHAT_MAX_MESSAGES", "8") or 8))
     history_docs = await db.chat_mensajes.find(
         {"user_id": current_user.id},
         {"_id": 0, "role": 1, "content": 1}
-    ).sort("fecha", 1).to_list(200)
+    ).sort("fecha", -1).limit(context_limit).to_list(context_limit)
+    history_docs.reverse()
     msgs = [{"role": d.get("role"), "content": d.get("content", "")} for d in history_docs if d.get("role") in ("user", "assistant")]
     msgs.append({"role": "user", "content": user_text})
 
@@ -3268,6 +3270,25 @@ async def chat_ia(request: ChatRequest, current_user: Usuario = Depends(get_curr
         pass
 
     return ChatResponse(reply=reply)
+
+
+@api_router.post("/chat/transcribe")
+async def chat_transcribe(
+    file: UploadFile = File(...),
+    current_user: Usuario = Depends(get_current_user),
+):
+    """Transcribe un audio a texto (para dictado por voz en el chat)."""
+    data = await file.read()
+    if not data:
+        raise HTTPException(status_code=400, detail="No se recibió audio.")
+    if len(data) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="El audio es demasiado grande (máx. 10 MB).")
+    text = await transcribe_audio(
+        data,
+        filename=file.filename or "audio.webm",
+        content_type=file.content_type or "",
+    )
+    return {"text": text}
 
 app.include_router(api_router)
 app.include_router(public_router)
