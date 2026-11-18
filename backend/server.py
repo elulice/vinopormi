@@ -3108,6 +3108,76 @@ async def set_configuracion_mercadopago(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ===== NOVEDADES (modal forzado por backend) =====
+
+DEFAULT_NOVEDADES = {
+    "version": "v1.05",
+    "features": [
+        {
+            "icon": "Save",
+            "title": "Nueva Venta con borrador persistente",
+            "description": "Ahora lo que cargás en \"Nueva Venta\" se guarda automáticamente y no se pierde si cambiás de pantalla o recargás. El borrador se limpia al registrar la venta o al cancelar.",
+        },
+        {
+            "icon": "Move",
+            "title": "Botón flotante arrastrable",
+            "description": "El menú de accesos rápidos ahora se puede arrastrar y soltar en cualquier parte de la pantalla, guardando su posición por usuario. Doble clic para restablecerlo.",
+        },
+        {
+            "icon": "Bot",
+            "title": "Chat IA",
+            "description": "Implementamos el Chat IA para consultar datos del sistema (ventas, productos, cuentas corrientes, proveedores, egresos, MercadoPago y auditoría) con historial por usuario.",
+        },
+    ],
+}
+
+
+class NovedadesConfig(BaseModel):
+    version: str
+    features: List[dict]
+
+
+@api_router.get("/novedades/version")
+async def get_novedades_version():
+    """Endpoint liviano para polling: devuelve solo la versión activa."""
+    try:
+        config = await db["configuracion"].find_one({"tipo": "novedades"}, {"_id": 0, "version": 1})
+        version = (config or {}).get("version") or DEFAULT_NOVEDADES["version"]
+        return {"version": version}
+    except Exception:
+        return {"version": DEFAULT_NOVEDADES["version"]}
+
+
+@api_router.get("/novedades")
+async def get_novedades(current_user: Usuario = Depends(get_current_user)):
+    """Obtiene novedades completas (versión + features)."""
+    try:
+        config = await db["configuracion"].find_one({"tipo": "novedades"}, {"_id": 0})
+        if not config:
+            return DEFAULT_NOVEDADES
+        version = config.get("version") or DEFAULT_NOVEDADES["version"]
+        features = config.get("features") if isinstance(config.get("features"), list) and config.get("features") else DEFAULT_NOVEDADES["features"]
+        return {"version": version, "features": features}
+    except Exception:
+        return DEFAULT_NOVEDADES
+
+
+@api_router.put("/novedades")
+async def set_novedades(payload: NovedadesConfig, current_user: Usuario = Depends(get_admin_user)):
+    """Actualiza novedades (admin). Cambiar version fuerza a que se muestre el modal en clientes activos."""
+    try:
+        doc = {
+            "tipo": "novedades",
+            "version": payload.version,
+            "features": payload.features,
+            "fecha_actualizacion": datetime.now(timezone.utc).isoformat(),
+        }
+        await db["configuracion"].update_one({"tipo": "novedades"}, {"$set": doc}, upsert=True)
+        return {"message": "Novedades actualizadas", "version": payload.version}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ===== CHAT IA (solo lectura) =====
 
 class ChatMessage(BaseModel):
@@ -3584,8 +3654,9 @@ async def create_indexes():
 @app.on_event("startup")
 async def startup_event():
     await create_indexes()
-    # Warm-up best-effort del modelo para que la primera consulta del usuario sea más rápida
-    asyncio.create_task(warmup_chat_model())
+    # Warm-up opcional (desactivado por defecto): activar con CHAT_WARMUP=true
+    if os.environ.get("CHAT_WARMUP", "false").lower() == "true":
+        asyncio.create_task(warmup_chat_model())
 
 app.add_middleware(SecurityMiddleware)
 
