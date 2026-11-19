@@ -44,9 +44,9 @@ const BACKEND_DEFAULTS = {
   showCents: true,
   sidebarWidth: 'normal',
   floatingMenu: false,
-  autoLogout: false,
+  autoLogout: true,
   calcularVuelto: true,
-  darkMode: false,
+  darkMode: true,
   totalFlotante: false,
   hiddenSidebarItems: ['/recomendaciones'],
   hiddenFloatingMenuActions: []
@@ -187,18 +187,30 @@ export const ConfigProvider = ({ children, forceDark = false }) => {
     if (user) {
       loadPreferences();
     } else {
-      // Resetear cuando no hay usuario (darkMode se conserva desde el espejo)
+      // Resetear cuando no hay usuario (logout o sesión sin iniciar)
       setShowCentsState(true);
       setSidebarWidthState('normal');
       setFloatingMenuState(false);
-      setAutoLogoutState(false);
+      setAutoLogoutState(MIRROR_DEFAULTS.autoLogout);
       setCalcularVueltoState(true);
+      setDarkModeState(forceDark ? true : MIRROR_DEFAULTS.darkMode);
       setTotalFlotanteState(false);
       setHiddenSidebarItemsState(MIRROR_DEFAULTS.hiddenSidebarItems);
       setHiddenFloatingMenuActionsState(MIRROR_DEFAULTS.hiddenFloatingMenuActions);
+
+      // Limpiar TODO el espejo local: las preferencias son del usuario,
+      // incluido darkMode. Así un login posterior no hereda nada de la
+      // sesión anterior y carga las preferencias del usuario que ingresa.
+      for (const storageKey of Object.values(MIRROR_KEYS)) {
+        try {
+          localStorage.removeItem(storageKey);
+        } catch (e) {
+          // ignorar
+        }
+      }
       setLoading(false);
     }
-  }, [user, loadPreferences]);
+  }, [user, loadPreferences, forceDark]);
 
   return (
     <ConfigContext.Provider value={{

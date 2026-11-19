@@ -624,7 +624,7 @@ async def update_last_activity(username: str):
 
 async def check_auto_logout(user_data: dict) -> bool:
     """Verifica si el usuario debe ser desconectado por inactividad"""
-    if not user_data.get('preferencias', {}).get('autoLogout', False):
+    if not user_data.get('preferencias', {}).get('autoLogout', True):
         return False
     
     last_activity = user_data.get('lastActivity')
@@ -3386,11 +3386,12 @@ async def clear_chat_history(current_user: Usuario = Depends(get_current_user)):
 
 
 @api_router.post("/chat", response_model=ChatResponse)
-async def chat_ia(request: ChatRequest, current_user: Usuario = Depends(get_current_user)):
+@limiter.limit("10/minute")  # Evita abusos de un endpoint que consume tokens de IA
+async def chat_ia(request: Request, body: ChatRequest, current_user: Usuario = Depends(get_current_user)):
     # Determinar el nuevo mensaje del usuario
-    user_text = (request.message or "").strip()
-    if not user_text and request.messages:
-        for m in reversed(request.messages):
+    user_text = (body.message or "").strip()
+    if not user_text and body.messages:
+        for m in reversed(body.messages):
             if m.role == "user" and m.content and m.content.strip():
                 user_text = m.content.strip()
                 break
@@ -3420,7 +3421,9 @@ async def chat_ia(request: ChatRequest, current_user: Usuario = Depends(get_curr
 
 
 @api_router.post("/chat/transcribe")
+@limiter.limit("10/minute")  # La transcripción también consume recursos externos
 async def chat_transcribe(
+    request: Request,
     file: UploadFile = File(...),
     current_user: Usuario = Depends(get_current_user),
 ):

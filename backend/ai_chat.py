@@ -977,7 +977,9 @@ async def run_chat(messages: List[Dict[str, str]], db, current_user) -> str:
         resp = None
         for attempt in range(2):
             try:
-                resp = litellm.completion(**kwargs)
+                # litellm.completion es síncrona: hacerla en un thread aparte
+                # para no bloquear el event loop mientras responde el modelo.
+                resp = await asyncio.to_thread(litellm.completion, **kwargs)
                 break
             except Exception as e:
                 if _is_rate_limit_error(e):

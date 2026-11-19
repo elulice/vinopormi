@@ -45,7 +45,9 @@ const BackgroundSync = () => {
     }
   }, [pendientesCount, serverAvailable]);
 
-  const checkServer = async () => {
+  // Memoizada: es estable mientras silentReauth lo sea (useCallback en AuthContext).
+  // Así se puede incluir en los arrays de dependencias sin re-ejecutar los effects.
+  const checkServer = useCallback(async () => {
     try {
       await apiGet(`${API}/productos-paginados?limit=1`, { timeout: 5000 });
       if (prevServerAvailable.current === false) {
@@ -89,7 +91,7 @@ const BackgroundSync = () => {
       }
       return false;
     }
-  };
+  }, [silentReauth]);
 
   const sincronizarVentas = async () => {
     const ventasPendientes = await obtenerVentasPendientes();
@@ -145,7 +147,7 @@ const BackgroundSync = () => {
       setIsSyncing(false);
       syncInProgress.current = false;
     }
-  }, []);
+  }, [checkServer]);
 
   sincronizarTodoRef.current = sincronizarTodo;
 
@@ -171,7 +173,7 @@ const BackgroundSync = () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, []);
+  }, [checkServer]);
 
   useEffect(() => {
     checkServer();
@@ -180,7 +182,7 @@ const BackgroundSync = () => {
         clearInterval(intervalRef.current);
       }
     };
-  }, []);
+  }, [checkServer]);
 
   if (!isOnline) {
     return (

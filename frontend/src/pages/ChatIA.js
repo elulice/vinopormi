@@ -275,7 +275,7 @@ const ChatIA = () => {
 
   const sendMessage = async (text) => {
     const content = (text ?? input).trim();
-    if (!content || loading || loadingHistory) return;
+    if (!content || loading || loadingHistory || transcribing || cooldown) return;
 
     const userMsg = { role: 'user', content };
     setMessages((prev) => [...prev, userMsg]);
@@ -291,7 +291,8 @@ const ChatIA = () => {
       const detail = error?.response?.data?.detail || 'No se pudo obtener respuesta del asistente.';
       const detailText = typeof detail === 'string' ? detail : 'Error al consultar el asistente';
       const isRateLimit =
-        status === 429 || /rate limit|límite de tokens|tokens por minuto/i.test(detailText);
+        status === 429 ||
+        /rate limit|límite de tokens|tokens por minuto|per \d+ (minute|second)/i.test(detailText);
 
       toast.error(detailText);
 
@@ -512,6 +513,7 @@ const ChatIA = () => {
                       </div>
                     )}
                     <div
+                      aria-live={isUser ? undefined : 'polite'}
                       className={`max-w-[90%] sm:max-w-[85%] lg:max-w-[80%] rounded-lg px-4 py-2 text-sm leading-relaxed ${
                         isUser
                           ? 'bg-primary text-primary-foreground'

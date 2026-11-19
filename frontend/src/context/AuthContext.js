@@ -5,37 +5,13 @@ import { toast } from 'sonner';
 const AuthContext = createContext(null);
 
 import { API } from '@/lib/config';
+import { handleUnauthorized } from '@/lib/api';
 
-// Configurar interceptor global para manejar 401
+// Mismo handler que la instancia de lib/api.js: cubre las llamadas que usan
+// axios directo (login, /auth/me, activity check, reauth silencioso).
 axios.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (!error.response) {
-      return Promise.reject(error);
-    }
-    
-    if (error.response?.status === 401) {
-      const serverDown = localStorage.getItem('server_online') === 'false';
-      if (serverDown) {
-        return Promise.reject(error);
-      }
-      
-      const errorMessage = error.response.data?.detail || 'Token inválido o expirado';
-      
-      if (errorMessage.includes('Sesión expirada por inactividad')) {
-        toast.error('Tu sesión ha expirado por inactividad. Por favor, inicia sesión nuevamente.');
-      } else {
-        toast.error('Token inválido o expirado. Por favor, inicia sesión nuevamente.');
-      }
-      
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      localStorage.removeItem('offline_credentials');
-      window.location.href = '/login';
-      return Promise.reject(error);
-    }
-    return Promise.reject(error);
-  }
+  handleUnauthorized
 );
 
 export const AuthProvider = ({ children }) => {
