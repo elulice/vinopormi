@@ -18,9 +18,7 @@ import {
   Menu,
   X,
   ChevronRight,
-  ChevronDown,
   LogOut,
-  ChevronUp,
   Moon,
   Bot,
   Sparkles
@@ -32,6 +30,7 @@ import { logoImage } from '@/assets/images';
 import MercadopagoIcon from '@/components/MercadopagoIcon';
 import BackgroundSync from '@/components/BackgroundSync';
 import WelcomeModal from '@/components/WelcomeModal';
+import '@/components/DashboardV4.css';
 
 const Layout = () => {
   const { user, logout } = useAuth();
@@ -84,9 +83,9 @@ const Layout = () => {
   };
 
   const getSidebarClasses = () => {
-    const baseClasses = 'fixed left-0 top-0 z-50 h-full bg-card border-r border-border flex flex-col shadow-lg transform transition-all duration-300 ease-in-out';
+    const baseClasses = 'fixed left-0 top-0 z-50 h-full flex flex-col transform transition-all duration-300 ease-in-out vpm-sidebar';
     const widthClasses = {
-      compact: 'w-30 lg:w-30',
+      compact: 'w-30 lg:w-30 vpm-sidebar--compact',
       normal: 'w-56 lg:w-56',
       expanded: 'w-72 lg:w-72'
     };
@@ -110,6 +109,16 @@ const Layout = () => {
     (item) => !(Array.isArray(hiddenSidebarItems) ? hiddenSidebarItems : []).includes(item.path)
   );
 
+  // El mockup separa la CTA de la navegación y agrupa los enlaces por sección.
+  // Es solo presentación: las rutas y `hiddenSidebarItems` siguen igual.
+  const ctaItem = menuItems.find((item) => item.path === '/nueva-venta');
+  const navItems = menuItems.filter((item) => item.path !== '/nueva-venta');
+  const navGroups = [
+    { label: 'General', paths: ['/dashboard', '/ventas', '/productos'] },
+    { label: 'Finanzas', paths: ['/clientes', '/proveedores', '/egresos', '/mercadopago'] },
+    { label: 'Herramientas', paths: ['/ia', '/recomendaciones'] }
+  ];
+
   // Items del menú de configuración según rol
   const getAllConfigMenuItems = () => [
     { path: '/configuracion', icon: SettingsIcon, label: 'Configuración' },
@@ -132,27 +141,22 @@ const Layout = () => {
   const configMenuItems = getConfigMenuItems();
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background vpm-app">
       {/* MOBILE HEADER - Solo visible en móviles */}
-      <div className="lg:hidden bg-card border-b border-border fixed top-0 left-0 right-0 z-40">
-        <div className="flex items-center px-4 py-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={toggleSidebar}
-            className="p-2"
-          >
-            <Menu className="w-5 h-5" />
-          </Button>
-          <div className="flex items-center gap-3 ml-2">
-              <img 
-                src={logoImage} 
-                alt="Vinoteca Logo" 
-                className="w-6 h-6 rounded-full object-cover"
-              />
-            <h1 className="text-lg font-bold text-foreground">Vino Por Mi</h1>
-          </div>
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 py-3 vpm-mobile-bar">
+        <div className="vpm-brand">
+          <img src={logoImage} alt="Vino por Mí" />
+          <span className="vpm-brand-title">Vino <em>Por Mí</em></span>
         </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={toggleSidebar}
+          aria-label="Abrir menú"
+          className="vpm-icon-btn"
+        >
+          <Menu className="w-5 h-5" />
+        </Button>
       </div>
 
       {/* SIDEBAR - Responsive */}
@@ -163,178 +167,159 @@ const Layout = () => {
             variant="ghost"
             size="sm"
             onClick={toggleSidebar}
-            className="p-2"
+            aria-label="Cerrar menú"
+            className="vpm-icon-btn"
           >
             <X className="w-4 h-4" />
           </Button>
         </div>
 
-        <div className={`${sidebarWidth === 'compact' ? 'p-3' : 'p-4'} border-b border-border`}>
-          <div className="flex items-center justify-between">
-            <div className={`flex items-center ${sidebarWidth === 'compact' ? '' : 'gap-3'}`}>
-              <img 
-                src={logoImage} 
-                alt="Vinoteca Logo" 
-                className={`${sidebarWidth === 'compact' ? 'w-6 h-6' : 'w-10 h-10'} flex-shrink-0 rounded-full object-cover`}
-              />
-              {sidebarWidth !== 'compact' && (
-                <div>
-                  <h1 className="text-xl font-bold text-foreground">Vino Por Mi</h1>
-                  <p className="text-xs text-muted-foreground">Sistema de Gestión</p>
-                </div>
-              )}
+        <div className="vpm-sidebar-header">
+          <div className="vpm-brand">
+            <img src={logoImage} alt="Vino por Mí" />
+            <div>
+              <span className="vpm-brand-title">Vino <em>Por Mí</em></span>
+              <span className="vpm-brand-sub">Gestión</span>
             </div>
             <Button
               variant="ghost"
               size="sm"
               onClick={toggleSidebarWidth}
-              className="p-1"
+              aria-label={sidebarWidth === 'compact' ? 'Expandir menú' : 'Comprimir menú'}
               title={`${sidebarWidth === 'compact' ? 'Expandir' : 'Comprimir'} sidebar`}
+              className="vpm-icon-btn"
             >
-              <ChevronRight className={`w-4 h-4 transition-transform ${sidebarWidth === 'expanded' ? 'rotate-180' : ''}`} />
+              <ChevronRight className={`w-4 h-4 transition-transform ${sidebarWidth === 'compact' ? '' : 'rotate-180'}`} />
             </Button>
           </div>
         </div>
 
-        <nav className="flex-1 p-2 overflow-y-auto">
-          <ul className="space-y-2">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = location.pathname === item.path;
- 
-              return (
-                <li key={item.path}>
-                  <Link
-                    to={item.path}
-                    className={`flex items-center ${sidebarWidth === 'compact' ? 'justify-center' : 'gap-3'} px-3 py-2 rounded-md transition-colors ${
-                      isActive
-                        ? 'bg-primary text-primary-foreground'
-                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                    }`}
-                    onClick={() => {
-                      // Cerrar sidebar en móviles al navegar
-                      if (window.innerWidth < 1024) {
-                        setSidebarOpen(false);
-                      }
-                    }}
-                    title={sidebarWidth === 'compact' ? item.label : undefined}
-                  >
-                    <Icon className="w-5 h-5 flex-shrink-0" color={isActive ? "white" : undefined} />
-                    {sidebarWidth !== 'compact' && (
-                      <span className="font-medium">{item.label}</span>
-                    )}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+        {ctaItem && (
+          <Link
+            to={ctaItem.path}
+            className="vpm-cta-sale"
+            onClick={() => {
+              if (window.innerWidth < 1024) setSidebarOpen(false);
+            }}
+          >
+            <span>
+              <Plus className="w-5 h-5" />
+              {ctaItem.label}
+            </span>
+          </Link>
+        )}
+
+        <nav className="flex-1 vpm-nav">
+          {navGroups.map((group) => {
+            const items = navItems.filter((item) => group.paths.includes(item.path));
+            if (!items.length) return null;
+            return (
+              <div key={group.label}>
+                <p className="vpm-nav-label">{group.label}</p>
+                <ul className="vpm-nav-list">
+                  {items.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = location.pathname === item.path;
+                    return (
+                      <li key={item.path}>
+                        <Link
+                          to={item.path}
+                          aria-current={isActive ? 'page' : undefined}
+                          className={`vpm-nav-link ${isActive ? 'active' : ''}`}
+                          onClick={() => {
+                            // Cerrar sidebar en móviles al navegar
+                            if (window.innerWidth < 1024) setSidebarOpen(false);
+                          }}
+                          title={item.label}
+                        >
+                          <Icon className="w-5 h-5 flex-shrink-0" />
+                          <span>{item.label}</span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            );
+          })}
         </nav>
 
 <div className="p-2 border-t border-border">
-          {/* Usuario - fila compacta */}
-          <div
-            className={`flex items-center mb-2 ${sidebarWidth === 'compact' ? 'justify-center' : 'gap-2 px-1'}`}
-            title={`${user?.nombre} (@${user?.username})`}
-          >
-            <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
-              <span className="text-[10px] font-bold text-white">
-                {user?.nombre?.charAt(0)?.toUpperCase()}
-              </span>
+          <div className="vpm-user-card" title={`${user?.nombre} (@${user?.username})`}>
+            <div className="vpm-avatar" aria-hidden="true">
+              {user?.nombre?.charAt(0)?.toUpperCase()}
             </div>
-            {sidebarWidth !== 'compact' && (
-              <p className="text-xs text-foreground truncate min-w-0">
-                {user?.nombre}{' '}
-                <span className="text-muted-foreground">@{user?.username}</span>
-              </p>
-            )}
-          </div>
+            <div className="vpm-user-info">
+              <span className="vpm-user-name">{user?.nombre}</span>
+              <span className="vpm-user-handle">@{user?.username}</span>
+            </div>
 
-          {/* Configuración + Cerrar sesión en una sola fila */}
-          <div className={`flex items-center gap-2 ${sidebarWidth === 'compact' ? 'justify-center' : ''}`}>
-            {user && (
-              <div className={`relative ${sidebarWidth === 'compact' ? '' : 'flex-1 min-w-0'}`} ref={configMenuRef}>
-                <Button
-                  onClick={() => {
-                    toggleConfigMenu();
-                  }}
-                  variant="outline"
-                  size="sm"
-                  className={`${sidebarWidth === 'compact' ? 'w-8 px-0 justify-center' : 'w-full justify-between'}`}
-                  title={sidebarWidth === 'compact' ? 'Configuración' : undefined}
-                >
-                  <span className="flex items-center min-w-0">
-                    <SettingsIcon className="w-4 h-4 flex-shrink-0" />
-                    {sidebarWidth !== 'compact' && (
-                      <span className="ml-2 truncate">Configuración</span>
-                    )}
-                  </span>
-                  {sidebarWidth !== 'compact' && (
-                    configMenuOpen ? (
-                      <ChevronUp className="w-3 h-3 flex-shrink-0" />
-                    ) : (
-                      <ChevronDown className="w-3 h-3 flex-shrink-0" />
-                    )
-                  )}
-                </Button>
+            <div className="vpm-user-actions">
+              {user && (
+                <div className="relative" ref={configMenuRef}>
+                  <Button
+                    onClick={toggleConfigMenu}
+                    variant="ghost"
+                    size="sm"
+                    aria-label="Configuración"
+                    aria-expanded={configMenuOpen}
+                    aria-controls="layout-config-pop"
+                    title="Configuración"
+                    className="vpm-icon-btn"
+                  >
+                    <SettingsIcon className="w-4 h-4" />
+                  </Button>
 
-                {/* Menú flotante */}
-                {configMenuOpen && (
-                 <div className={`absolute bottom-full ${sidebarWidth === 'compact' ? 'left-1/2 transform -translate-x-1/2' : 'left-0 right-0'} mb-2 bg-popover border border-border rounded-lg shadow-lg z-50 min-w-12`}>
-                  <div className="py-1">
-                    {configMenuItems.map((item, index) => (
-                      <Link
-                        key={item.path}
-                        to={item.path}
-                        className={`flex items-center ${sidebarWidth === 'compact' ? 'justify-center' : ''} px-4 py-3 text-sm hover:bg-muted transition-colors ${
-                          location.pathname === item.path
-                            ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400 border-r-2 border-blue-600 dark:border-blue-500'
-                            : 'text-muted-foreground'
-                        }`}
-                        title={sidebarWidth === 'compact' ? item.label : undefined}
-                        onClick={() => {
-                          setConfigMenuOpen(false);
-                          setSidebarOpen(false); // Cerrar sidebar en móviles
-                        }}
-                      >
-                        <item.icon className="w-4 h-4 flex-shrink-0" />
-                        {sidebarWidth !== 'compact' && (
-                          <span className="font-medium ml-3">{item.label}</span>
-                        )}
-                      </Link>
-                    ))}
+                  {configMenuOpen && (
+                    <div
+                      id="layout-config-pop"
+                      role="menu"
+                      aria-label="Configuración"
+                      className="absolute bottom-full left-0 mb-2 w-56 py-1 vpm-config-pop"
+                    >
+                      {configMenuItems.map((item) => (
+                        <Link
+                          key={item.path}
+                          to={item.path}
+                          role="menuitem"
+                          className={location.pathname === item.path ? 'active' : ''}
+                          onClick={() => {
+                            setConfigMenuOpen(false);
+                            setSidebarOpen(false); // Cerrar sidebar en móviles
+                          }}
+                        >
+                          <item.icon className="w-4 h-4 flex-shrink-0" />
+                          <span>{item.label}</span>
+                        </Link>
+                      ))}
 
-                    {/* Modo oscuro - última opción */}
-                    <div className="border-t border-border my-1"></div>
-                    <div className="flex items-center justify-between px-4 py-2">
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <Moon className="w-4 h-4 flex-shrink-0" />
-                        {sidebarWidth !== 'compact' && (
-                          <span className="font-medium ml-3">Modo oscuro</span>
-                        )}
+                      <div className="my-1 border-t border-border" />
+                      <div className="flex items-center justify-between gap-3 px-4 py-2">
+                        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                          <Moon className="w-4 h-4 flex-shrink-0" />
+                          <span>Modo oscuro</span>
+                        </div>
+                        <Switch checked={darkMode} onCheckedChange={setDarkMode} />
                       </div>
-                      <Switch
-                        checked={darkMode}
-                        onCheckedChange={setDarkMode}
-                      />
                     </div>
-                  </div>
+                  )}
                 </div>
-                )}
-              </div>
-            )}
+              )}
 
-            <Button
-              onClick={() => {
-                handleLogout();
-                setSidebarOpen(false); // Cerrar sidebar en móviles
-              }}
-              variant="outline"
-              size="sm"
-              className={`flex-shrink-0 w-8 px-0 ${!user ? 'flex-1' : ''}`}
-              title="Cerrar Sesión"
-            >
-              <LogOut className="w-4 h-4" />
-            </Button>
+              <Button
+                onClick={() => {
+                  handleLogout();
+                  setSidebarOpen(false); // Cerrar sidebar en móviles
+                }}
+                variant="ghost"
+                size="sm"
+                aria-label="Cerrar sesión"
+                title="Cerrar sesión"
+                className="vpm-icon-btn"
+              >
+                <LogOut className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -342,13 +327,13 @@ const Layout = () => {
       {/* OVERLAY para móviles cuando el sidebar está abierto */}
       {sidebarOpen && (
         <div
-          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-30"
+          className="lg:hidden fixed inset-0 z-30 vpm-scrim"
           onClick={toggleSidebar}
         />
       )}
 
       {/* CONTENT */}
-      <main className={`min-h-screen p-4 lg:p-8 overflow-x-auto pt-14 lg:pt-8 transition-all duration-300 ${
+      <main className={`vpm-main min-h-screen p-4 lg:p-8 overflow-x-auto pt-14 lg:pt-8 transition-all duration-300 ${
         !sidebarVisible ? 'lg:ml-0' :
         sidebarWidth === 'compact' ? 'lg:ml-24' : 
         sidebarWidth === 'normal' ? 'lg:ml-56' : 

@@ -82,62 +82,139 @@ const Dashboard = () => {
   };
 
   if (loading) {
-    return <div className="text-center py-8">Cargando...</div>;
+    return <div className="vpm-dashboard py-12 text-center text-muted-foreground">Cargando...</div>;
   }
 
-  const mediosPago = Object.entries(stats.ventas_por_medio_pago);
+  const mediosPago = Object.entries(stats.ventas_por_medio_pago || {});
+  const totalMedios = mediosPago.reduce((acc, [, total]) => acc + (Number(total) || 0), 0);
+  const deudores = stats.ultimos_clientes_cta_cte || [];
+  const maxDeuda = Math.max(...deudores.map((c) => Math.abs(Number(c.saldo) || 0)), 1);
+  const balance = (Number(stats.caja_real) || 0) - (Number(stats.total_egresos_hoy) || 0);
+
+  const hoy = new Date();
+  const fechaTexto = hoy.toLocaleDateString('es-AR', {
+    weekday: 'long', day: 'numeric', month: 'long'
+  });
+  const saludo = hoy.getHours() < 12 ? 'Buen día' : hoy.getHours() < 20 ? 'Buenas tardes' : 'Buenas noches';
+  const firstName = user?.nombre?.trim().split(' ')[0] || 'usuario';
+
+  const colorSufijo = (medio) =>
+    ['efectivo', 'transferencia', 'posnet'].includes(medio) ? medio : 'cobros';
+  const dotClass = (medio) => `vpm-legend-dot vpm-legend-dot--${colorSufijo(medio)}`;
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
+    <div className="vpm-dashboard space-y-8">
+      <div className="vpm-page-head">
         <div>
-          <h1 className="text-4xl font-bold text-foreground mb-2">Escritorio</h1>
-          <p className="text-muted-foreground">Resumen de ventas del día</p>
+          <p className="vpm-eyebrow">{fechaTexto.charAt(0).toUpperCase() + fechaTexto.slice(1)}</p>
+          <h1 className="vpm-hello">{saludo}, <em>{firstName}</em></h1>
+          <p className="vpm-sub">Resumen de ventas del día</p>
         </div>
-        <div className="relative" ref={settingsRef}>
-          <button
-            onClick={() => setSettingsOpen(!settingsOpen)}
-            className="p-2 hover:bg-muted rounded-md transition-colors"
-          >
-            <Settings className="w-5 h-5 text-muted-foreground" />
-          </button>
-          {settingsOpen && (
-            <div className="absolute right-0 mt-2 w-64 bg-background border rounded-md shadow-lg p-3 z-50">
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Solo mis datos</span>
-                <Switch
-                  checked={soloMisDatos}
-                  onCheckedChange={handleSoloMisDatosChange}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Mostrar solo ventas y egresos registrados por ti
-              </p>
-            </div>
+        <div className="vpm-head-actions">
+          {soloMisDatos && (
+            <span className="vpm-chip vpm-chip--mine"><i aria-hidden="true" />Solo mis datos</span>
           )}
+          <span className="vpm-chip"><i aria-hidden="true" />Caja abierta</span>
+          <div className="relative" ref={settingsRef}>
+            <button
+              onClick={() => setSettingsOpen(!settingsOpen)}
+              aria-label="Ajustes del escritorio"
+              aria-expanded={settingsOpen}
+              className="vpm-icon-btn"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
+            {settingsOpen && (
+              <div className="absolute right-0 mt-2 w-72 p-4 vpm-settings-pop">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium">Solo mis datos</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Mostrar solo ventas y egresos registrados por vos
+                    </p>
+                  </div>
+                  <Switch
+                    checked={soloMisDatos}
+                    onCheckedChange={handleSoloMisDatosChange}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3 mt-3 !mt-3 dashboard-stats-grid">
-        <Card 
+      <div className="vpm-kpi-grid dashboard-stats-grid">
+        <Card
+          data-testid="card-balance-del-dia"
+          className="vpm-kpi-card vpm-kpi-balance"
+          onClick={() => navigate('/dashboard')}
+        >
+          <CardHeader className="vpm-kpi-card-head">
+            <CardTitle className="vpm-kpi-title">Balance del Día</CardTitle>
+            <span className="vpm-kpi-icon"><DollarSign className="w-5 h-5" /></span>
+          </CardHeader>
+          <CardContent className="vpm-kpi-content">
+            <div className={`vpm-kpi-value ${balance >= 0 ? '' : 'is-negative'}`}>
+              {formatCurrency(balance, showCents)}
+            </div>
+            {totalMedios > 0 && (
+              <div className="vpm-split" aria-hidden="true">
+                {mediosPago.map(([medio, total]) => (
+                  <span key={medio} style={{ flex: Number(total) || 0 }} className={`vpm-split-part vpm-split-part--${colorSufijo(medio)}`} />
+                ))}
+              </div>
+            )}
+            <div className="vpm-legend-wrap">
+              <div className="vpm-legend">
+                <div className="vpm-legend-row">
+                  <i className="vpm-legend-dot vpm-legend-dot--efectivo" />
+                  <span>Efectivo</span>
+                  <span>{formatCurrency(stats.ventas_por_medio_pago?.efectivo || 0, showCents)}</span>
+                </div>
+                <div className="vpm-legend-row">
+                  <i className="vpm-legend-dot vpm-legend-dot--transferencia" />
+                  <span>Transferencia</span>
+                  <span>{formatCurrency(stats.ventas_por_medio_pago?.transferencia || 0, showCents)}</span>
+                </div>
+                <div className="vpm-legend-row">
+                  <i className="vpm-legend-dot vpm-legend-dot--posnet" />
+                  <span>PosNet</span>
+                  <span>{formatCurrency(stats.ventas_por_medio_pago?.posnet || 0, showCents)}</span>
+                </div>
+                {stats.ingresos_cta_cte_hoy > 0 && (
+                  <div className="vpm-legend-row">
+                    <i className="vpm-legend-dot vpm-legend-dot--cobros" />
+                    <span>Cobros Cta. Cte.</span>
+                    <span>{formatCurrency(stats.ingresos_cta_cte_hoy, showCents)}</span>
+                  </div>
+                )}
+                <div className="vpm-legend-row vpm-legend-row--out">
+                  <i className="vpm-legend-dot vpm-legend-dot--egresos" />
+                  <span>Egresos</span>
+                  <span>-{formatCurrency(stats.total_egresos_hoy || 0, showCents)}</span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card
           data-testid="card-total-vendido"
-          className="cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-[1.02] relative"
+          className="vpm-kpi-card vpm-kpi-sold"
           onClick={() => navigate('/ventas?filter=today')}
         >
-          <CardHeader className="flex flex-row items-center justify-between p-4 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Vendido Hoy
-            </CardTitle>
-            <DollarSign className="w-5 h-5 text-primary !mt-0" />
+          <CardHeader className="vpm-kpi-card-head">
+            <CardTitle className="vpm-kpi-title">Total Vendido Hoy</CardTitle>
+            <span className="vpm-kpi-icon"><DollarSign className="w-5 h-5" /></span>
           </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="text-xl sm:text-2xl font-bold text-foreground break-words overflow-wrap-anywhere pb-1">
-              {formatCurrency(stats.total_vendido_hoy, showCents)}
-            </div>
-            {stats.ventas_por_medio_pago && Object.keys(stats.ventas_por_medio_pago).length > 0 && (
-              <div className="space-y-1 pt-1">
-                {Object.entries(stats.ventas_por_medio_pago).map(([medio, total]) => (
-                  <div key={medio} className="flex justify-between text-xs text-muted-foreground">
+          <CardContent className="vpm-kpi-content">
+            <div className="vpm-kpi-value">{formatCurrency(stats.total_vendido_hoy, showCents)}</div>
+            {mediosPago.length > 0 && (
+              <div className="vpm-legend">
+                {mediosPago.map(([medio, total]) => (
+                  <div key={medio} className="vpm-legend-row">
+                    <i className={dotClass(medio)} />
                     <span className="capitalize">{medio.replace('_', ' ')}</span>
                     <span>{formatCurrency(total, showCents)}</span>
                   </div>
@@ -147,116 +224,63 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        <Card 
+        <Card
           data-testid="card-total-egresos"
-          className="cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-[1.02] relative"
+          className="vpm-kpi-card vpm-kpi-out"
           onClick={() => navigate('/egresos?filter=today')}
         >
-          <CardHeader className="flex flex-row items-center justify-between p-4 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Egresos Hoy
-            </CardTitle>
-            <TrendingDown className="w-5 h-5 text-destructive !mt-0" />
+          <CardHeader className="vpm-kpi-card-head">
+            <CardTitle className="vpm-kpi-title">Total Egresos Hoy</CardTitle>
+            <span className="vpm-kpi-icon"><TrendingDown className="w-5 h-5" /></span>
           </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="text-xl sm:text-2xl font-bold text-destructive break-words overflow-wrap-anywhere pb-8">
+          <CardContent className="vpm-kpi-content">
+            <div className="vpm-kpi-value is-negative">
               {formatCurrency(stats.total_egresos_hoy, showCents)}
             </div>
           </CardContent>
-          <div className="absolute bottom-3 right-3 bg-red-100 rounded-full p-2 hover:bg-red-200 transition-colors duration-200">
-            <ArrowRight className="w-4 h-4 text-red-600" />
-          </div>
+          <span className="vpm-go"><ArrowRight /></span>
         </Card>
 
         <Card
-          data-testid="card-balance-del-dia"
-          className="cursor-pointer relative hover:shadow-lg hover:z-50 hover:scale-x-[1.15] hover:scale-y-[1.08] transition-all duration-200 bg-gradient-to-br from-blue-50 to-white border-2 border-blue-200 hover:border-blue-400 dark:from-blue-950/40 dark:to-background dark:border-blue-400/60 dark:hover:border-blue-400"
-          onClick={() => navigate('/dashboard')}
-        >
-          <CardHeader className="flex flex-row items-center justify-between p-4 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Balance del Día
-            </CardTitle>
-            <DollarSign className="w-5 h-5 text-blue-600 dark:text-blue-400 !mt-0" />
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className={`text-2xl sm:text-2xl font-bold ${(stats.caja_real - stats.total_egresos_hoy) >= 0 ? 'text-green-600' : 'text-destructive'} break-words overflow-wrap-anywhere pb-2`}>
-              {formatCurrency(stats.caja_real - stats.total_egresos_hoy, showCents)}
-            </div>
-            <div className="space-y-1 pt-1">
-              <div className="flex justify-between text-xs text-green-600">
-                <span>Efectivo</span>
-                <span>{formatCurrency(stats.ventas_por_medio_pago?.efectivo || 0, showCents)}</span>
-              </div>
-              <div className="flex justify-between text-xs text-green-600">
-                <span>Transferencia</span>
-                <span>{formatCurrency(stats.ventas_por_medio_pago?.transferencia || 0, showCents)}</span>
-              </div>
-              <div className="flex justify-between text-xs text-green-600">
-                <span>PosNet</span>
-                <span>{formatCurrency(stats.ventas_por_medio_pago?.posnet || 0, showCents)}</span>
-              </div>
-              {stats.ingresos_cta_cte_hoy > 0 && (
-                <div className="flex justify-between text-xs text-green-600">
-                  <span>Cobros Cta. Cte.</span>
-                  <span>{formatCurrency(stats.ingresos_cta_cte_hoy, showCents)}</span>
-                </div>
-              )}
-                <div className="flex justify-between text-xs text-red-500 pt-1 border-t dark:border-white/10">
-                <span>Egresos</span>
-                <span>-{formatCurrency(stats.total_egresos_hoy, showCents)}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card 
           data-testid="card-cantidad-ventas"
-          className="cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-[1.02] relative"
+          className="vpm-kpi-card vpm-kpi-sales"
           onClick={() => navigate('/ventas?filter=today')}
         >
-          <CardHeader className="flex flex-row items-center justify-between p-4 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Ventas Realizadas
-            </CardTitle>
-            <ShoppingCart className="w-5 h-5 text-primary !mt-0" />
+          <CardHeader className="vpm-kpi-card-head">
+            <CardTitle className="vpm-kpi-title">Ventas Realizadas</CardTitle>
+            <span className="vpm-kpi-icon"><ShoppingCart className="w-5 h-5" /></span>
           </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="text-xl sm:text-2xl font-bold text-foreground break-words overflow-wrap-anywhere pb-8">
-              {stats.cantidad_ventas_hoy}
-            </div>
+          <CardContent className="vpm-kpi-content">
+            <div className="vpm-kpi-value">{formatNumber(stats.cantidad_ventas_hoy, false)}</div>
           </CardContent>
-          <div className="absolute bottom-3 right-3 bg-purple-100 rounded-full p-2 hover:bg-purple-200 transition-colors duration-200">
-            <ArrowRight className="w-4 h-4 text-purple-600" />
-          </div>
+          <span className="vpm-go"><ArrowRight /></span>
         </Card>
 
-        <Card 
+        <Card
           data-testid="card-saldo-cuenta-corriente"
-          className="cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-[1.02] relative"
+          className="vpm-kpi-card vpm-kpi-debt"
           onClick={() => navigate('/clientes')}
         >
-          <CardHeader className="flex flex-row items-center justify-between p-4 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground leading-none">
-              Saldo Cta. Cte.
-            </CardTitle>
-            <Users className="w-5 h-5 text-orange-600 flex-shrink-0 !mt-0" />
+          <CardHeader className="vpm-kpi-card-head">
+            <CardTitle className="vpm-kpi-title">Saldo Cta. Cte.</CardTitle>
+            <span className="vpm-kpi-icon"><Users className="w-5 h-5" /></span>
           </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="text-xl sm:text-2xl font-bold text-orange-600 break-words overflow-wrap-anywhere pb-1">
+          <CardContent className="vpm-kpi-content">
+            <div className="vpm-kpi-value">
               {formatCurrency(stats.total_saldo_cuenta_corriente, showCents)}
             </div>
-            {stats.ultimos_clientes_cta_cte && stats.ultimos_clientes_cta_cte.length > 0 && (
-              <div className="space-y-1 pt-1">
-                {stats.ultimos_clientes_cta_cte.map((cliente, idx) => (
-                  <div key={idx} className="flex justify-between text-xs text-muted-foreground">
-                    <span className="truncate max-w-[120px]">{cliente.cliente_nombre}</span>
-                    <span className={cliente.saldo >= 0 ? 'text-green-600' : 'text-red-600'}>
-                      {formatCurrency(cliente.saldo, showCents)}
+            {deudores.length > 0 && (
+              <ul className="vpm-debtors">
+                {deudores.map((cliente, idx) => (
+                  <li key={idx} className="vpm-debtor-row">
+                    <span className="vpm-debtor-name">{cliente.cliente_nombre}</span>
+                    <span className="vpm-debtor-amt">{formatCurrency(cliente.saldo, showCents)}</span>
+                    <span className="vpm-debtor-bar">
+                      <span style={{ width: `${Math.max(4, (Math.abs(Number(cliente.saldo) || 0) / maxDeuda) * 100)}%` }} />
                     </span>
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
           </CardContent>
         </Card>

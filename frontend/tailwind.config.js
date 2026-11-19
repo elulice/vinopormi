@@ -10,6 +10,9 @@ module.exports = {
         sans: ['Manrope', 'sans-serif'],
         serif: ['Playfair Display', 'serif'],
         display: ['Marthin Slant', 'cursive'],
+        // Tipografía del rediseño: se aplica por clase (font-cormorant)
+        // para no cambiar los títulos existentes que usan Playfair.
+        cormorant: ['Cormorant Garamond', 'serif'],
       },
       colors: {
         border: 'hsl(var(--border))',
@@ -44,6 +47,23 @@ module.exports = {
         card: {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
+        },
+        // Tokens del rediseño: bg-panel, text-vpm-muted, border-vpm-accent, etc.
+        vpm: {
+          bg: 'var(--vpm-bg)',
+          panel: 'var(--vpm-panel)',
+          'panel-2': 'var(--vpm-panel-2)',
+          field: 'var(--vpm-field)',
+          border: 'var(--vpm-border)',
+          'border-strong': 'var(--vpm-border-strong)',
+          text: 'var(--vpm-text)',
+          muted: 'var(--vpm-muted)',
+          faint: 'var(--vpm-faint)',
+          accent: 'var(--vpm-accent)',
+          'accent-hover': 'var(--vpm-accent-hover)',
+          'accent-soft': 'var(--vpm-accent-soft)',
+          pos: 'var(--vpm-pos)',
+          neg: 'var(--vpm-neg)',
         },
       },
       borderRadius: {

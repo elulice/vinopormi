@@ -215,7 +215,7 @@ const FloatingMenu = () => {
         <div className="group flex flex-col items-center">
           {/* Panel que se expande al hacer hover */}
           <div className="opacity-0 invisible translate-y-1 transition-all duration-200 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0">
-            <div className="p-2 bg-card rounded-xl shadow-lg border border-border">
+            <div className="vpm-fab-panel">
               <div className="flex flex-row items-center gap-1">
           {quickActions.map((action) => {
             const Icon = action.icon;
@@ -232,7 +232,7 @@ const FloatingMenu = () => {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="p-1 h-8 hover:bg-muted"
+                    className="vpm-fab-action"
                     title={action.label}
                   >
                     <Icon className="w-5 h-5" />
@@ -290,7 +290,7 @@ const FloatingMenu = () => {
 
         {/* Botón principal (arrastrar para mover, doble clic para restablecer posición) */}
         <Button
-          className="h-12 w-12 rounded-full shadow-lg bg-primary text-primary-foreground hover:bg-primary/90 p-0 cursor-grab active:cursor-grabbing touch-none"
+          className="vpm-fab-button cursor-grab active:cursor-grabbing touch-none"
           title="Accesos rápidos (arrastrá para mover, doble clic para restablecer)"
           onPointerDown={handlePointerDown}
           onDoubleClick={resetPosition}

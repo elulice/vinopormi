@@ -17,6 +17,7 @@ import {
 import { toast } from 'sonner';
 import axios from 'axios';
 import { API } from '@/lib/config';
+import { noteColorClass, noteSwatchClass } from '@/lib/noteColors';
 
 const StickyNotesContainer = () => {
   const { user } = useAuth();
@@ -59,10 +60,10 @@ const StickyNotesContainer = () => {
   }, [stickyNotes, showCreateForm, loading]);
 
   const colores = [
-    { nombre: 'amarillo', clase: 'bg-yellow-200 border-yellow-300 hover:bg-yellow-300 dark:bg-yellow-500/25 dark:border-yellow-400/60 dark:text-yellow-50 dark:hover:bg-yellow-500/35', value: 'yellow' },
-    { nombre: 'rosa', clase: 'bg-pink-200 border-pink-300 hover:bg-pink-300 dark:bg-pink-500/25 dark:border-pink-400/60 dark:text-pink-50 dark:hover:bg-pink-500/35', value: 'pink' },
-    { nombre: 'azul', clase: 'bg-blue-200 border-blue-300 hover:bg-blue-300 dark:bg-blue-500/25 dark:border-blue-400/60 dark:text-blue-50 dark:hover:bg-blue-500/35', value: 'blue' },
-    { nombre: 'verde', clase: 'bg-green-200 border-green-300 hover:bg-green-300 dark:bg-green-500/25 dark:border-green-400/60 dark:text-green-50 dark:hover:bg-green-500/35', value: 'green' }
+    { nombre: 'amarillo', value: 'yellow' },
+    { nombre: 'vino', value: 'pink' },
+    { nombre: 'azul', value: 'blue' },
+    { nombre: 'verde', value: 'green' }
   ];
 
   const fetchStickyNotes = async () => {
@@ -183,34 +184,37 @@ const StickyNotesContainer = () => {
   };
 
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <StickyNoteIcon className="w-5 h-5" />
-            Sticky Notes
+    <Card className="vpm-notes-card w-full">
+      <CardHeader className="p-0">
+        <div className="vpm-section-head">
+          <CardTitle className="vpm-section-title">
+            Notas <span>{stickyNotes.length}</span>
           </CardTitle>
-          <div className="flex gap-2">
+          <div className="vpm-btn-row">
             <Button
               variant="outline"
               size="sm"
               onClick={fetchStickyNotes}
               disabled={loading}
+              title="Actualizar notas"
+              aria-label="Actualizar notas"
+              className="vpm-icon-btn"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </Button>
             <Button
               onClick={() => setShowCreateForm(true)}
               size="sm"
+              className="vpm-btn vpm-btn-primary"
             >
-              <Plus className="w-4 h-4 mr-1" />
-              Nueva Nota
+              <Plus className="w-4 h-4" />
+              Nueva nota
             </Button>
           </div>
         </div>
       </CardHeader>
-      
-      <CardContent>
+
+      <CardContent className="vpm-notes-content">
 
 
         {/* Lista de sticky notes */}
@@ -228,112 +232,101 @@ const StickyNotesContainer = () => {
         ) : (
           <div
             ref={gridRef}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-start"
+            className="vpm-notes-grid gap-4 items-start"
             style={{ gridAutoRows: '8px' }}
           >
             {/* Nota de creación */}
             {showCreateForm && (
-              <div className={`relative border-2 rounded-lg p-4 min-h-[150px] w-full max-w-xs transition-all duration-200 ${
-                newNoteColor === 'yellow' ? 'bg-yellow-200 border-yellow-300 dark:bg-yellow-500/25 dark:border-yellow-400/60 dark:text-yellow-50' :
-                newNoteColor === 'pink' ? 'bg-pink-200 border-pink-300 dark:bg-pink-500/25 dark:border-pink-400/60 dark:text-pink-50' :
-                newNoteColor === 'blue' ? 'bg-blue-200 border-blue-300 dark:bg-blue-500/25 dark:border-blue-400/60 dark:text-blue-50' :
-                'bg-green-200 border-green-300 dark:bg-green-500/25 dark:border-green-400/60 dark:text-green-50'
-              } ${newNoteFijada ? 'ring-2 ring-red-400 shadow-lg' : 'shadow-md hover:shadow-lg'}`}>
-                
+              <div className={`${noteColorClass(newNoteColor)} ${newNoteFijada ? 'is-pinned' : ''}`}>
                 {/* Indicador de nota fijada */}
                 {newNoteFijada && (
-                  <div className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1">
+                  <div className="absolute -top-2 -right-2 vpm-pin-badge rounded-full p-1">
                     <Pin className="w-4 h-4" />
                   </div>
                 )}
 
                 {/* Header con autor */}
-                <div className="mb-2 border-b border-gray-400 pb-1 dark:border-white/20">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-inherit">
-                      {user?.nombre || 'Tú'}
-                    </span>
-                    <span className="text-xs text-inherit">
-                      Nueva nota
-                    </span>
+                <div className="vpm-note-top">
+                  <div className="vpm-avatar vpm-note-avatar" aria-hidden="true">
+                    {(user?.nombre || 'T').charAt(0).toUpperCase()}
+                  </div>
+                  <div className="vpm-note-meta">
+                    <span className="vpm-note-author">{user?.nombre || 'Tú'}</span>
+                    <span className="vpm-note-time">Nueva nota</span>
                   </div>
                 </div>
 
-                <div className="space-y-2">
+                <div className="vpm-note-body-text">
                   <Textarea
                     value={newNoteText}
                     onChange={(e) => setNewNoteText(e.target.value)}
-                    className="min-h-[80px] text-sm resize-none bg-white/50 dark:bg-black/20"
+                    className="vpm-note-input"
                     placeholder="Escribe tu nota aquí..."
                     autoFocus
                   />
-                  
-                  {/* Controles de edición */}
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
+
+                  <div className="vpm-edit-bar">
+                    <div className="vpm-swatches" role="radiogroup" aria-label="Color de la nota">
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
                         onClick={() => setShowColorPicker(!showColorPicker)}
-                        className="h-6 text-xs"
+                        aria-label="Elegir color"
+                        aria-expanded={showColorPicker}
+                        className="vpm-note-tool"
                       >
-                        <Palette className="w-3 h-3 mr-1" />
-                        Color
+                        <Palette className="w-4 h-4" />
                       </Button>
-                      
+
+                      {showColorPicker && colores.map((color) => (
+                        <button
+                          key={color.value}
+                          role="radio"
+                          aria-checked={newNoteColor === color.value}
+                          onClick={() => {
+                            setNewNoteColor(color.value);
+                            setShowColorPicker(false);
+                          }}
+                          className={noteSwatchClass(color.value)}
+                          title={color.nombre}
+                        />
+                      ))}
+
                       {/* Toggle fijada */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setNewNoteFijada(!newNoteFijada)}
+                        aria-label={newNoteFijada ? 'Desfijar nota' : 'Fijar nota'}
+                        aria-pressed={newNoteFijada}
+                        className={`vpm-note-tool ${newNoteFijada ? 'is-pinned' : ''}`}
+                      >
+                        {newNoteFijada ? <Pin className="w-4 h-4" /> : <PinOff className="w-4 h-4" />}
+                      </Button>
+                    </div>
+
+                    {/* Botones de acción */}
+                    <div className="vpm-edit-actions">
+                      <Button
+                        size="sm"
+                        onClick={handleCreateNote}
+                        disabled={creating || !newNoteText.trim()}
+                        className="vpm-btn vpm-btn-save"
+                      >
+                        <Save className="w-4 h-4" />
+                        Crear
+                      </Button>
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setNewNoteFijada(!newNoteFijada)}
-                        className={`h-6 text-xs ${newNoteFijada ? 'bg-red-100 border-red-300' : ''}`}
+                        onClick={handleCancelCreate}
+                        disabled={creating}
+                        className="vpm-btn vpm-btn-ghost"
                       >
-                        {newNoteFijada ? <Pin className="w-3 h-3 mr-1" /> : <PinOff className="w-3 h-3 mr-1" />}
-                        {newNoteFijada ? 'Fijada' : 'Fijar'}
+                        <X className="w-4 h-4" />
+                        Cancelar
                       </Button>
                     </div>
-                    
-                    {/* Paleta de colores */}
-                    {showColorPicker && (
-                      <div className="flex gap-1 mt-2">
-                        {colores.map((color) => (
-                          <button
-                            key={color.value}
-                            onClick={() => {
-                              setNewNoteColor(color.value);
-                              setShowColorPicker(false);
-                            }}
-                            className={`w-6 h-6 rounded border-2 ${color.clase} ${
-                              newNoteColor === color.value ? 'ring-2 ring-blue-500' : ''
-                            }`}
-                            title={color.nombre}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Botones de acción */}
-                  <div className="flex gap-1">
-                    <Button
-                      size="sm"
-                      onClick={handleCreateNote}
-                      disabled={creating || !newNoteText.trim()}
-                      className="h-6 text-xs bg-green-600 hover:bg-green-700"
-                    >
-                      <Save className="w-3 h-3 mr-1" />
-                      Crear
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleCancelCreate}
-                      disabled={creating}
-                      className="h-6 text-xs"
-                    >
-                      <X className="w-3 h-3 mr-1" />
-                      Cancelar
-                    </Button>
                   </div>
                 </div>
               </div>

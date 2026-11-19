@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import axios from 'axios';
 import { API } from '@/lib/config';
 import { format } from 'date-fns';
+import { noteColorClass, noteSwatchClass } from '@/lib/noteColors';
 
 const StickyNote = ({ note, onUpdate, onDelete }) => {
   const { user } = useAuth();
@@ -40,21 +41,11 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
   }, [isEditing, editText]);
 
   const colores = [
-    { nombre: 'amarillo', clase: 'bg-yellow-200 border-yellow-300 hover:bg-yellow-300 dark:bg-yellow-500/25 dark:border-yellow-400/60 dark:text-yellow-50 dark:hover:bg-yellow-500/35', value: 'yellow' },
-    { nombre: 'rosa', clase: 'bg-pink-200 border-pink-300 hover:bg-pink-300 dark:bg-pink-500/25 dark:border-pink-400/60 dark:text-pink-50 dark:hover:bg-pink-500/35', value: 'pink' },
-    { nombre: 'azul', clase: 'bg-blue-200 border-blue-300 hover:bg-blue-300 dark:bg-blue-500/25 dark:border-blue-400/60 dark:text-blue-50 dark:hover:bg-blue-500/35', value: 'blue' },
-    { nombre: 'verde', clase: 'bg-green-200 border-green-300 hover:bg-green-300 dark:bg-green-500/25 dark:border-green-400/60 dark:text-green-50 dark:hover:bg-green-500/35', value: 'green' }
+    { nombre: 'amarillo', value: 'yellow' },
+    { nombre: 'vino', value: 'pink' },
+    { nombre: 'azul', value: 'blue' },
+    { nombre: 'verde', value: 'green' }
   ];
-
-  const getColorClasses = (color) => {
-    const colorMap = {
-      'yellow': 'bg-yellow-200 border-yellow-300 dark:bg-yellow-500/25 dark:border-yellow-400/60 dark:text-yellow-50 dark:hover:bg-yellow-500/35',
-      'pink': 'bg-pink-200 border-pink-300 dark:bg-pink-500/25 dark:border-pink-400/60 dark:text-pink-50 dark:hover:bg-pink-500/35',
-      'blue': 'bg-blue-200 border-blue-300 dark:bg-blue-500/25 dark:border-blue-400/60 dark:text-blue-50 dark:hover:bg-blue-500/35',
-      'green': 'bg-green-200 border-green-300 dark:bg-green-500/25 dark:border-green-400/60 dark:text-green-50 dark:hover:bg-green-500/35'
-    };
-    return colorMap[color] || colorMap['yellow'];
-  };
 
   const handleSave = async () => {
     if (!editText.trim()) {
@@ -235,15 +226,13 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
   const fechaTooltip = fechaReferencia ? format(new Date(fechaReferencia), 'dd/MM/yy HH:mm') : '';
 
   return (
-    <div className={`relative border-2 rounded-lg p-4 min-h-[150px] w-full max-w-xs transition-all duration-200 ${
-      isEditing ? getColorClasses(editColor) : getColorClasses(note.color)
-    } ${isEditing && editFijada ? 'ring-2 ring-red-400 shadow-lg' : 
-        !isEditing && note.fijada ? 'ring-2 ring-red-400 shadow-lg' : 
-        'shadow-md hover:shadow-lg'}`}>
-      
+    <div className={`relative ${noteColorClass(isEditing ? editColor : note.color)} ${
+      (isEditing ? editFijada : note.fijada) ? 'is-pinned' : ''
+    } ${isEditing ? 'is-editing' : ''}`}>
+
       {/* Indicador de nota fijada */}
       {(isEditing ? editFijada : note.fijada) && (
-        <div className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1">
+        <div className="absolute -top-2 -right-2 vpm-pin-badge rounded-full p-1">
           <Pin className="w-4 h-4" />
         </div>
       )}
@@ -252,51 +241,54 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
       <div>
         <div className="note-body">
           {/* Header con autor y timestamp */}
-          <div className="mb-2 border-b border-gray-400 pb-1">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-inherit">
-                {note.autor_nombre}
-              </span>
-              <div className="flex gap-1">
+          <div className="vpm-note-top">
+            <div className="vpm-avatar vpm-note-avatar" aria-hidden="true">
+              {note.autor_nombre?.charAt(0)?.toUpperCase()}
+            </div>
+            <div className="vpm-note-meta">
+              <span className="vpm-note-author">{note.autor_nombre}</span>
+              <span className="vpm-note-time" title={fechaTooltip}>{tiempoRelativo}</span>
+            </div>
+            <div className="vpm-note-tools">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowComments(!showComments)}
+                aria-label={showComments ? 'Ocultar comentarios' : 'Mostrar comentarios'}
+                aria-expanded={showComments}
+                className="vpm-note-tool relative"
+              >
+                <MessageCircle className="w-4 h-4" />
+                {commentCount > 0 && (
+                  <span className="absolute -top-1 -right-1 vpm-pin-badge text-[10px] rounded-full w-3.5 h-3.5 flex items-center justify-center">
+                    {commentCount}
+                  </span>
+                )}
+              </Button>
+              {canEdit && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setShowComments(!showComments)}
-                  className="h-4 w-6 p-0 text-inherit hover:text-blue-600 relative"
+                  onClick={() => setIsEditing(true)}
+                  aria-label="Editar nota"
+                  className="vpm-note-tool"
                 >
-                  <MessageCircle className="w-3 h-3" />
-                  {commentCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-[10px] rounded-full w-3.5 h-3.5 flex items-center justify-center">
-                      {commentCount}
-                    </span>
-                  )}
+                  <Edit2 className="w-4 h-4" />
                 </Button>
-                {canEdit && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setIsEditing(true)}
-                    className="h-4 w-6 p-0 text-inherit hover:text-blue-600"
-                  >
-                    <Edit2 className="w-3 h-3" />
-                  </Button>
-                )}
-                {canDelete && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleDelete}
-                    className="h-4 w-6 p-0 text-inherit hover:text-red-600"
-                    disabled={loading}
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
-                )}
-              </div>
+              )}
+              {canDelete && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleDelete}
+                  aria-label="Eliminar nota"
+                  className="vpm-note-tool"
+                  disabled={loading}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
             </div>
-            <span className="text-xs text-inherit" title={fechaTooltip}>
-              {tiempoRelativo}
-            </span>
           </div>
 
           {/* Contenido de la nota */}
@@ -307,113 +299,109 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
                   ref={editTextareaRef}
                   value={editText}
                   onChange={(e) => setEditText(e.target.value)}
-                  className="min-h-[150px] max-h-40 overflow-y-auto text-sm resize-none bg-white/50 dark:bg-black/20"
+                  className="vpm-note-input"
                   placeholder="Escribe tu nota..."
                 />
-                
-                {/* Selector de color */}
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowColorPicker(!showColorPicker)}
-                    className="h-6 text-xs"
-                  >
-                    <Palette className="w-3 h-3 mr-1" />
-                    Color
-                  </Button>
-                  
-                  {/* Toggle fijada */}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setEditFijada(!editFijada)}
-                    className={`h-6 text-xs ${editFijada ? 'bg-red-100 border-red-300 dark:bg-red-500/30 dark:border-red-400/60 dark:text-red-50' : 'dark:bg-black/20 dark:border-white/20'}`}
-                  >
-                    {editFijada ? <Pin className="w-3 h-3 mr-1" /> : <PinOff className="w-3 h-3 mr-1" />}
-                    {editFijada ? 'Fijada' : 'Fijar'}
-                  </Button>
-                </div>
 
-                {/* Paleta de colores */}
-                {showColorPicker && (
-                  <div className="flex gap-1 mt-2">
-                    {colores.map((color) => (
+                <div className="vpm-edit-bar">
+                  <div className="vpm-swatches" role="radiogroup" aria-label="Color de la nota">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowColorPicker(!showColorPicker)}
+                      aria-label="Elegir color"
+                      aria-expanded={showColorPicker}
+                      className="vpm-note-tool"
+                    >
+                      <Palette className="w-4 h-4" />
+                    </Button>
+
+                    {showColorPicker && colores.map((color) => (
                       <button
                         key={color.value}
+                        role="radio"
+                        aria-checked={editColor === color.value}
                         onClick={() => {
                           setEditColor(color.value);
                           setShowColorPicker(false);
                         }}
-                        className={`w-6 h-6 rounded border-2 ${color.clase} ${
-                          editColor === color.value ? 'ring-2 ring-blue-500' : ''
-                        }`}
+                        className={noteSwatchClass(color.value)}
                         title={color.nombre}
                       />
                     ))}
-                  </div>
-                )}
 
-                {/* Botones de acción */}
-                <div className="flex gap-1">
-                  <Button
-                    size="sm"
-                    onClick={handleSave}
-                    disabled={loading}
-                    className="h-6 text-xs bg-green-600 hover:bg-green-700"
-                  >
-                    <Save className="w-3 h-3 mr-1" />
-                    Guardar
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleCancel}
-                    disabled={loading}
-                    className="h-6 text-xs"
-                  >
-                    <X className="w-3 h-3 mr-1" />
-                    Cancelar
-                  </Button>
+                    {/* Toggle fijada */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setEditFijada(!editFijada)}
+                      aria-label={editFijada ? 'Desfijar nota' : 'Fijar nota'}
+                      aria-pressed={editFijada}
+                      className={`vpm-note-tool ${editFijada ? 'is-pinned' : ''}`}
+                    >
+                      {editFijada ? <Pin className="w-4 h-4" /> : <PinOff className="w-4 h-4" />}
+                    </Button>
+                  </div>
+
+                  {/* Botones de acción */}
+                  <div className="vpm-edit-actions">
+                    <Button
+                      size="sm"
+                      onClick={handleSave}
+                      disabled={loading}
+                      className="vpm-btn vpm-btn-save"
+                    >
+                      <Save className="w-4 h-4" />
+                      Guardar
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCancel}
+                      disabled={loading}
+                      className="vpm-btn vpm-btn-ghost"
+                    >
+                      <X className="w-4 h-4" />
+                      Cancelar
+                    </Button>
+                  </div>
                 </div>
               </div>
             ) : (
               <div>
-                <p className="text-sm text-inherit whitespace-pre-wrap mb-2 max-h-40 overflow-y-auto">
+                <p className="vpm-note-text mb-2 max-h-40 overflow-y-auto">
                   {note.texto}
                 </p>
                 
                 {/* Sección de comentarios */}
                 {showComments && (
-                  <div className="mt-3 pt-2 border-t border-gray-400/50 dark:border-white/20">
-                    <div className="flex items-center gap-1 mb-2">
-                      <MessageCircle className="w-3 h-3 text-inherit" />
-                      <span className="text-xs font-semibold text-inherit">
-                        Comentarios ({commentCount})
-                      </span>
+                  <div className="vpm-note-foot">
+                    <div className="vpm-comments-toggle">
+                      <MessageCircle className="w-3.5 h-3.5" />
+                      Comentarios ({commentCount})
                     </div>
                     
                     {/* Lista de comentarios */}
-                    <div className="space-y-2 max-h-40 overflow-y-auto mb-2 comentarios-scroll">
+                    <div className="vpm-comment-list max-h-40 overflow-y-auto comentarios-scroll">
                       {comentarios && comentarios.length > 0 ? (
                         comentarios.map((comentario) => (
                           <div 
                             key={comentario.id} 
-                            className="bg-white/40 dark:bg-black/20 rounded p-2 text-xs border border-gray-400/30 dark:border-white/20"
+                            className="vpm-comment"
                           >
-                            <div className="flex justify-between items-start mb-1">
-                              <span className="font-semibold text-inherit text-[10px]">
+                            <div className="flex justify-between items-start gap-2 mb-1">
+                              <span className="font-semibold text-[10px]">
                                 {comentario.autor_nombre}
                               </span>
-                               <span className="text-inherit text-[9px]" title={comentario.fecha ? format(new Date(comentario.fecha), 'dd/MM/yy HH:mm') : ''}>
+                               <span className="text-[9px]" title={comentario.fecha ? format(new Date(comentario.fecha), 'dd/MM/yy HH:mm') : ''}>
                                  {comentario.tiempo_relativo || formatCommentDate(comentario.fecha)}
                                </span>
                             </div>
-                            <p className="text-inherit">{comentario.texto}</p>
+                            <p>{comentario.texto}</p>
                           </div>
                         ))
                       ) : (
-                        <p className="text-xs text-inherit italic">Sin comentarios aún</p>
+                        <p className="text-xs italic">Sin comentarios aún</p>
                       )}
                     </div>
                     
@@ -425,15 +413,16 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
                         onChange={(e) => setNewComment(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
                         placeholder="Escribir comentario..."
-                        className="flex-1 text-xs px-2 py-1 rounded border border-gray-400/50 dark:border-white/20 bg-white/50 dark:bg-black/20 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                        className="vpm-comment-input"
                       />
                       <Button
                         size="sm"
                         onClick={handleAddComment}
                         disabled={loading || !newComment.trim()}
-                        className="h-6 w-6 p-0 bg-blue-500 hover:bg-blue-600"
+                        aria-label="Agregar comentario"
+                        className="vpm-note-tool vpm-comment-send"
                       >
-                        <Send className="w-3 h-3" />
+                        <Send className="w-4 h-4" />
                       </Button>
                     </div>
                   </div>

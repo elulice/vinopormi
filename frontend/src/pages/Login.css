@@ -1,19 +1,21 @@
 /* Rediseño de /login basado en el mockup de v0.
-   Todo queda encapsulado bajo .login-v4 para no afectar al resto de la app. */
+   Los colores vienen de los tokens globales (index.css). La paleta ya no
+   está duplicada: /login siempre corre con .dark (forceDark + script inline). */
 
 .login-v4 {
-  --bg: #0f0f0f;
-  --panel: #151515;
-  --field: #1b1b1b;
-  --border: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.18);
-  --text: #f4f4f5;
-  --muted: #a1a1aa;
-  --faint: #71717a;
-  --accent: #d6215e;
-  --accent-hover: #e33a72;
-  --accent-soft: rgba(214, 33, 94, 0.2);
+  --bg: var(--vpm-bg);
+  --panel: var(--vpm-panel);
+  --field: var(--vpm-field);
+  --border: var(--vpm-border);
+  --border-strong: var(--vpm-border-strong);
+  --text: var(--vpm-text);
+  --muted: var(--vpm-muted);
+  --faint: var(--vpm-faint);
+  --accent: var(--vpm-accent);
+  --accent-hover: var(--vpm-accent-hover);
+  --accent-soft: var(--vpm-accent-soft);
 
+  color-scheme: dark;
   min-height: 100vh;
   width: 100%;
   background: var(--bg);
