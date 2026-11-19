@@ -3287,8 +3287,13 @@ async def set_configuracion_mercadopago(
 # ===== NOVEDADES (modal forzado por backend) =====
 
 DEFAULT_NOVEDADES = {
-    "version": "v1.06.1",
+    "version": "v1.06.2",
     "features": [
+        {
+            "icon": "Sparkles",
+            "title": "Nueva interfaz (en proceso)",
+            "description": "Estamos renovando el escritorio: sidebar, cards, notas y menú flotante con un nuevo diseño. Todavía está en proceso, así que pueden aparecer ajustes.",
+        },
         {
             "icon": "Save",
             "title": "Nueva Venta con borrador persistente",

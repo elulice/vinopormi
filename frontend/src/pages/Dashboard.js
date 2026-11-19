@@ -230,7 +230,7 @@ const Dashboard = () => {
                 ? 'Sin ventas ayer'
                 : `${deltaAyer >= 0 ? '↗' : '↘'} ${Math.abs(deltaAyer).toFixed(0)}% vs. ayer`}
             </span>
-            <span className="vpm-balance-ticket">Ticket prom. <b className="vpm-num">{formatCurrency(ticketPromedio, showCents)}</b></span>
+            <span className="vpm-balance-ticket">Venta prom. <b className="vpm-num">{formatCurrency(ticketPromedio, showCents)}</b></span>
           </div>
           {totalMedios === 0 && (
             <p className="vpm-empty-line">Todavía no se registraron movimientos hoy.</p>

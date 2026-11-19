@@ -45,6 +45,8 @@ const FloatingMenu = () => {
   const [chatIAModalOpen, setChatIAModalOpen] = useState(false);
 
   const [pos, setPos] = useState(null); // {left, top} or null for default
+  const [menuOpen, setMenuOpen] = useState(false);
+  const closeTimerRef = useRef(null);
   const posRef = useRef(pos);
   const dragRef = useRef({ active: false, moved: false, startX: 0, startY: 0, offsetX: 0, offsetY: 0, pointerId: null });
   const containerRef = useRef(null);
@@ -52,6 +54,22 @@ const FloatingMenu = () => {
   useEffect(() => {
     posRef.current = pos;
   }, [pos]);
+
+  // El panel se abre sólo al entrar al botón; un pequeño retardo al salir
+  // permite cruzar el puente de hover hasta las opciones sin que se cierre.
+  const openMenu = () => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    setMenuOpen(true);
+  };
+
+  const scheduleClose = () => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = setTimeout(() => setMenuOpen(false), 180);
+  };
+
+  useEffect(() => () => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+  }, []);
 
   const clampPos = (left, top) => {
     if (typeof window === 'undefined') return { left, top };
@@ -211,10 +229,20 @@ const FloatingMenu = () => {
   return (
     <>
       {/* Menú flotante comprimido (arrastrable, posición guardada por usuario) */}
-      <div ref={containerRef} className="fixed z-50" style={containerStyle}>
-        <div className="group flex flex-col items-end">
-          {/* Panel que se expande al hacer hover */}
-          <div className="opacity-0 invisible translate-y-1 transition-all duration-200 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0">
+      <div
+        ref={containerRef}
+        className="fixed z-50"
+        style={containerStyle}
+        onMouseLeave={scheduleClose}
+      >
+        <div className="flex flex-col items-end">
+          {/* Panel: se abre al entrar al botón y se mantiene al cruzar al panel */}
+          <div
+            onMouseEnter={openMenu}
+            className={`transition-all duration-200 ${
+              menuOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible translate-y-1'
+            }`}
+          >
             <div className="vpm-fab-panel">
               <div className="flex flex-row items-center gap-1">
           {quickActions.map((action) => {
@@ -292,6 +320,8 @@ const FloatingMenu = () => {
         <Button
           className="vpm-fab-button cursor-grab active:cursor-grabbing touch-none"
           title="Accesos rápidos (arrastrá para mover, doble clic para restablecer)"
+          onMouseEnter={openMenu}
+          onFocus={openMenu}
           onPointerDown={handlePointerDown}
           onDoubleClick={resetPosition}
         >
