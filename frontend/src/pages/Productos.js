@@ -14,7 +14,7 @@ import {
   DialogDescription,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash2, Package, Info, X, Eye, EyeOff, Star, Download } from 'lucide-react';
+import { Plus, Pencil, Trash2, Package, Info, X, Eye, EyeOff, Star, Download, Tags, Check } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 import ResponsiveTable from '@/components/ResponsiveTable';
@@ -61,6 +61,7 @@ const Productos = () => {
   const [formData, setFormData] = useState({
     nombre: '',
     precio_unitario: '',
+    precio_costo: '',
     stock: '',
     tipo: 'normal',
     productos_incluidos: [],
@@ -69,12 +70,23 @@ const Productos = () => {
     is_public: false,
     is_featured: false,
     image_url: '',
+    categoria_id: '',
   });
   const [productosNormales, setProductosNormales] = useState([]);
   const [showProductoSelect, setShowProductoSelect] = useState(false);
   const [productoSearch, setProductoSearch] = useState('');
   const [filteredProductos, setFilteredProductos] = useState([]);
   const [localToggleUpdate, setLocalToggleUpdate] = useState({});
+
+  // Categorías
+  const [categorias, setCategorias] = useState([]);
+  const [categoriasDialogOpen, setCategoriasDialogOpen] = useState(false);
+  const [nuevaCategoriaNombre, setNuevaCategoriaNombre] = useState('');
+  const [savingCategoria, setSavingCategoria] = useState(false);
+  const [deletingCategoriaId, setDeletingCategoriaId] = useState(null);
+  const [editingCategoriaId, setEditingCategoriaId] = useState(null);
+  const [editingCategoriaNombre, setEditingCategoriaNombre] = useState('');
+  const [updatingCategoriaId, setUpdatingCategoriaId] = useState(null);
 
   /* =============================
      FETCH
@@ -176,11 +188,21 @@ const Productos = () => {
   // Mantener la referencia actualizada
   fetchProductosRef.current = fetchProductos;
 
+  const fetchCategorias = useCallback(async () => {
+    try {
+      const res = await apiGet(`${API}/categorias`);
+      setCategorias(Array.isArray(res.data) ? res.data : []);
+    } catch (error) {
+      console.error('Error cargando categorías:', error);
+    }
+  }, []);
+
   useEffect(() => {
     if (!initialFetchDone.current) {
       initialFetchDone.current = true;
       fetchProductosRef.current?.(1);
-      
+      fetchCategorias();
+
       apiGet(`${API}/productos-stock`)
         .then(res => {
           const normals = res.data.filter(p => p.tipo !== 'promo');
@@ -319,6 +341,7 @@ const Productos = () => {
       is_public: false,
       is_featured: false,
       image_url: '',
+      categoria_id: '',
     });
     setEditingProducto(null);
     setShowProductoSelect(false);
@@ -337,6 +360,7 @@ const Productos = () => {
       is_public: formData.is_public,
       is_featured: formData.is_featured,
       image_url: formData.image_url || null,
+      categoria_id: formData.categoria_id || null,
       ...(formData.tipo === 'promo' && formData.productos_incluidos.length > 0 ? {
         productos_incluidos: formData.productos_incluidos
       } : {}),
@@ -391,6 +415,7 @@ const Productos = () => {
       is_public: producto.is_public || false,
       is_featured: producto.is_featured || false,
       image_url: producto.image_url || '',
+      categoria_id: producto.categoria_id || '',
     });
     setDialogOpen(true);
   }, []);
@@ -539,6 +564,66 @@ const Productos = () => {
     }
   }, []);
 
+  const handleCrearCategoria = async () => {
+    const nombre = (nuevaCategoriaNombre || '').trim();
+    if (!nombre) {
+      toast.error('Ingresá un nombre para la categoría');
+      return;
+    }
+    try {
+      setSavingCategoria(true);
+      await apiPost(`${API}/categorias`, { nombre });
+      toast.success('Categoría creada');
+      setNuevaCategoriaNombre('');
+      await fetchCategorias();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Error al crear la categoría');
+    } finally {
+      setSavingCategoria(false);
+    }
+  };
+
+  const handleEliminarCategoria = async (id) => {
+    try {
+      setDeletingCategoriaId(id);
+      await apiDelete(`${API}/categorias/${id}`);
+      toast.success('Categoría eliminada');
+      await fetchCategorias();
+      // Si el formulario tenía seleccionada la categoría eliminada, limpiarla
+      setFormData(prev => prev.categoria_id === id ? { ...prev, categoria_id: '' } : prev);
+      if (editingCategoriaId === id) {
+        setEditingCategoriaId(null);
+        setEditingCategoriaNombre('');
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Error al eliminar la categoría');
+    } finally {
+      setDeletingCategoriaId(null);
+    }
+  };
+
+  const handleActualizarCategoria = async (id) => {
+    const nombre = (editingCategoriaNombre || '').trim();
+    if (!nombre) {
+      toast.error('Ingresá un nombre para la categoría');
+      return;
+    }
+    try {
+      setUpdatingCategoriaId(id);
+      await apiPut(`${API}/categorias/${id}`, { nombre });
+      toast.success('Categoría actualizada');
+      setEditingCategoriaId(null);
+      setEditingCategoriaNombre('');
+      await fetchCategorias();
+      // Actualizar en memoria para evitar recarga completa de la página
+      setProductos(prev => prev.map(p => p.categoria_id === id ? { ...p, categoria_nombre: nombre } : p));
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Error al actualizar la categoría');
+    } finally {
+      setUpdatingCategoriaId(null);
+    }
+  };
+
   if (loading) {
     return <div className="text-center py-8">Cargando...</div>;
   }
@@ -675,6 +760,150 @@ const Productos = () => {
           </Button>
         )}
 
+        <Button
+          size="sm"
+          className="h-7 text-xs bg-violet-600 hover:bg-violet-700 text-white"
+          onClick={() => { fetchCategorias(); setCategoriasDialogOpen(true); }}
+        >
+          <Tags className="w-3 h-3 mr-1" />
+          Categorías
+        </Button>
+
+        <Dialog open={categoriasDialogOpen} onOpenChange={(open) => {
+          setCategoriasDialogOpen(open);
+          if (!open) {
+            setEditingCategoriaId(null);
+            setEditingCategoriaNombre('');
+          }
+        }}>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Categorías</DialogTitle>
+              <DialogDescription>
+                Ver, crear y eliminar categorías de productos.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="flex gap-2">
+                <Input
+                  value={nuevaCategoriaNombre}
+                  onChange={(e) => setNuevaCategoriaNombre(e.target.value)}
+                  placeholder="Nueva categoría (ej: Vinos, Gaseosas)"
+                  className="h-8 text-xs"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleCrearCategoria();
+                    }
+                  }}
+                />
+                <Button
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={handleCrearCategoria}
+                  disabled={savingCategoria}
+                >
+                  {savingCategoria ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Crear'}
+                </Button>
+              </div>
+              <div className="border rounded-md divide-y max-h-64 overflow-y-auto">
+                {categorias.length === 0 ? (
+                  <div className="p-3 text-xs text-muted-foreground">No hay categorías creadas.</div>
+                ) : (
+                  categorias.map((cat) => (
+                    <div key={cat.id} className="flex items-center justify-between gap-2 p-2 text-xs">
+                      {editingCategoriaId === cat.id ? (
+                        <>
+                          <Input
+                            value={editingCategoriaNombre}
+                            onChange={(e) => setEditingCategoriaNombre(e.target.value)}
+                            className="h-7 text-xs flex-1"
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleActualizarCategoria(cat.id);
+                              } else if (e.key === 'Escape') {
+                                e.preventDefault();
+                                setEditingCategoriaId(null);
+                                setEditingCategoriaNombre('');
+                              }
+                            }}
+                          />
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 text-green-600"
+                              onClick={() => handleActualizarCategoria(cat.id)}
+                              disabled={updatingCategoriaId === cat.id}
+                              title="Guardar"
+                            >
+                              {updatingCategoriaId === cat.id ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <Check className="w-3 h-3" />
+                              )}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0"
+                              onClick={() => {
+                                setEditingCategoriaId(null);
+                                setEditingCategoriaNombre('');
+                              }}
+                              disabled={updatingCategoriaId === cat.id}
+                              title="Cancelar"
+                            >
+                              <X className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <span className="truncate pr-2 flex-1">{cat.nombre}</span>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0"
+                              onClick={() => {
+                                setEditingCategoriaId(cat.id);
+                                setEditingCategoriaNombre(cat.nombre || '');
+                              }}
+                              title="Editar categoría"
+                            >
+                              <Pencil className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 text-destructive"
+                              onClick={() => handleEliminarCategoria(cat.id)}
+                              disabled={deletingCategoriaId === cat.id}
+                              title="Eliminar categoría"
+                            >
+                              {deletingCategoriaId === cat.id ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <Trash2 className="w-3 h-3" />
+                              )}
+                            </Button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                No se puede eliminar una categoría que esté asociada a productos.
+              </p>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         <Dialog open={dialogOpen} onOpenChange={(open) => {
           if (!open) {
             resetForm();
@@ -722,6 +951,23 @@ const Productos = () => {
                     <SelectContent>
                       <SelectItem value="normal">Normal</SelectItem>
                       <SelectItem value="promo">Promo</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Categoría</Label>
+                  <Select
+                    value={formData.categoria_id || '__none__'}
+                    onValueChange={(value) => setFormData({ ...formData, categoria_id: value === '__none__' ? '' : value })}
+                  >
+                    <SelectTrigger className="h-7">
+                      <SelectValue placeholder="Sin categoría" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sin categoría</SelectItem>
+                      {categorias.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id}>{cat.nombre}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1025,13 +1271,14 @@ const Productos = () => {
         headers={[
           { title: 'Nombre', width: '15%' },
           { title: 'Tipo', width: '8%' },
-          { title: 'Stock', width: '8%' },
+          { title: 'Categoría', width: '10%' },
+          { title: 'Stock', width: '7%' },
           { title: 'Precio', width: '10%' },
           { title: 'Costo', width: '10%' },
           { title: 'Neto', width: '10%' },
           { title: 'Descuento', width: '12%' },
-          { title: 'Visible', width: '12%' },
-          { title: 'Acciones', width: '15%' }
+          { title: 'Visible', width: '8%' },
+          { title: 'Acciones', width: '10%' }
         ]}
         rows={productos}
         renderDesktopRow={(p, index) => (
@@ -1044,6 +1291,9 @@ const Productos = () => {
             </td>
             <td className="p-2 text-xs">
               <StatusBadge status={p.tipo === 'promo' ? "Promo" : "Normal"} />
+            </td>
+            <td className="p-2 text-xs text-muted-foreground truncate max-w-[120px]" title={p.categoria_nombre || 'Sin categoría'}>
+              {p.categoria_nombre || <span className="italic">Sin categoría</span>}
             </td>
             <td className="p-2 text-muted-foreground text-xs">
               {Number(p.stock) || 0}
@@ -1152,7 +1402,7 @@ const Productos = () => {
                 <div>
                   <div className="font-semibold text-xs truncate">{capitalizeWords(p.nombre)}</div>
                   <div className="text-xs text-muted-foreground">
-                    Stock: {Number(p.stock) || 0}
+                    {p.categoria_nombre ? p.categoria_nombre : 'Sin categoría'} · Stock: {Number(p.stock) || 0}
                   </div>
                 </div>
               </div>

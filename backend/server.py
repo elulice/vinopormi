@@ -9,6 +9,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import os
+import re
 import logging
 import asyncio
 from pathlib import Path
@@ -88,6 +89,8 @@ class PreferenciasUpdate(BaseModel):
     calcularVuelto: Optional[bool] = None  # Habilitar/deshabilitar calculadora de vuelto
     darkMode: Optional[bool] = None  # Modo oscuro de la interfaz
     totalFlotante: Optional[bool] = None  # Total fijo/flotante al fondo en nueva venta
+    hiddenSidebarItems: Optional[List[str]] = None  # Rutas de elementos del sidebar a ocultar
+    hiddenFloatingMenuActions: Optional[List[str]] = None  # IDs de acciones del menú flotante a ocultar
 
 class LoginRequest(BaseModel):
     username: str
@@ -115,6 +118,8 @@ class Producto(BaseModel):
     is_public: bool = False
     is_featured: bool = False
     image_url: Optional[str] = None
+    categoria_id: Optional[str] = None
+    categoria_nombre: Optional[str] = None
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class ProductoCreate(BaseModel):
@@ -129,6 +134,7 @@ class ProductoCreate(BaseModel):
     is_public: bool = False
     is_featured: bool = False
     image_url: Optional[str] = None
+    categoria_id: Optional[str] = None
 
 class ProductoUpdate(BaseModel):
     nombre: Optional[str] = None
@@ -142,19 +148,20 @@ class ProductoUpdate(BaseModel):
     is_public: Optional[bool] = None
     is_featured: Optional[bool] = None
     image_url: Optional[str] = None
+    categoria_id: Optional[str] = None
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-class ProductoCreate(BaseModel):
+class Categoria(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     nombre: str
-    precio_unitario: float
-    precio_costo: float = 0.0
-    stock: Optional[int] = 0
-    tipo: str = "normal"
-    productos_incluidos: Optional[List[ProductoIncluido]] = None
-    descuento_cantidad_minima: Optional[int] = None
-    descuento_precio_unitario: Optional[float] = None
-    is_public: bool = False
-    image_url: Optional[str] = None
+    fecha_creacion: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class CategoriaCreate(BaseModel):
+    nombre: str
+
+class CategoriaUpdate(BaseModel):
+    nombre: str
 
 class Cliente(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -421,12 +428,14 @@ async def get_catalogo(
             for term in search_terms:
                 or_conditions.append({"nombre": {"$regex": term, "$options": "i"}})
                 or_conditions.append({"categoria": {"$regex": term, "$options": "i"}})
+                or_conditions.append({"categoria_nombre": {"$regex": term, "$options": "i"}})
             filter_conditions.append({"$or": or_conditions})
         else:
             filter_conditions.append({
                 "$or": [
                     {"nombre": {"$regex": search, "$options": "i"}},
-                    {"categoria": {"$regex": search, "$options": "i"}}
+                    {"categoria": {"$regex": search, "$options": "i"}},
+                    {"categoria_nombre": {"$regex": search, "$options": "i"}},
                 ]
             })
     
@@ -443,9 +452,13 @@ async def get_catalogo(
     
     productos = await db.productos.find(
         filter_query,
-        {'_id': 0, 'id': 1, 'nombre': 1, 'precio_unitario': 1, 'image_url': 1, 'categoria': 1}
+        {'_id': 0, 'id': 1, 'nombre': 1, 'precio_unitario': 1, 'image_url': 1, 'categoria': 1, 'categoria_nombre': 1}
     ).sort('nombre', 1).to_list(500)
-    
+
+    for p in productos:
+        if not p.get('categoria') and p.get('categoria_nombre'):
+            p['categoria'] = p.get('categoria_nombre')
+
     return [ProductoCatalogo(**p) for p in productos]
 
 @public_router.get("/public/cliente/{dni}", response_model=ClientePublico)
@@ -768,7 +781,11 @@ async def update_preferencias(
         preferencias_actuales['darkMode'] = preferencias.darkMode
     if preferencias.totalFlotante is not None:
         preferencias_actuales['totalFlotante'] = preferencias.totalFlotante
-    
+    if preferencias.hiddenSidebarItems is not None:
+        preferencias_actuales['hiddenSidebarItems'] = preferencias.hiddenSidebarItems
+    if preferencias.hiddenFloatingMenuActions is not None:
+        preferencias_actuales['hiddenFloatingMenuActions'] = preferencias.hiddenFloatingMenuActions
+
     # Guardar en la base de datos
     result = await db.usuarios.update_one(
         {'id': current_user.id},
@@ -921,6 +938,103 @@ async def get_auditoria(
         }
     }
 
+# ===== CATEGORIAS ROUTES =====
+
+@api_router.get("/categorias", response_model=List[Categoria])
+async def get_categorias(current_user: Usuario = Depends(get_current_user)):
+    categorias = await db.categorias.find({}, {"_id": 0}).sort("nombre", 1).to_list(1000)
+    for c in categorias:
+        if isinstance(c.get("fecha_creacion"), str):
+            try:
+                c["fecha_creacion"] = datetime.fromisoformat(c["fecha_creacion"])
+            except Exception:
+                c["fecha_creacion"] = datetime.now(timezone.utc)
+    return categorias
+
+
+@api_router.post("/categorias", response_model=Categoria)
+async def create_categoria(
+    input: CategoriaCreate,
+    current_user: Usuario = Depends(get_current_user),
+):
+    nombre = (input.nombre or "").strip()
+    if not nombre:
+        raise HTTPException(status_code=400, detail="El nombre de la categoría es obligatorio")
+
+    # Unicidad case-insensitive
+    existing = await db.categorias.find_one(
+        {"nombre": {"$regex": f"^{re.escape(nombre)}$", "$options": "i"}},
+        {"_id": 0},
+    )
+    if existing:
+        raise HTTPException(status_code=400, detail=f"Ya existe la categoría '{existing.get('nombre', nombre)}'")
+
+    categoria_obj = Categoria(nombre=nombre)
+    doc = categoria_obj.model_dump()
+    doc["fecha_creacion"] = doc["fecha_creacion"].isoformat()
+    await db.categorias.insert_one(doc)
+    return categoria_obj
+
+
+@api_router.put("/categorias/{categoria_id}", response_model=Categoria)
+async def update_categoria(
+    categoria_id: str,
+    input: CategoriaUpdate,
+    current_user: Usuario = Depends(get_current_user),
+):
+    categoria = await db.categorias.find_one({"id": categoria_id}, {"_id": 0})
+    if not categoria:
+        raise HTTPException(status_code=404, detail="Categoría no encontrada")
+
+    nombre = (input.nombre or "").strip()
+    if not nombre:
+        raise HTTPException(status_code=400, detail="El nombre de la categoría es obligatorio")
+
+    existing = await db.categorias.find_one(
+        {
+            "id": {"$ne": categoria_id},
+            "nombre": {"$regex": f"^{re.escape(nombre)}$", "$options": "i"},
+        },
+        {"_id": 0},
+    )
+    if existing:
+        raise HTTPException(status_code=400, detail=f"Ya existe la categoría '{existing.get('nombre', nombre)}'")
+
+    await db.categorias.update_one({"id": categoria_id}, {"$set": {"nombre": nombre}})
+    await db.productos.update_many({"categoria_id": categoria_id}, {"$set": {"categoria_nombre": nombre}})
+
+    categoria["nombre"] = nombre
+    if isinstance(categoria.get("fecha_creacion"), str):
+        try:
+            categoria["fecha_creacion"] = datetime.fromisoformat(categoria["fecha_creacion"])
+        except Exception:
+            categoria["fecha_creacion"] = datetime.now(timezone.utc)
+    elif not categoria.get("fecha_creacion"):
+        categoria["fecha_creacion"] = datetime.now(timezone.utc)
+    return Categoria(**categoria)
+
+
+@api_router.delete("/categorias/{categoria_id}")
+async def delete_categoria(
+    categoria_id: str,
+    current_user: Usuario = Depends(get_current_user),
+):
+    categoria = await db.categorias.find_one({"id": categoria_id}, {"_id": 0})
+    if not categoria:
+        raise HTTPException(status_code=404, detail="Categoría no encontrada")
+
+    # Opción A: bloquear si está en uso
+    en_uso = await db.productos.count_documents({"categoria_id": categoria_id})
+    if en_uso > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"No se puede eliminar la categoría porque está asociada a {en_uso} producto(s). Reasignalos o quitá la categoría antes de eliminarla.",
+        )
+
+    await db.categorias.delete_one({"id": categoria_id})
+    return {"message": "Categoría eliminada"}
+
+
 # ===== PRODUCTOS ROUTES =====
 
 @api_router.post("/productos", response_model=Producto)
@@ -937,11 +1051,22 @@ async def create_producto(
             detail=f"Ya existe un producto con el nombre '{input.nombre}'"
         )
     
-    # Asegurar que precio_costo esté presente
+    # Asegurar que precio_costo esté presente y resolver categoría
     producto_data = input.model_dump()
     if 'precio_costo' not in producto_data or producto_data['precio_costo'] is None:
         producto_data['precio_costo'] = 0.0
-    
+
+    categoria_id = producto_data.get('categoria_id')
+    if categoria_id:
+        categoria = await db.categorias.find_one({"id": categoria_id}, {"_id": 0})
+        if not categoria:
+            raise HTTPException(status_code=400, detail="La categoría seleccionada no existe")
+        producto_data['categoria_id'] = categoria_id
+        producto_data['categoria_nombre'] = categoria.get('nombre')
+    else:
+        producto_data['categoria_id'] = None
+        producto_data['categoria_nombre'] = None
+
     producto_obj = Producto(**producto_data)
     doc = producto_obj.model_dump()
     doc['timestamp'] = doc['timestamp'].isoformat()
@@ -1101,13 +1226,27 @@ async def update_producto(
     print(f"DEBUG input_data: {input_data}")
     update_data = {k: v for k, v in input_data.items() if v is not None}
     print(f"DEBUG update_data before force: {update_data}")
-    
+
     # Forzar precio_costo si viene en el payload (inclusive si es 0)
     if 'precio_costo' in input_data:
         update_data['precio_costo'] = input_data['precio_costo']
-    
+
+    # Manejo de categoría (permitir asignar o limpiar si se envía explícitamente)
+    fields_set = getattr(input, "model_fields_set", set())
+    if 'categoria_id' in fields_set or 'categoria_id' in input_data:
+        raw_cat = input_data.get('categoria_id', None)
+        if raw_cat:
+            categoria = await db.categorias.find_one({"id": raw_cat}, {"_id": 0})
+            if not categoria:
+                raise HTTPException(status_code=400, detail="La categoría seleccionada no existe")
+            update_data['categoria_id'] = raw_cat
+            update_data['categoria_nombre'] = categoria.get('nombre')
+        else:
+            update_data['categoria_id'] = None
+            update_data['categoria_nombre'] = None
+
     print(f"DEBUG update_data after force: {update_data}")
-    
+
     if update_data:
         await db.productos.update_one({'id': producto_id}, {'$set': update_data})
         
@@ -3111,7 +3250,7 @@ async def set_configuracion_mercadopago(
 # ===== NOVEDADES (modal forzado por backend) =====
 
 DEFAULT_NOVEDADES = {
-    "version": "v1.05.2",
+    "version": "v1.06",
     "features": [
         {
             "icon": "Save",
@@ -3132,6 +3271,11 @@ DEFAULT_NOVEDADES = {
             "icon": "Mic",
             "title": "Dictado por voz en el Chat IA",
             "description": "Ahora podés dictar tus consultas en el Chat IA usando el micrófono. Tu voz se transcribe automáticamente para que puedas revisarla y enviarla.",
+        },
+        {
+            "icon": "Tags",
+            "title": "Categorías de productos",
+            "description": "Ahora podés organizar los productos por categorías (por ejemplo, vinos o gaseosas): crealas, editá su nombre o eliminalas desde la sección Productos y asignalas a cada producto.",
         },
     ],
 }

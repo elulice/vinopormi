@@ -22,8 +22,8 @@ import {
   LogOut,
   ChevronUp,
   Moon,
-  Sparkles,
-  Bot
+  Bot,
+  Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -35,7 +35,7 @@ import WelcomeModal from '@/components/WelcomeModal';
 
 const Layout = () => {
   const { user, logout } = useAuth();
-  const { sidebarWidth, setSidebarWidth, floatingMenu, darkMode, setDarkMode } = useConfig();
+  const { sidebarWidth, setSidebarWidth, floatingMenu, darkMode, setDarkMode, hiddenSidebarItems } = useConfig();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -93,7 +93,7 @@ const Layout = () => {
     return `${baseClasses} ${widthClasses[sidebarWidth]} ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`;
   };
 
-  const menuItems = [
+  const allMenuItems = [
     { path: '/dashboard', icon: LayoutDashboard, label: 'Escritorio' },
     { path: '/nueva-venta', icon: Plus, label: 'Nueva Venta' },
     { path: '/ventas', icon: ShoppingCart, label: 'Ventas' },
@@ -105,6 +105,10 @@ const Layout = () => {
     { path: '/ia', icon: Bot, label: 'Chat IA' },
     { path: '/recomendaciones', icon: Sparkles, label: 'Recomendaciones' },
   ];
+
+  const menuItems = allMenuItems.filter(
+    (item) => !(Array.isArray(hiddenSidebarItems) ? hiddenSidebarItems : []).includes(item.path)
+  );
 
   // Items del menú de configuración según rol
   const getAllConfigMenuItems = () => [

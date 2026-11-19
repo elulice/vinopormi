@@ -4,7 +4,8 @@ import {
   Users, 
   Truck, 
   TrendingDown, 
-  Menu
+  Menu,
+  Bot
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,8 +18,10 @@ import Clientes from '@/pages/Clientes';
 import Proveedores from '@/pages/Proveedores';
 import Egresos from '@/pages/Egresos';
 import Mercadopago from '@/pages/Mercadopago';
+import ChatIA from '@/pages/ChatIA';
 import MercadopagoIcon from '@/components/MercadopagoIcon';
 import { useAuth } from '@/context/AuthContext';
+import { useConfig } from '@/context/ConfigContext';
 
 const DEFAULT_POS = { bottom: 112, right: 16 }; // bottom-28, right-4
 const BTN_SIZE = 56;
@@ -31,6 +34,7 @@ const getStorageKey = (userId) => `floatingMenuPosition_${userId || 'anon'}`;
 
 const FloatingMenu = () => {
   const { user } = useAuth();
+  const { hiddenFloatingMenuActions } = useConfig();
   const storageKey = getStorageKey(user?.id);
 
   const [productModalOpen, setProductModalOpen] = useState(false);
@@ -38,6 +42,7 @@ const FloatingMenu = () => {
   const [providerModalOpen, setProviderModalOpen] = useState(false);
   const [egressModalOpen, setEgressModalOpen] = useState(false);
   const [mercadopagoModalOpen, setMercadopagoModalOpen] = useState(false);
+  const [chatIAModalOpen, setChatIAModalOpen] = useState(false);
 
   const [pos, setPos] = useState(null); // {left, top} or null for default
   const posRef = useRef(pos);
@@ -151,38 +156,53 @@ const FloatingMenu = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storageKey]);
 
-  const quickActions = [
+  const allQuickActions = [
     {
+      id: 'product',
       icon: Package,
       label: 'Productos',
       modal: 'product',
       setOpen: setProductModalOpen,
     },
     {
+      id: 'customer',
       icon: Users,
       label: 'Ctas. Ctes.',
       modal: 'customer',
       setOpen: setCustomerModalOpen,
     },
     {
+      id: 'provider',
       icon: Truck,
       label: 'Proveedores',
       modal: 'provider',
       setOpen: setProviderModalOpen,
     },
     {
+      id: 'egress',
       icon: TrendingDown,
       label: 'Egresos',
       modal: 'egress',
       setOpen: setEgressModalOpen,
     },
     {
+      id: 'mercadopago',
       icon: MercadopagoIcon,
-      label: 'Mercadopago',
+      label: 'Mercado Pago',
       modal: 'mercadopago',
       setOpen: setMercadopagoModalOpen,
     },
+    {
+      id: 'chatia',
+      icon: Bot,
+      label: 'Chat IA',
+      modal: 'chatia',
+      setOpen: setChatIAModalOpen,
+    },
   ];
+
+  const hiddenActions = Array.isArray(hiddenFloatingMenuActions) ? hiddenFloatingMenuActions : [];
+  const quickActions = allQuickActions.filter((action) => !hiddenActions.includes(action.id));
 
   const containerStyle = pos
     ? { left: pos.left, top: pos.top, right: 'auto', bottom: 'auto' }
@@ -199,12 +219,15 @@ const FloatingMenu = () => {
               <div className="flex flex-row items-center gap-1">
           {quickActions.map((action) => {
             const Icon = action.icon;
+            const isOpen =
+              action.modal === 'product' ? productModalOpen :
+              action.modal === 'customer' ? customerModalOpen :
+              action.modal === 'provider' ? providerModalOpen :
+              action.modal === 'egress' ? egressModalOpen :
+              action.modal === 'mercadopago' ? mercadopagoModalOpen :
+              chatIAModalOpen;
             return (
-              <Dialog key={action.modal} open={action.modal === 'product' ? productModalOpen : 
-                                                   action.modal === 'customer' ? customerModalOpen : 
-                                                   action.modal === 'provider' ? providerModalOpen : 
-                                                   action.modal === 'egress' ? egressModalOpen : 
-                                                   mercadopagoModalOpen} onOpenChange={action.setOpen}>
+              <Dialog key={action.modal} open={isOpen} onOpenChange={action.setOpen}>
                 <DialogTrigger asChild>
                   <Button
                     variant="ghost"
@@ -215,8 +238,14 @@ const FloatingMenu = () => {
                     <Icon className="w-5 h-5" />
                   </Button>
                 </DialogTrigger>
-                <DialogContent className={action.modal === 'mercadopago' ? "max-w-2xl max-h-[85vh] p-0 overflow-hidden flex flex-col [&>button]:right-2 [&>button]:top-2" : "max-w-[95vw] max-h-[95vh] p-0 overflow-hidden flex flex-col"}>
-                  <div className="flex-1 overflow-y-auto px-6 py-6">
+                <DialogContent className={
+                  action.modal === 'mercadopago'
+                    ? "max-w-2xl max-h-[85vh] p-0 overflow-hidden flex flex-col [&>button]:right-2 [&>button]:top-2"
+                    : action.modal === 'chatia'
+                    ? "max-w-4xl max-h-[90vh] p-0 overflow-hidden flex flex-col [&>button]:right-2 [&>button]:top-2"
+                    : "max-w-[95vw] max-h-[95vh] p-0 overflow-hidden flex flex-col"
+                }>
+                  <div className={`flex-1 overflow-y-auto ${action.modal === 'chatia' ? 'p-3' : 'px-6 py-6'}`}>
                     {action.modal === 'product' && (
                       <div className="max-w-none">
                         <Productos />
@@ -240,6 +269,11 @@ const FloatingMenu = () => {
                     {action.modal === 'mercadopago' && (
                       <div className="max-w-none">
                         <Mercadopago />
+                      </div>
+                    )}
+                    {action.modal === 'chatia' && (
+                      <div className="max-w-none h-full">
+                        <ChatIA />
                       </div>
                     )}
                   </div>

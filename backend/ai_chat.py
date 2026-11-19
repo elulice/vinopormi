@@ -114,16 +114,18 @@ async def tool_buscar_productos(
     precio_min: Optional[float] = None,
     precio_max: Optional[float] = None,
     solo_con_stock: Optional[bool] = None,
+    categoria: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Busca productos con filtros, orden y totales básicos."""
     limit = max(1, min(int(limit or DEFAULT_LIMIT), MAX_LIMIT))
     filter_query: Dict[str, Any] = {}
+    and_conds = []
     if query:
         terms = [t for t in str(query).split() if t]
         if len(terms) > 1:
-            filter_query["$and"] = [{"nombre": {"$regex": t, "$options": "i"}} for t in terms]
+            and_conds.append({"$and": [{"nombre": {"$regex": t, "$options": "i"}} for t in terms]})
         else:
-            filter_query["nombre"] = {"$regex": str(query), "$options": "i"}
+            and_conds.append({"nombre": {"$regex": str(query), "$options": "i"}})
 
     if precio_min is not None or precio_max is not None:
         price_filter: Dict[str, Any] = {}
@@ -138,9 +140,21 @@ async def tool_buscar_productos(
             except Exception:
                 pass
         if price_filter:
-            filter_query["precio_unitario"] = price_filter
+            and_conds.append({"precio_unitario": price_filter})
     if solo_con_stock is True:
-        filter_query["stock"] = {"$gt": 0}
+        and_conds.append({"stock": {"$gt": 0}})
+    if categoria:
+        and_conds.append({
+            "$or": [
+                {"categoria_nombre": {"$regex": str(categoria), "$options": "i"}},
+                {"categoria": {"$regex": str(categoria), "$options": "i"}},
+            ]
+        })
+
+    if len(and_conds) == 1:
+        filter_query = and_conds[0]
+    elif len(and_conds) > 1:
+        filter_query = {"$and": and_conds}
 
     sort_map = {
         "nombre": "nombre",
@@ -148,6 +162,7 @@ async def tool_buscar_productos(
         "precio": "precio_unitario",
         "precio_costo": "precio_costo",
         "stock": "stock",
+        "categoria": "categoria_nombre",
     }
     sort_field = sort_map.get(str(ordenar_por or "nombre").lower(), "nombre")
     sort_dir = -1 if str(orden or "asc").lower() in ("desc", "descendente", "-1") else 1
@@ -155,15 +170,17 @@ async def tool_buscar_productos(
     count = await db.productos.count_documents(filter_query)
     productos = await db.productos.find(
         filter_query,
-        {"_id": 0, "nombre": 1, "precio_unitario": 1, "precio_costo": 1, "stock": 1},
+        {"_id": 0, "nombre": 1, "precio_unitario": 1, "precio_costo": 1, "stock": 1, "categoria_nombre": 1, "categoria": 1},
     ).sort(sort_field, sort_dir).limit(limit).to_list(limit)
     out = []
     for p in productos:
         pv = p.get("precio_unitario")
         pc = p.get("precio_costo", 0)
+        cat = p.get("categoria_nombre") or p.get("categoria")
         out.append(
             {
                 "nombre": p.get("nombre"),
+                "categoria": cat or "Sin categoría",
                 "precio_venta": _fmt_money_ar(pv),
                 "precio_costo": _fmt_money_ar(pc),
                 "stock": p.get("stock", 0),
@@ -527,17 +544,18 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "buscar_productos",
-            "description": "Busca/lista productos (query vacío = todos). Permite filtrar por nombre, rango de precio y stock; ordenar (ej. precio_venta asc para más baratos). Devuelve precio de venta, costo, stock y total de coincidencias.",
+            "description": "Busca/lista productos (query vacío = todos). Permite filtrar por nombre, categoría, rango de precio y stock; ordenar (ej. precio_venta asc para más baratos, o por categoría). Devuelve categoría, precios, stock y total de coincidencias.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "query": {"type": "string", "description": "Texto a buscar en el nombre. Vacío para considerar todos."},
                     "limit": {"type": "integer", "description": "Máximo de resultados (default 10, máx 25)."},
-                    "ordenar_por": {"type": "string", "enum": ["nombre", "precio_venta", "precio_costo", "stock"], "description": "Campo para ordenar."},
+                    "ordenar_por": {"type": "string", "enum": ["nombre", "precio_venta", "precio_costo", "stock", "categoria"], "description": "Campo para ordenar."},
                     "orden": {"type": "string", "enum": ["asc", "desc"], "description": "asc = menor a mayor, desc = mayor a menor."},
                     "precio_min": {"type": "number", "description": "Precio de venta mínimo."},
                     "precio_max": {"type": "number", "description": "Precio de venta máximo."},
                     "solo_con_stock": {"type": "boolean", "description": "Si es true, solo productos con stock > 0."},
+                    "categoria": {"type": "string", "description": "Filtrar por nombre de categoría."},
                 },
                 "required": [],
             },

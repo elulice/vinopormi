@@ -1,16 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Save, Move, Bot, Sparkles, Mic } from 'lucide-react';
+import { Save, Move, Bot, Sparkles, Mic, Tags } from 'lucide-react';
 import { apiGet } from '@/lib/api';
 import { API } from '@/lib/config';
 
 const SEEN_PREFIX = 'vpm_news_seen_';
 const POLL_MS = 60000;
 
-const ICONS = { Save, Move, Bot, Sparkles, Mic };
+const ICONS = { Save, Move, Bot, Sparkles, Mic, Tags };
 
 const DEFAULT_DATA = {
-  version: 'v1.05.2',
+  version: 'v1.06',
   features: [
     {
       icon: 'Save',
@@ -35,6 +35,12 @@ const DEFAULT_DATA = {
       title: 'Dictado por voz en el Chat IA',
       description:
         'Ahora podés dictar tus consultas en el Chat IA usando el micrófono. Tu voz se transcribe automáticamente para que puedas revisarla y enviarla.',
+    },
+    {
+      icon: 'Tags',
+      title: 'Categorías de productos',
+      description:
+        'Ahora podés organizar los productos por categorías (por ejemplo, vinos o gaseosas): crealas, editá su nombre o eliminalas desde la sección Productos y asignalas a cada producto.',
     },
   ],
 };

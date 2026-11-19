@@ -22,7 +22,9 @@ const MIRROR_KEYS = {
   autoLogout: 'vinopormi_auto_logout',
   calcularVuelto: 'vinopormi_calcular_vuelto',
   darkMode: 'vinopormi_dark_mode',
-  totalFlotante: 'vinopormi_total_flotante'
+  totalFlotante: 'vinopormi_total_flotante',
+  hiddenSidebarItems: 'vinopormi_hidden_sidebar_items',
+  hiddenFloatingMenuActions: 'vinopormi_hidden_floating_menu_actions'
 };
 
 // Valores por defecto según la fuente: espejo local (primer render) y backend (usuario logueado)
@@ -33,7 +35,9 @@ const MIRROR_DEFAULTS = {
   autoLogout: true,
   calcularVuelto: true,
   darkMode: true,
-  totalFlotante: false
+  totalFlotante: false,
+  hiddenSidebarItems: ['/recomendaciones'],
+  hiddenFloatingMenuActions: []
 };
 
 const BACKEND_DEFAULTS = {
@@ -43,16 +47,26 @@ const BACKEND_DEFAULTS = {
   autoLogout: false,
   calcularVuelto: true,
   darkMode: false,
-  totalFlotante: false
+  totalFlotante: false,
+  hiddenSidebarItems: ['/recomendaciones'],
+  hiddenFloatingMenuActions: []
 };
 
-const PREF_KEYS = ['showCents', 'sidebarWidth', 'floatingMenu', 'autoLogout', 'calcularVuelto', 'darkMode', 'totalFlotante'];
+const PREF_KEYS = ['showCents', 'sidebarWidth', 'floatingMenu', 'autoLogout', 'calcularVuelto', 'darkMode', 'totalFlotante', 'hiddenSidebarItems', 'hiddenFloatingMenuActions'];
 
 const readMirror = (key, fallback) => {
   try {
     const v = localStorage.getItem(key);
     if (v === null) return fallback;
-    return typeof fallback === 'boolean' ? v === 'true' : v;
+    if (typeof fallback === 'boolean') return v === 'true';
+    if (Array.isArray(fallback) || (fallback && typeof fallback === 'object')) {
+      try {
+        return JSON.parse(v);
+      } catch {
+        return fallback;
+      }
+    }
+    return v;
   } catch (e) {
     return fallback;
   }
@@ -60,7 +74,11 @@ const readMirror = (key, fallback) => {
 
 const writeMirror = (key, value) => {
   try {
-    localStorage.setItem(key, typeof value === 'boolean' ? JSON.stringify(value) : value);
+    if (typeof value === 'boolean' || (value && typeof value === 'object')) {
+      localStorage.setItem(key, JSON.stringify(value));
+    } else {
+      localStorage.setItem(key, value);
+    }
   } catch (e) {
     // ignorar
   }
@@ -75,6 +93,8 @@ export const ConfigProvider = ({ children, forceDark = false }) => {
   const [calcularVuelto, setCalcularVueltoState] = useState(() => readMirror(MIRROR_KEYS.calcularVuelto, MIRROR_DEFAULTS.calcularVuelto));
   const [darkMode, setDarkModeState] = useState(() => forceDark ? true : readMirror(MIRROR_KEYS.darkMode, MIRROR_DEFAULTS.darkMode));
   const [totalFlotante, setTotalFlotanteState] = useState(() => readMirror(MIRROR_KEYS.totalFlotante, MIRROR_DEFAULTS.totalFlotante));
+  const [hiddenSidebarItems, setHiddenSidebarItemsState] = useState(() => readMirror(MIRROR_KEYS.hiddenSidebarItems, MIRROR_DEFAULTS.hiddenSidebarItems));
+  const [hiddenFloatingMenuActions, setHiddenFloatingMenuActionsState] = useState(() => readMirror(MIRROR_KEYS.hiddenFloatingMenuActions, MIRROR_DEFAULTS.hiddenFloatingMenuActions));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -116,6 +136,9 @@ export const ConfigProvider = ({ children, forceDark = false }) => {
       setCalcularVueltoState(valores.calcularVuelto);
       setDarkModeState(valores.darkMode);
       setTotalFlotanteState(valores.totalFlotante);
+      setHiddenSidebarItemsState(Array.isArray(valores.hiddenSidebarItems) ? valores.hiddenSidebarItems : BACKEND_DEFAULTS.hiddenSidebarItems);
+      setHiddenFloatingMenuActionsState(Array.isArray(valores.hiddenFloatingMenuActions) ? valores.hiddenFloatingMenuActions : BACKEND_DEFAULTS.hiddenFloatingMenuActions);
+      setError(null);
     } catch (err) {
       console.error('Error cargando preferencias:', err);
       // En caso de error, usar valor por defecto
@@ -152,6 +175,8 @@ export const ConfigProvider = ({ children, forceDark = false }) => {
   const setCalcularVuelto = makeSetter('calcularVuelto', setCalcularVueltoState);
   const setDarkMode = makeSetter('darkMode', setDarkModeState);
   const setTotalFlotante = makeSetter('totalFlotante', setTotalFlotanteState);
+  const setHiddenSidebarItems = makeSetter('hiddenSidebarItems', setHiddenSidebarItemsState);
+  const setHiddenFloatingMenuActions = makeSetter('hiddenFloatingMenuActions', setHiddenFloatingMenuActionsState);
 
   const toggleShowCents = () => {
     setShowCents(!showCents);
@@ -169,6 +194,8 @@ export const ConfigProvider = ({ children, forceDark = false }) => {
       setAutoLogoutState(false);
       setCalcularVueltoState(true);
       setTotalFlotanteState(false);
+      setHiddenSidebarItemsState(MIRROR_DEFAULTS.hiddenSidebarItems);
+      setHiddenFloatingMenuActionsState(MIRROR_DEFAULTS.hiddenFloatingMenuActions);
       setLoading(false);
     }
   }, [user, loadPreferences]);
@@ -190,6 +217,10 @@ export const ConfigProvider = ({ children, forceDark = false }) => {
       setDarkMode,
       totalFlotante,
       setTotalFlotante,
+      hiddenSidebarItems,
+      setHiddenSidebarItems,
+      hiddenFloatingMenuActions,
+      setHiddenFloatingMenuActions,
       loading,
       error
     }}>

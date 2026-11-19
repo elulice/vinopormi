@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Bot, Loader2, Mic, MicOff, Send, Trash2, User } from 'lucide-react';
+import { Bot, Loader2, Mic, MicOff, Send, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '@/context/AuthContext';
 import { apiDelete, apiGet, apiPost } from '@/lib/api';
 import { API } from '@/lib/config';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -169,6 +170,7 @@ const GREETING = {
 };
 
 const ChatIA = () => {
+  const { user } = useAuth();
   const [messages, setMessages] = useState([GREETING]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -183,6 +185,7 @@ const ChatIA = () => {
   const streamRef = useRef(null);
   const cooldownTimerRef = useRef(null);
   const loadingRef = useRef(false);
+  const userInitial = (user?.nombre || user?.username || 'U').trim().charAt(0).toUpperCase() || 'U';
 
   useEffect(() => {
     loadingRef.current = loading;
@@ -522,8 +525,8 @@ const ChatIA = () => {
                       )}
                     </div>
                     {isUser && (
-                      <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
-                        <User className="w-4 h-4" />
+                      <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center flex-shrink-0 text-sm font-semibold">
+                        {userInitial}
                       </div>
                     )}
                   </div>

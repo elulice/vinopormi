@@ -6,7 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { useConfig } from '@/context/ConfigContext';
 import { useAuth } from '@/context/AuthContext';
-import { Settings as SettingsIcon, Package, Users, Truck, TrendingDown, DollarSign, Loader2, AlertCircle, Menu, LogOut, Calculator, PanelBottom } from 'lucide-react';
+import { Settings as SettingsIcon, Package, Users, Truck, TrendingDown, DollarSign, Loader2, AlertCircle, Menu, LogOut, Calculator, PanelBottom, Bot } from 'lucide-react';
 import MercadopagoIcon from '@/components/MercadopagoIcon';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/currency';
@@ -14,7 +14,7 @@ import { API } from '@/lib/config';
 import { apiGet, apiPost } from '@/lib/api';
 
 const Configuracion = () => {
-  const { showCents, toggleShowCents, floatingMenu, setFloatingMenu, autoLogout, setAutoLogout, loading, error, calcularVuelto, setCalcularVuelto, totalFlotante, setTotalFlotante } = useConfig();
+  const { showCents, toggleShowCents, floatingMenu, setFloatingMenu, autoLogout, setAutoLogout, loading, error, calcularVuelto, setCalcularVuelto, totalFlotante, setTotalFlotante, hiddenSidebarItems, setHiddenSidebarItems, hiddenFloatingMenuActions, setHiddenFloatingMenuActions } = useConfig();
   const { user } = useAuth();
   const [localShowCents, setLocalShowCents] = useState(showCents);
   const [localFloatingMenu, setLocalFloatingMenu] = useState(floatingMenu);
@@ -99,6 +99,62 @@ const handleFloatingMenuToggle = () => {
     const newValue = !localCalcularVuelto;
     setLocalCalcularVuelto(newValue);
     setCalcularVuelto(newValue);
+  };
+
+  const sidebarItemsConfig = [
+    { path: '/dashboard', label: 'Escritorio' },
+    { path: '/nueva-venta', label: 'Nueva Venta' },
+    { path: '/ventas', label: 'Ventas' },
+    { path: '/productos', label: 'Productos' },
+    { path: '/clientes', label: 'Ctas. Ctes.' },
+    { path: '/proveedores', label: 'Proveedores' },
+    { path: '/egresos', label: 'Egresos' },
+    { path: '/mercadopago', label: 'Mercadopago' },
+    { path: '/ia', label: 'Chat IA' },
+    { path: '/recomendaciones', label: 'Recomendaciones' },
+  ];
+
+  const handleSidebarItemToggle = (path, visible) => {
+    const current = Array.isArray(hiddenSidebarItems) ? hiddenSidebarItems : [];
+    let next;
+    if (visible) {
+      next = current.filter((p) => p !== path);
+    } else {
+      next = current.includes(path) ? current : [...current, path];
+    }
+    setHiddenSidebarItems(next);
+  };
+
+  const floatingMenuActionsConfig = [
+    { id: 'product', label: 'Productos', icon: Package, color: 'text-blue-600' },
+    { id: 'customer', label: 'Ctas. Ctes.', icon: Users, color: 'text-green-600' },
+    { id: 'provider', label: 'Proveedores', icon: Truck, color: 'text-purple-600' },
+    { id: 'egress', label: 'Egresos', icon: TrendingDown, color: 'text-red-600' },
+    { id: 'mercadopago', label: 'Mercado Pago', icon: MercadopagoIcon, color: 'text-sky-500' },
+    { id: 'chatia', label: 'Chat IA', icon: Bot, color: 'text-primary' },
+  ];
+
+  const handleFloatingMenuActionToggle = (actionId, visible) => {
+    const current = Array.isArray(hiddenFloatingMenuActions) ? hiddenFloatingMenuActions : [];
+    let next;
+    if (visible) {
+      next = current.filter((id) => id !== actionId);
+    } else {
+      next = current.includes(actionId) ? current : [...current, actionId];
+    }
+    setHiddenFloatingMenuActions(next);
+
+    // Si no queda ninguna acción habilitada, deshabilitar el menú flotante.
+    // Si se habilita al menos una acción, reactivarlo automáticamente.
+    const allActionIds = floatingMenuActionsConfig.map((action) => action.id);
+    const noneEnabled = allActionIds.every((id) => next.includes(id));
+    if (noneEnabled) {
+      setLocalFloatingMenu(false);
+      setFloatingMenu(false);
+    } else if (visible) {
+      setLocalFloatingMenu(true);
+      setFloatingMenu(true);
+    }
   };
 
   return (
@@ -193,34 +249,32 @@ const handleFloatingMenuToggle = () => {
             />
           </div>
 
-          {/* Descripción de funcionalidades */}
+          {/* Acciones del menú flotante */}
           <div className="border-t pt-2">
-            <p className="text-xs font-medium mb-2">Acciones:</p>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
-                <Package className="w-3 h-3 text-blue-600" />
-                <div>
-                  <p className="text-xs font-medium">Productos</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
-                <Users className="w-3 h-3 text-green-600" />
-                <div>
-                  <p className="text-xs font-medium">Ctas. Ctes.</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
-                <Truck className="w-3 h-3 text-purple-600" />
-                <div>
-                  <p className="text-xs font-medium">Proveedores</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
-                <TrendingDown className="w-3 h-3 text-red-600" />
-                <div>
-                  <p className="text-xs font-medium">Egresos</p>
-                </div>
-              </div>
+            <p className="text-xs font-medium mb-2">Acciones</p>
+            <p className="text-xs text-muted-foreground mb-2">
+              Elegí qué acciones mostrar en el menú flotante. Si no queda ninguna acción habilitada, el menú flotante se deshabilitará; al habilitar una, se reactivará automáticamente. Podés seguir configurando las acciones aunque el menú esté desactivado.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {floatingMenuActionsConfig.map((action) => {
+                const Icon = action.icon;
+                const visible = !(Array.isArray(hiddenFloatingMenuActions) ? hiddenFloatingMenuActions : []).includes(action.id);
+                return (
+                  <div key={action.id} className="flex items-center justify-between gap-2 p-2 bg-muted/40 rounded-md">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Icon className={`w-3 h-3 ${action.color}`} />
+                      <Label htmlFor={`floating-action-${action.id}`} className="text-xs font-medium truncate">
+                        {action.label}
+                      </Label>
+                    </div>
+                    <Switch
+                      id={`floating-action-${action.id}`}
+                      checked={visible}
+                      onCheckedChange={(checked) => handleFloatingMenuActionToggle(action.id, checked)}
+                    />
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -318,6 +372,38 @@ const handleFloatingMenuToggle = () => {
               checked={totalFlotante}
               onCheckedChange={setTotalFlotante}
             />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Tarjeta de elementos del sidebar */}
+      <Card className="py-2">
+        <CardHeader className="py-2">
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <Menu className="w-4 h-4" />
+            Elementos del Sidebar
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="py-2 space-y-2">
+          <p className="text-xs text-muted-foreground">
+            Elegí qué secciones mostrar u ocultar en la barra lateral.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {sidebarItemsConfig.map((item) => {
+              const visible = !(Array.isArray(hiddenSidebarItems) ? hiddenSidebarItems : []).includes(item.path);
+              return (
+                <div key={item.path} className="flex items-center justify-between gap-2 p-2 bg-muted/40 rounded-md">
+                  <Label htmlFor={`sidebar-item-${item.path}`} className="text-sm font-medium truncate">
+                    {item.label}
+                  </Label>
+                  <Switch
+                    id={`sidebar-item-${item.path}`}
+                    checked={visible}
+                    onCheckedChange={(checked) => handleSidebarItemToggle(item.path, checked)}
+                  />
+                </div>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
