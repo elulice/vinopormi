@@ -1437,6 +1437,25 @@
 
 .vpm-app .vpm-cta-sale:hover { background: var(--vpm-accent-hover); }
 
+/* En compacto el CTA es sólo el ícono: se centra aunque la regla base de más
+   abajo tenga padding asimétrico para la versión expandida. */
+.vpm-app .vpm-sidebar--compact .vpm-cta-sale {
+  justify-content: center;
+  padding: 0;
+}
+
+.vpm-app .vpm-sidebar--compact .vpm-cta-sale span {
+  justify-content: center;
+  width: 100%;
+  gap: 0;
+}
+
+.vpm-app .vpm-sidebar--compact .vpm-user-actions {
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
 .vpm-app .vpm-nav {
   display: flex;
   flex: 1 1 0;
