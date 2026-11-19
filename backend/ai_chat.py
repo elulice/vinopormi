@@ -116,6 +116,7 @@ async def tool_buscar_productos(
     precio_max: Optional[float] = None,
     solo_con_stock: Optional[bool] = None,
     categoria: Optional[str] = None,
+    solo_con_descuento: Optional[bool] = None,
 ) -> Dict[str, Any]:
     """Busca productos con filtros, orden y totales básicos."""
     limit = max(1, min(int(limit or DEFAULT_LIMIT), MAX_LIMIT))
@@ -144,6 +145,20 @@ async def tool_buscar_productos(
             and_conds.append({"precio_unitario": price_filter})
     if solo_con_stock is True:
         and_conds.append({"stock": {"$gt": 0}})
+    if solo_con_descuento is True:
+        and_conds.append({
+            "descuento_cantidad_minima": {"$exists": True, "$ne": None},
+            "descuento_precio_unitario": {"$exists": True, "$ne": None},
+        })
+    elif solo_con_descuento is False:
+        and_conds.append({
+            "$or": [
+                {"descuento_cantidad_minima": {"$exists": False}},
+                {"descuento_cantidad_minima": None},
+                {"descuento_precio_unitario": {"$exists": False}},
+                {"descuento_precio_unitario": None},
+            ]
+        })
     if categoria:
         and_conds.append({
             "$or": [
@@ -171,13 +186,25 @@ async def tool_buscar_productos(
     count = await db.productos.count_documents(filter_query)
     productos = await db.productos.find(
         filter_query,
-        {"_id": 0, "nombre": 1, "precio_unitario": 1, "precio_costo": 1, "stock": 1, "categoria_nombre": 1, "categoria": 1},
+        {
+            "_id": 0, "nombre": 1, "precio_unitario": 1, "precio_costo": 1,
+            "stock": 1, "categoria_nombre": 1, "categoria": 1,
+            "descuento_cantidad_minima": 1, "descuento_precio_unitario": 1,
+        },
     ).sort(sort_field, sort_dir).limit(limit).to_list(limit)
     out = []
     for p in productos:
         pv = p.get("precio_unitario")
         pc = p.get("precio_costo", 0)
         cat = p.get("categoria_nombre") or p.get("categoria")
+        cant_desc = p.get("descuento_cantidad_minima")
+        precio_desc = p.get("descuento_precio_unitario")
+        descuento = None
+        if cant_desc is not None and precio_desc is not None:
+            descuento = (
+                f"Desde {cant_desc} unidades: "
+                f"{_fmt_money_ar(precio_desc)} por unidad"
+            )
         out.append(
             {
                 "nombre": p.get("nombre"),
@@ -185,6 +212,7 @@ async def tool_buscar_productos(
                 "precio_venta": _fmt_money_ar(pv),
                 "precio_costo": _fmt_money_ar(pc),
                 "stock": p.get("stock", 0),
+                "descuento": descuento,
             }
         )
     return {
@@ -545,7 +573,7 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "buscar_productos",
-            "description": "Busca/lista productos (query vacío = todos). Permite filtrar por nombre, categoría, rango de precio y stock; ordenar (ej. precio_venta asc para más baratos, o por categoría). Devuelve categoría, precios, stock y total de coincidencias.",
+            "description": "Busca/lista productos (query vacío = todos). Permite filtrar por nombre, categoría, rango de precio, stock y descuento por cantidad; ordenar (ej. precio_venta asc para más baratos, o por categoría). Devuelve categoría, precios, stock, descuento por cantidad (si tiene) y total de coincidencias.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -557,6 +585,7 @@ TOOL_DEFINITIONS = [
                     "precio_max": {"type": "number", "description": "Precio de venta máximo."},
                     "solo_con_stock": {"type": "boolean", "description": "Si es true, solo productos con stock > 0."},
                     "categoria": {"type": "string", "description": "Filtrar por nombre de categoría."},
+                    "solo_con_descuento": {"type": "boolean", "description": "Si es true, solo productos con descuento por cantidad configurado (cantidad mínima y precio unitario con descuento). Si es false, solo los que no tienen."},
                 },
                 "required": [],
             },
@@ -852,7 +881,8 @@ SYSTEM_PROMPT = (
     "Respondé en español, de forma clara, breve y exacta. "
     "Mantené el contexto del historial de la conversación para entender referencias y preguntas de seguimiento (por ejemplo pronombres como 'él/ella/eso' o '¿de qué color?') usando lo que el usuario o vos dijeron antes en el chat. "
     "Cuando la pregunta requiera datos del sistema (ventas, productos, cuentas corrientes de clientes/proveedores, egresos, MercadoPago o auditoría), usá las herramientas disponibles y basá esos datos únicamente en sus resultados. No inventes precios, stock, saldos, montos, fechas ni registros. "
-    "Aprovechá los parámetros de las herramientas cuando ayude: filtros (fechas, cliente, medio de pago, categoría, búsqueda, rangos), orden (asc/desc por precio, fecha, monto, etc.) y agrupaciones/resúmenes (por día, mes, medio de pago, cliente, categoría) para responder totales y comparaciones de forma precisa. "
+    "Aprovechá los parámetros de las herramientas cuando ayude: filtros (fechas, cliente, medio de pago, categoría, búsqueda, rangos, stock, descuento), orden (asc/desc por precio, fecha, monto, etc.) y agrupaciones/resúmenes (por día, mes, medio de pago, cliente, categoría) para responder totales y comparaciones de forma precisa. "
+    "Sobre los descuentos: un producto puede tener 'descuento por cantidad', que significa que si se compra una cantidad MAYOR O IGUAL a la cantidad mínima, el precio por unidad pasa a ser el precio con descuento (no es un porcentaje). En los resultados de buscar_productos, el campo 'descuento' indica 'Desde X unidades: $Y por unidad' cuando existe y es null cuando el producto no tiene descuento. Cuando te pregunten por descuentos, usá el filtro solo_con_descuento y explicá siempre la condición (desde cuántas unidades) y el precio unitario resultante, sin confundirlo con el precio de venta normal. "
     "Distinguí entre datos del sistema (solo desde herramientas) e información conversacional aportada por el usuario en el chat: podés recordar y referirte a lo conversado, pero no lo presentes como dato del sistema. "
     "SOLO podés consultar información usando las herramientas disponibles; no podés crear, editar ni eliminar datos. "
     "Si una herramienta devuelve vacío o error, indicalo claramente. "
