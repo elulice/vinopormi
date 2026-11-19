@@ -23,6 +23,7 @@ import Configuracion from "@/pages/Configuracion";
 import Mercadopago from "@/pages/Mercadopago";
 import Layout from "@/components/Layout";
 import AdminRoute from "@/components/AdminRoute";
+import AutoUpdater from "@/components/AutoUpdater";
 import { AuthProvider } from "@/context/AuthContext";
 import { ConfigProvider } from "@/context/ConfigContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -36,6 +37,7 @@ window.addEventListener("wheel", () => {
 function App() {
   return (
     <BrowserRouter>
+        <AutoUpdater />
         <Routes>
         {/* RUTAS PÚBLICAS - Sin AuthProvider ni ConfigProvider */}
         <Route path="/Landing" element={<LandingPage />} />

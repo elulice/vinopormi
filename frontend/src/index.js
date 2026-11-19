@@ -12,6 +12,9 @@ root.render(
 
 // Service Worker Registration
 if (process.env.NODE_ENV === "production" && "serviceWorker" in navigator) {
+  // AutoUpdater usa este flag para no recargar en la primera instalación del SW.
+  window.__VPM_HAD_SW_CONTROLLER__ = Boolean(navigator.serviceWorker.controller);
+
   window.addEventListener("load", () => {
     const swUrl = `${process.env.PUBLIC_URL}/service-worker.js`;
     navigator.serviceWorker
