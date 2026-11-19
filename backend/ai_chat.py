@@ -104,22 +104,59 @@ def _fmt_date_ar(value: Any, with_time: bool = False) -> str:
     return str(value)
 
 
-async def tool_buscar_productos(db, current_user, query: str = "", limit: int = DEFAULT_LIMIT) -> Dict[str, Any]:
-    """Busca productos por nombre y devuelve precio, stock y costo."""
+async def tool_buscar_productos(
+    db,
+    current_user,
+    query: str = "",
+    limit: int = DEFAULT_LIMIT,
+    ordenar_por: str = "nombre",
+    orden: str = "asc",
+    precio_min: Optional[float] = None,
+    precio_max: Optional[float] = None,
+    solo_con_stock: Optional[bool] = None,
+) -> Dict[str, Any]:
+    """Busca productos con filtros, orden y totales básicos."""
     limit = max(1, min(int(limit or DEFAULT_LIMIT), MAX_LIMIT))
     filter_query: Dict[str, Any] = {}
     if query:
-        terms = [t for t in query.split() if t]
+        terms = [t for t in str(query).split() if t]
         if len(terms) > 1:
             filter_query["$and"] = [{"nombre": {"$regex": t, "$options": "i"}} for t in terms]
         else:
-            filter_query["nombre"] = {"$regex": query, "$options": "i"}
+            filter_query["nombre"] = {"$regex": str(query), "$options": "i"}
 
-    # Proyección mínima para reducir tamaño del contexto
+    if precio_min is not None or precio_max is not None:
+        price_filter: Dict[str, Any] = {}
+        if precio_min is not None:
+            try:
+                price_filter["$gte"] = float(precio_min)
+            except Exception:
+                pass
+        if precio_max is not None:
+            try:
+                price_filter["$lte"] = float(precio_max)
+            except Exception:
+                pass
+        if price_filter:
+            filter_query["precio_unitario"] = price_filter
+    if solo_con_stock is True:
+        filter_query["stock"] = {"$gt": 0}
+
+    sort_map = {
+        "nombre": "nombre",
+        "precio_venta": "precio_unitario",
+        "precio": "precio_unitario",
+        "precio_costo": "precio_costo",
+        "stock": "stock",
+    }
+    sort_field = sort_map.get(str(ordenar_por or "nombre").lower(), "nombre")
+    sort_dir = -1 if str(orden or "asc").lower() in ("desc", "descendente", "-1") else 1
+
+    count = await db.productos.count_documents(filter_query)
     productos = await db.productos.find(
         filter_query,
         {"_id": 0, "nombre": 1, "precio_unitario": 1, "precio_costo": 1, "stock": 1},
-    ).sort("nombre", 1).limit(limit).to_list(limit)
+    ).sort(sort_field, sort_dir).limit(limit).to_list(limit)
     out = []
     for p in productos:
         pv = p.get("precio_unitario")
@@ -132,7 +169,13 @@ async def tool_buscar_productos(db, current_user, query: str = "", limit: int = 
                 "stock": p.get("stock", 0),
             }
         )
-    return {"cantidad": len(out), "productos": out}
+    return {
+        "cantidad_mostrada": len(out),
+        "cantidad_total_coincidencias": count,
+        "ordenado_por": ordenar_por,
+        "orden": "asc" if sort_dir == 1 else "desc",
+        "productos": out,
+    }
 
 
 async def _find_cliente(db, nombre_o_id: str):
@@ -234,9 +277,13 @@ async def tool_listar_ventas(
     fecha_inicio: Optional[str] = None,
     fecha_fin: Optional[str] = None,
     cliente: Optional[str] = None,
+    medio_pago: Optional[str] = None,
     limit: int = DEFAULT_LIMIT,
+    ordenar_por: str = "fecha",
+    orden: str = "desc",
+    agrupar_por: str = "ninguno",
 ) -> Dict[str, Any]:
-    """Lista ventas con filtros básicos y totales."""
+    """Lista/agrupa ventas con filtros, orden y totales sobre todas las coincidencias."""
     limit = max(1, min(int(limit or DEFAULT_LIMIT), MAX_LIMIT))
     match: Dict[str, Any] = {}
 
@@ -257,6 +304,9 @@ async def tool_listar_ventas(
             }
         match["cliente_id"] = found["id"]
 
+    if medio_pago:
+        match["medio_pago"] = {"$regex": f"^{re.escape(str(medio_pago).strip())}$", "$options": "i"}
+
     di = _parse_date_start(fecha_inicio)
     df = _parse_date_end(fecha_fin)
     if di or df:
@@ -266,22 +316,77 @@ async def tool_listar_ventas(
         if df:
             match["fecha"]["$lte"] = df
 
-    projection = {
-        "_id": 0,
-        "fecha": 1,
-        "cliente_nombre": 1,
-        "total": 1,
-        "ganancia_neta": 1,
-        "medio_pago": 1,
-        "detalles": 1,
+    # Totales globales sobre todas las coincidencias
+    totals_pipeline = [
+        {"$match": match},
+        {"$group": {"_id": None, "count": {"$sum": 1}, "total": {"$sum": {"$ifNull": ["$total", 0]}}, "ganancia": {"$sum": {"$ifNull": ["$ganancia_neta", 0]}}}},
+    ]
+    totals_agg = await db.ventas.aggregate(totals_pipeline).to_list(1)
+    totals = totals_agg[0] if totals_agg else {"count": 0, "total": 0, "ganancia": 0}
+
+    agrupar_por = (agrupar_por or "ninguno").lower().strip()
+    group_key_map = {
+        "dia": {"$substrBytes": [{"$ifNull": ["$fecha", ""]}, 0, 10]},
+        "día": {"$substrBytes": [{"$ifNull": ["$fecha", ""]}, 0, 10]},
+        "fecha": {"$substrBytes": [{"$ifNull": ["$fecha", ""]}, 0, 10]},
+        "mes": {"$substrBytes": [{"$ifNull": ["$fecha", ""]}, 0, 7]},
+        "medio_pago": {"$ifNull": ["$medio_pago", "Sin medio de pago"]},
+        "cliente": {"$ifNull": ["$cliente_nombre", "Sin cliente"]},
     }
-    ventas = await db.ventas.find(match, projection).sort("fecha", -1).limit(limit).to_list(limit)
-    total_monto = 0.0
-    total_ganancia = 0.0
+
+    if agrupar_por in group_key_map:
+        group_pipeline = [
+            {"$match": match},
+            {"$group": {
+                "_id": group_key_map[agrupar_por],
+                "cantidad_ventas": {"$sum": 1},
+                "suma_total": {"$sum": {"$ifNull": ["$total", 0]}},
+                "suma_ganancia_neta": {"$sum": {"$ifNull": ["$ganancia_neta", 0]}},
+            }},
+            {"$sort": {"_id": 1 if str(orden).lower() == "asc" else -1}},
+            {"$limit": limit},
+        ]
+        grupos = await db.ventas.aggregate(group_pipeline).to_list(limit)
+        out_groups = []
+        for g in grupos:
+            key = g.get("_id") or "Sin dato"
+            # formatear clave fecha si corresponde
+            if agrupar_por in ("dia", "día", "fecha"):
+                key_fmt = _fmt_date_ar(str(key))
+            else:
+                key_fmt = str(key)
+            out_groups.append({
+                "grupo": key_fmt,
+                "cantidad_ventas": g.get("cantidad_ventas", 0),
+                "suma_total": _fmt_money_ar(g.get("suma_total", 0)),
+                "suma_ganancia_neta": _fmt_money_ar(g.get("suma_ganancia_neta", 0)),
+            })
+        return {
+            "agrupado_por": "dia" if agrupar_por in ("dia", "día", "fecha") else agrupar_por,
+            "cantidad_grupos_mostrados": len(out_groups),
+            "cantidad_total_ventas": int(totals.get("count", 0) or 0),
+            "suma_total_general": _fmt_money_ar(totals.get("total", 0)),
+            "suma_ganancia_neta_general": _fmt_money_ar(totals.get("ganancia", 0)),
+            "grupos": out_groups,
+        }
+
+    sort_map = {
+        "fecha": "fecha",
+        "total": "total",
+        "ganancia_neta": "ganancia_neta",
+        "ganancia": "ganancia_neta",
+        "cliente": "cliente_nombre",
+    }
+    sort_field = sort_map.get(str(ordenar_por or "fecha").lower(), "fecha")
+    sort_dir = 1 if str(orden or "desc").lower() in ("asc", "ascendente", "1") else -1
+
+    projection = {
+        "_id": 0, "fecha": 1, "cliente_nombre": 1, "total": 1,
+        "ganancia_neta": 1, "medio_pago": 1, "detalles": 1,
+    }
+    ventas = await db.ventas.find(match, projection).sort(sort_field, sort_dir).limit(limit).to_list(limit)
     out = []
     for v in ventas:
-        total_monto += float(v.get("total", 0) or 0)
-        total_ganancia += float(v.get("ganancia_neta", 0) or 0)
         detalles = v.get("detalles") or []
         resumen_items = ", ".join(
             [f"{d.get('cantidad', 0)}x {d.get('producto_nombre', '')}" for d in detalles[:3]]
@@ -298,12 +403,11 @@ async def tool_listar_ventas(
                 "items": resumen_items,
             }
         )
-    count = await db.ventas.count_documents(match)
     return {
         "cantidad_mostrada": len(out),
-        "cantidad_total_coincidencias": count,
-        "suma_total_mostrada": _fmt_money_ar(total_monto),
-        "suma_ganancia_neta_mostrada": _fmt_money_ar(total_ganancia),
+        "cantidad_total_coincidencias": int(totals.get("count", 0) or 0),
+        "suma_total_general": _fmt_money_ar(totals.get("total", 0)),
+        "suma_ganancia_neta_general": _fmt_money_ar(totals.get("ganancia", 0)),
         "ventas": out,
     }
 
@@ -313,9 +417,14 @@ async def tool_listar_egresos(
     current_user,
     fecha_inicio: Optional[str] = None,
     fecha_fin: Optional[str] = None,
+    search: Optional[str] = None,
+    categoria: Optional[str] = None,
     limit: int = DEFAULT_LIMIT,
+    ordenar_por: str = "fecha",
+    orden: str = "desc",
+    agrupar_por: str = "ninguno",
 ) -> Dict[str, Any]:
-    """Lista egresos con filtros de fecha y total."""
+    """Lista/agrupa egresos con filtros, orden y totales sobre todas las coincidencias."""
     limit = max(1, min(int(limit or DEFAULT_LIMIT), MAX_LIMIT))
     match: Dict[str, Any] = {}
 
@@ -323,6 +432,14 @@ async def tool_listar_egresos(
     is_admin = getattr(current_user, "rol", None) == "admin"
     if not is_admin and getattr(current_user, "preferencias", None) and current_user.preferencias.get("soloMisDatos"):
         match["usuario_id"] = current_user.id
+
+    if categoria:
+        match["categoria"] = {"$regex": re.escape(str(categoria).strip()), "$options": "i"}
+    if search:
+        match["$or"] = [
+            {"descripcion": {"$regex": search, "$options": "i"}},
+            {"categoria": {"$regex": search, "$options": "i"}},
+        ]
 
     di = _parse_date_start(fecha_inicio)
     df = _parse_date_end(fecha_fin)
@@ -333,10 +450,61 @@ async def tool_listar_egresos(
         if df:
             match["fecha"]["$lte"] = df
 
+    totals_pipeline = [
+        {"$match": match},
+        {"$group": {"_id": None, "count": {"$sum": 1}, "total": {"$sum": {"$ifNull": ["$monto", 0]}}}},
+    ]
+    totals_agg = await db.egresos.aggregate(totals_pipeline).to_list(1)
+    totals = totals_agg[0] if totals_agg else {"count": 0, "total": 0}
+
+    agrupar_por = (agrupar_por or "ninguno").lower().strip()
+    group_key_map = {
+        "dia": {"$substrBytes": [{"$ifNull": ["$fecha", ""]}, 0, 10]},
+        "día": {"$substrBytes": [{"$ifNull": ["$fecha", ""]}, 0, 10]},
+        "fecha": {"$substrBytes": [{"$ifNull": ["$fecha", ""]}, 0, 10]},
+        "mes": {"$substrBytes": [{"$ifNull": ["$fecha", ""]}, 0, 7]},
+        "categoria": {"$ifNull": ["$categoria", "Sin categoría"]},
+    }
+
+    if agrupar_por in group_key_map:
+        group_pipeline = [
+            {"$match": match},
+            {"$group": {
+                "_id": group_key_map[agrupar_por],
+                "cantidad_egresos": {"$sum": 1},
+                "suma_monto": {"$sum": {"$ifNull": ["$monto", 0]}},
+            }},
+            {"$sort": {"_id": 1 if str(orden).lower() == "asc" else -1}},
+            {"$limit": limit},
+        ]
+        grupos = await db.egresos.aggregate(group_pipeline).to_list(limit)
+        out_groups = []
+        for g in grupos:
+            key = g.get("_id") or "Sin dato"
+            if agrupar_por in ("dia", "día", "fecha"):
+                key_fmt = _fmt_date_ar(str(key))
+            else:
+                key_fmt = str(key)
+            out_groups.append({
+                "grupo": key_fmt,
+                "cantidad_egresos": g.get("cantidad_egresos", 0),
+                "suma_monto": _fmt_money_ar(g.get("suma_monto", 0)),
+            })
+        return {
+            "agrupado_por": "dia" if agrupar_por in ("dia", "día", "fecha") else agrupar_por,
+            "cantidad_grupos_mostrados": len(out_groups),
+            "cantidad_total_egresos": int(totals.get("count", 0) or 0),
+            "suma_monto_general": _fmt_money_ar(totals.get("total", 0)),
+            "grupos": out_groups,
+        }
+
+    sort_map = {"fecha": "fecha", "monto": "monto", "descripcion": "descripcion", "categoria": "categoria"}
+    sort_field = sort_map.get(str(ordenar_por or "fecha").lower(), "fecha")
+    sort_dir = 1 if str(orden or "desc").lower() in ("asc", "ascendente", "1") else -1
+
     egresos = await db.egresos.find(
         match, {"_id": 0, "fecha": 1, "descripcion": 1, "monto": 1, "categoria": 1}
-    ).sort("fecha", -1).limit(limit).to_list(limit)
-    total = sum(float(e.get("monto", 0) or 0) for e in egresos)
+    ).sort(sort_field, sort_dir).limit(limit).to_list(limit)
     out = [
         {
             "fecha": _fmt_date_ar(e.get("fecha")),
@@ -346,11 +514,10 @@ async def tool_listar_egresos(
         }
         for e in egresos
     ]
-    count = await db.egresos.count_documents(match)
     return {
         "cantidad_mostrada": len(out),
-        "cantidad_total_coincidencias": count,
-        "suma_monto_mostrada": _fmt_money_ar(total),
+        "cantidad_total_coincidencias": int(totals.get("count", 0) or 0),
+        "suma_monto_general": _fmt_money_ar(totals.get("total", 0)),
         "egresos": out,
     }
 
@@ -360,12 +527,17 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "buscar_productos",
-            "description": "Busca productos por nombre. Devuelve precio de venta, precio de costo y stock. Usar para consultas de precios y stock.",
+            "description": "Busca/lista productos (query vacío = todos). Permite filtrar por nombre, rango de precio y stock; ordenar (ej. precio_venta asc para más baratos). Devuelve precio de venta, costo, stock y total de coincidencias.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "query": {"type": "string", "description": "Texto a buscar en el nombre del producto."},
+                    "query": {"type": "string", "description": "Texto a buscar en el nombre. Vacío para considerar todos."},
                     "limit": {"type": "integer", "description": "Máximo de resultados (default 10, máx 25)."},
+                    "ordenar_por": {"type": "string", "enum": ["nombre", "precio_venta", "precio_costo", "stock"], "description": "Campo para ordenar."},
+                    "orden": {"type": "string", "enum": ["asc", "desc"], "description": "asc = menor a mayor, desc = mayor a menor."},
+                    "precio_min": {"type": "number", "description": "Precio de venta mínimo."},
+                    "precio_max": {"type": "number", "description": "Precio de venta máximo."},
+                    "solo_con_stock": {"type": "boolean", "description": "Si es true, solo productos con stock > 0."},
                 },
                 "required": [],
             },
@@ -391,14 +563,18 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "listar_ventas",
-            "description": "Lista ventas con totales. Permite filtrar por rango de fechas (YYYY-MM-DD) y por cliente. Incluye monto total y ganancia neta.",
+            "description": "Consulta ventas: filtra (fechas YYYY-MM-DD, cliente, medio de pago), ordena y/o agrupa. Devuelve totales generales (todas las coincidencias). Usar agrupar_por para resúmenes (por día/mes/medio_pago/cliente).",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "fecha_inicio": {"type": "string", "description": "Fecha desde (YYYY-MM-DD)."},
                     "fecha_fin": {"type": "string", "description": "Fecha hasta (YYYY-MM-DD)."},
-                    "cliente": {"type": "string", "description": "Nombre o id de cliente para filtrar."},
-                    "limit": {"type": "integer", "description": "Máximo de ventas a devolver."},
+                    "cliente": {"type": "string", "description": "Nombre o id de cliente."},
+                    "medio_pago": {"type": "string", "description": "Medio de pago a filtrar (ej. efectivo, transferencia, posnet, cuenta_corriente)."},
+                    "limit": {"type": "integer", "description": "Máximo de ventas o grupos a devolver (default 10, máx 25)."},
+                    "ordenar_por": {"type": "string", "enum": ["fecha", "total", "ganancia_neta", "cliente"], "description": "Campo para ordenar (cuando no se agrupa)."},
+                    "orden": {"type": "string", "enum": ["asc", "desc"], "description": "Dirección del orden."},
+                    "agrupar_por": {"type": "string", "enum": ["ninguno", "dia", "mes", "medio_pago", "cliente"], "description": "Agrupación para obtener totales por grupo."},
                 },
                 "required": [],
             },
@@ -408,13 +584,18 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "listar_egresos",
-            "description": "Lista egresos/gastos con totales. Permite filtrar por rango de fechas (YYYY-MM-DD).",
+            "description": "Consulta egresos/gastos: filtra (fechas YYYY-MM-DD, texto/categoría), ordena y/o agrupa. Devuelve totales generales. Usar agrupar_por para resúmenes (por día/mes/categoría).",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "fecha_inicio": {"type": "string", "description": "Fecha desde (YYYY-MM-DD)."},
                     "fecha_fin": {"type": "string", "description": "Fecha hasta (YYYY-MM-DD)."},
-                    "limit": {"type": "integer", "description": "Máximo de egresos a devolver."},
+                    "search": {"type": "string", "description": "Texto a buscar en descripción o categoría."},
+                    "categoria": {"type": "string", "description": "Filtrar por categoría."},
+                    "limit": {"type": "integer", "description": "Máximo de egresos o grupos a devolver (default 10, máx 25)."},
+                    "ordenar_por": {"type": "string", "enum": ["fecha", "monto", "descripcion", "categoria"], "description": "Campo para ordenar (cuando no se agrupa)."},
+                    "orden": {"type": "string", "enum": ["asc", "desc"], "description": "Dirección del orden."},
+                    "agrupar_por": {"type": "string", "enum": ["ninguno", "dia", "mes", "categoria"], "description": "Agrupación para obtener totales por grupo."},
                 },
                 "required": [],
             },
@@ -438,16 +619,17 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "consultar_auditoria",
-            "description": "Consulta registros de auditoría del sistema (solo administradores). Permite filtrar por entidad (producto, cliente, egreso, usuario, etc.), acción (creado, modificado, eliminado), rango de fechas y texto.",
+            "description": "Consulta registros de auditoría del sistema (solo administradores). Filtra por entidad, acción (creado/modificado/eliminado), fechas, texto y orden por fecha.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "entidad": {"type": "string", "description": "Entidad a filtrar (ej. producto, cliente, egreso, usuario, venta)."},
+                    "entidad": {"type": "string", "description": "Entidad (ej. producto, cliente, egreso, usuario, venta, proveedor)."},
                     "accion": {"type": "string", "description": "Acción: creado, modificado o eliminado."},
                     "fecha_inicio": {"type": "string", "description": "Fecha desde (YYYY-MM-DD)."},
                     "fecha_fin": {"type": "string", "description": "Fecha hasta (YYYY-MM-DD)."},
-                    "search": {"type": "string", "description": "Texto a buscar en nombre/usuario de la entidad."},
-                    "limit": {"type": "integer", "description": "Máximo de registros a devolver."},
+                    "search": {"type": "string", "description": "Texto a buscar en nombre/usuario/entidad."},
+                    "limit": {"type": "integer", "description": "Máximo de registros (default 10, máx 25)."},
+                    "orden": {"type": "string", "enum": ["asc", "desc"], "description": "Orden por fecha (desc = más recientes primero)."},
                 },
                 "required": [],
             },
@@ -559,6 +741,7 @@ async def tool_consultar_auditoria(
     fecha_fin: Optional[str] = None,
     search: Optional[str] = None,
     limit: int = DEFAULT_LIMIT,
+    orden: str = "desc",
 ) -> Dict[str, Any]:
     """Consulta registros de auditoría (solo administradores)."""
     if getattr(current_user, "rol", None) != "admin":
@@ -595,11 +778,12 @@ async def tool_consultar_auditoria(
             {"usuario_nombre": {"$regex": search, "$options": "i"}},
         ]
 
+    sort_dir = 1 if str(orden or "desc").lower() in ("asc", "ascendente", "1") else -1
     total = await db.auditoria.count_documents(filtro)
     registros = await db.auditoria.find(
         filtro,
         {"_id": 0, "fecha": 1, "entidad": 1, "entidad_nombre": 1, "accion": 1, "usuario_nombre": 1, "valores_anteriores": 1, "valores_nuevos": 1},
-    ).sort("fecha", -1).limit(limit).to_list(limit)
+    ).sort("fecha", sort_dir).limit(limit).to_list(limit)
 
     out = []
     for r in registros:
@@ -648,7 +832,8 @@ SYSTEM_PROMPT = (
     "Sos un asistente de consultas del sistema de gestión VinoPorMi. "
     "Respondé en español, de forma clara, breve y exacta. "
     "Mantené el contexto del historial de la conversación para entender referencias y preguntas de seguimiento (por ejemplo pronombres como 'él/ella/eso' o '¿de qué color?') usando lo que el usuario o vos dijeron antes en el chat. "
-    "Cuando la pregunta requiera datos del sistema (ventas, productos, cuentas corrientes, proveedores, egresos, MercadoPago o auditoría), usá las herramientas disponibles y basá esos datos únicamente en sus resultados. No inventes precios, stock, saldos, montos, fechas ni registros. "
+    "Cuando la pregunta requiera datos del sistema (ventas, productos, cuentas corrientes de clientes/proveedores, egresos, MercadoPago o auditoría), usá las herramientas disponibles y basá esos datos únicamente en sus resultados. No inventes precios, stock, saldos, montos, fechas ni registros. "
+    "Aprovechá los parámetros de las herramientas cuando ayude: filtros (fechas, cliente, medio de pago, categoría, búsqueda, rangos), orden (asc/desc por precio, fecha, monto, etc.) y agrupaciones/resúmenes (por día, mes, medio de pago, cliente, categoría) para responder totales y comparaciones de forma precisa. "
     "Distinguí entre datos del sistema (solo desde herramientas) e información conversacional aportada por el usuario en el chat: podés recordar y referirte a lo conversado, pero no lo presentes como dato del sistema. "
     "SOLO podés consultar información usando las herramientas disponibles; no podés crear, editar ni eliminar datos. "
     "Si una herramienta devuelve vacío o error, indicalo claramente. "
