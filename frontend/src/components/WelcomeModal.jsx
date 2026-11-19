@@ -9,67 +9,30 @@ const POLL_MS = 60000;
 
 const ICONS = { Save, Move, Bot, Sparkles, Mic, Tags };
 
-const DEFAULT_DATA = {
-  version: 'v1.06',
-  features: [
-    {
-      icon: 'Save',
-      title: 'Nueva Venta con borrador persistente',
-      description:
-        'Ahora lo que cargás en "Nueva Venta" se guarda automáticamente y no se pierde si cambiás de pantalla o recargás. El borrador se limpia al registrar la venta o al cancelar.',
-    },
-    {
-      icon: 'Move',
-      title: 'Botón flotante arrastrable',
-      description:
-        'El menú de accesos rápidos ahora se puede arrastrar y soltar en cualquier parte de la pantalla, guardando su posición por usuario. Doble clic para restablecerlo.',
-    },
-    {
-      icon: 'Bot',
-      title: 'Chat IA',
-      description:
-        'Implementamos el Chat IA para consultar datos del sistema (ventas, productos, cuentas corrientes, proveedores, egresos, MercadoPago y auditoría) con historial por usuario.',
-    },
-    {
-      icon: 'Mic',
-      title: 'Dictado por voz en el Chat IA',
-      description:
-        'Ahora podés dictar tus consultas en el Chat IA usando el micrófono. Tu voz se transcribe automáticamente para que puedas revisarla y enviarla.',
-    },
-    {
-      icon: 'Tags',
-      title: 'Categorías de productos',
-      description:
-        'Ahora podés organizar los productos por categorías (por ejemplo, vinos o gaseosas): crealas, editá su nombre o eliminalas desde la sección Productos y asignalas a cada producto.',
-    },
-  ],
-};
-
 const WelcomeModal = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [news, setNews] = useState(DEFAULT_DATA);
+  const [news, setNews] = useState({ version: null, features: [] });
   const lastVersionRef = useRef(null);
   const fetchingFullRef = useRef(false);
 
   const fetchFullAndShow = useCallback(async (versionHint) => {
-    if (fetchingFullRef.current) return;
+    if (fetchingFullRef.current) return false;
     fetchingFullRef.current = true;
     try {
       const res = await apiGet(`${API}/novedades`);
-      const data = res?.data && res.data.version ? res.data : { ...DEFAULT_DATA, version: versionHint || DEFAULT_DATA.version };
-      const version = data.version || versionHint || DEFAULT_DATA.version;
-      const features = Array.isArray(data.features) && data.features.length ? data.features : DEFAULT_DATA.features;
-      setNews({ version, features });
+      const data = res?.data;
+      const version = data?.version || versionHint;
+      const features = Array.isArray(data?.features) && data.features.length ? data.features : [];
+      if (!version || !features.length) return false;
 
+      setNews({ version, features });
       if (localStorage.getItem(`${SEEN_PREFIX}${version}`) !== 'true') {
         setIsOpen(true);
       }
+      return true;
     } catch {
-      const version = versionHint || DEFAULT_DATA.version;
-      if (localStorage.getItem(`${SEEN_PREFIX}${version}`) !== 'true') {
-        setNews({ ...DEFAULT_DATA, version });
-        setIsOpen(true);
-      }
+      // Sin backend no mostramos novedades; se reintenta en el próximo chequeo.
+      return false;
     } finally {
       fetchingFullRef.current = false;
     }
@@ -80,22 +43,21 @@ const WelcomeModal = () => {
       const res = await fetch(`${API}/novedades/version`);
       if (!res.ok) throw new Error('version check failed');
       const data = await res.json();
-      const version = data?.version || DEFAULT_DATA.version;
+      const version = data?.version;
+      if (!version || lastVersionRef.current === version) return;
 
-      if (lastVersionRef.current === version) return;
-      lastVersionRef.current = version;
+      if (localStorage.getItem(`${SEEN_PREFIX}${version}`) === 'true') {
+        lastVersionRef.current = version;
+        return;
+      }
 
-      if (localStorage.getItem(`${SEEN_PREFIX}${version}`) !== 'true') {
-        await fetchFullAndShow(version);
+      // Solo marcamos la versión como procesada si pudimos cargar las novedades,
+      // así un fallo momentáneo del backend no oculta el modal para siempre.
+      if (await fetchFullAndShow(version)) {
+        lastVersionRef.current = version;
       }
     } catch {
-      // fallback: intentar flujo completo solo si no vimos el default
-      const version = DEFAULT_DATA.version;
-      if (lastVersionRef.current === version) return;
-      lastVersionRef.current = version;
-      if (localStorage.getItem(`${SEEN_PREFIX}${version}`) !== 'true') {
-        await fetchFullAndShow(version);
-      }
+      // Backend no disponible: no marcamos versión para reintentar luego.
     }
   }, [fetchFullAndShow]);
 
@@ -116,14 +78,16 @@ const WelcomeModal = () => {
   }, [checkVersion]);
 
   const handleClose = () => {
-    const version = news?.version || DEFAULT_DATA.version;
-    try {
-      localStorage.setItem(`${SEEN_PREFIX}${version}`, 'true');
-    } catch {}
+    const version = news?.version;
+    if (version) {
+      try {
+        localStorage.setItem(`${SEEN_PREFIX}${version}`, 'true');
+      } catch {}
+    }
     setIsOpen(false);
   };
 
-  const features = Array.isArray(news?.features) && news.features.length ? news.features : DEFAULT_DATA.features;
+  const features = Array.isArray(news?.features) ? news.features : [];
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleClose(); else setIsOpen(true); }}>

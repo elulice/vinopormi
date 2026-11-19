@@ -3250,7 +3250,7 @@ async def set_configuracion_mercadopago(
 # ===== NOVEDADES (modal forzado por backend) =====
 
 DEFAULT_NOVEDADES = {
-    "version": "v1.06",
+    "version": "v1.06.1",
     "features": [
         {
             "icon": "Save",
