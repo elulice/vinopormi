@@ -9,7 +9,6 @@ import {
   X, 
   Pin, 
   PinOff,
-  Palette,
   MessageCircle,
   Send
 } from 'lucide-react';
@@ -250,21 +249,6 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
               <span className="vpm-note-time" title={fechaTooltip}>{tiempoRelativo}</span>
             </div>
             <div className="vpm-note-tools">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowComments(!showComments)}
-                aria-label={showComments ? 'Ocultar comentarios' : 'Mostrar comentarios'}
-                aria-expanded={showComments}
-                className="vpm-note-tool relative"
-              >
-                <MessageCircle className="w-4 h-4" />
-                {commentCount > 0 && (
-                  <span className="absolute -top-1 -right-1 vpm-pin-badge text-[10px] rounded-full w-3.5 h-3.5 flex items-center justify-center">
-                    {commentCount}
-                  </span>
-                )}
-              </Button>
               {canEdit && (
                 <Button
                   variant="ghost"
@@ -305,66 +289,52 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
 
                 <div className="vpm-edit-bar">
                   <div className="vpm-swatches" role="radiogroup" aria-label="Color de la nota">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowColorPicker(!showColorPicker)}
-                      aria-label="Elegir color"
-                      aria-expanded={showColorPicker}
-                      className="vpm-note-tool"
-                    >
-                      <Palette className="w-4 h-4" />
-                    </Button>
-
-                    {showColorPicker && colores.map((color) => (
+                    {colores.map((color) => (
                       <button
                         key={color.value}
+                        type="button"
                         role="radio"
                         aria-checked={editColor === color.value}
-                        onClick={() => {
-                          setEditColor(color.value);
-                          setShowColorPicker(false);
-                        }}
+                        onClick={() => setEditColor(color.value)}
                         className={noteSwatchClass(color.value)}
                         title={color.nombre}
                       />
                     ))}
-
-                    {/* Toggle fijada */}
-                    <Button
-                      variant="ghost"
-                      size="sm"
+                    <span className="vpm-sep" aria-hidden="true" />
+                    <button
+                      type="button"
+                      className="vpm-pin-btn"
                       onClick={() => setEditFijada(!editFijada)}
                       aria-label={editFijada ? 'Desfijar nota' : 'Fijar nota'}
                       aria-pressed={editFijada}
-                      className={`vpm-note-tool ${editFijada ? 'is-pinned' : ''}`}
+                      title="Fijar arriba"
                     >
                       {editFijada ? <Pin className="w-4 h-4" /> : <PinOff className="w-4 h-4" />}
-                    </Button>
+                    </button>
                   </div>
+                </div>
 
-                  {/* Botones de acción */}
-                  <div className="vpm-edit-actions">
-                    <Button
-                      size="sm"
-                      onClick={handleSave}
-                      disabled={loading}
-                      className="vpm-btn vpm-btn-save"
-                    >
-                      <Save className="w-4 h-4" />
-                      Guardar
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleCancel}
-                      disabled={loading}
-                      className="vpm-btn vpm-btn-ghost"
-                    >
-                      <X className="w-4 h-4" />
-                      Cancelar
-                    </Button>
-                  </div>
+                {/* Botones de acción en una segunda fila, como en el mockup */}
+                <div className="vpm-edit-actions">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCancel}
+                    disabled={loading}
+                    className="vpm-btn vpm-btn-ghost"
+                  >
+                    <X className="w-4 h-4" />
+                    Cancelar
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleSave}
+                    disabled={loading}
+                    className="vpm-btn vpm-btn-save"
+                  >
+                    <Save className="w-4 h-4" />
+                    Guardar
+                  </Button>
                 </div>
               </div>
             ) : (
@@ -376,10 +346,15 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
                 {/* Sección de comentarios */}
                 {showComments && (
                   <div className="vpm-note-foot">
-                    <div className="vpm-comments-toggle">
+                    <button
+                      type="button"
+                      className="vpm-comments-toggle"
+                      onClick={() => setShowComments(!showComments)}
+                      aria-expanded={showComments}
+                    >
                       <MessageCircle className="w-3.5 h-3.5" />
-                      Comentarios ({commentCount})
-                    </div>
+                      {commentCount > 0 ? `Comentarios (${commentCount})` : 'Sin comentarios aún'}
+                    </button>
                     
                     {/* Lista de comentarios */}
                     <div className="vpm-comment-list max-h-40 overflow-y-auto comentarios-scroll">
@@ -406,7 +381,7 @@ const StickyNote = ({ note, onUpdate, onDelete }) => {
                     </div>
                     
                     {/* Input para nuevo comentario */}
-                    <div className="flex gap-1">
+                    <div className="vpm-comment-form flex gap-1">
                       <input
                         type="text"
                         value={newComment}

@@ -8,7 +8,6 @@ import {
   Plus, 
   StickyNote as StickyNoteIcon,
   RefreshCw,
-  Palette,
   Pin,
   PinOff,
   Save,
@@ -36,7 +35,7 @@ const StickyNotesContainer = () => {
     if (!grid) return;
 
     const rowHeight = 8;
-    const gap = 16;
+    const gap = 12;
 
     const applyMasonry = () => {
       const items = Array.from(grid.children);
@@ -50,13 +49,19 @@ const StickyNotesContainer = () => {
       });
     };
 
-    applyMasonry();
+    const schedule = () => window.requestAnimationFrame(applyMasonry);
+    schedule();
 
-    const observer = new ResizeObserver(applyMasonry);
-    observer.observe(grid);
+    // Sólo observar los hijos: observar el grid hacía que el cambio de
+    // gridRowEnd disparara otro resize y causara el "ResizeObserver loop".
+    const observer = new ResizeObserver(schedule);
     Array.from(grid.children).forEach((child) => observer.observe(child));
 
-    return () => observer.disconnect();
+    window.addEventListener('resize', schedule);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', schedule);
+    };
   }, [stickyNotes, showCreateForm, loading]);
 
   const colores = [
@@ -188,7 +193,7 @@ const StickyNotesContainer = () => {
       <CardHeader className="p-0">
         <div className="vpm-section-head">
           <CardTitle className="vpm-section-title">
-            Notas <span>{stickyNotes.length}</span>
+            Notas <span>{stickyNotes.length} notas</span>
           </CardTitle>
           <div className="vpm-btn-row">
             <Button
@@ -267,66 +272,52 @@ const StickyNotesContainer = () => {
 
                   <div className="vpm-edit-bar">
                     <div className="vpm-swatches" role="radiogroup" aria-label="Color de la nota">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setShowColorPicker(!showColorPicker)}
-                        aria-label="Elegir color"
-                        aria-expanded={showColorPicker}
-                        className="vpm-note-tool"
-                      >
-                        <Palette className="w-4 h-4" />
-                      </Button>
-
-                      {showColorPicker && colores.map((color) => (
+                      {colores.map((color) => (
                         <button
                           key={color.value}
+                          type="button"
                           role="radio"
                           aria-checked={newNoteColor === color.value}
-                          onClick={() => {
-                            setNewNoteColor(color.value);
-                            setShowColorPicker(false);
-                          }}
+                          onClick={() => setNewNoteColor(color.value)}
                           className={noteSwatchClass(color.value)}
                           title={color.nombre}
                         />
                       ))}
-
-                      {/* Toggle fijada */}
-                      <Button
-                        variant="ghost"
-                        size="sm"
+                      <span className="vpm-sep" aria-hidden="true" />
+                      <button
+                        type="button"
+                        className="vpm-pin-btn"
                         onClick={() => setNewNoteFijada(!newNoteFijada)}
                         aria-label={newNoteFijada ? 'Desfijar nota' : 'Fijar nota'}
                         aria-pressed={newNoteFijada}
-                        className={`vpm-note-tool ${newNoteFijada ? 'is-pinned' : ''}`}
+                        title="Fijar arriba"
                       >
                         {newNoteFijada ? <Pin className="w-4 h-4" /> : <PinOff className="w-4 h-4" />}
-                      </Button>
+                      </button>
                     </div>
+                  </div>
 
-                    {/* Botones de acción */}
-                    <div className="vpm-edit-actions">
-                      <Button
-                        size="sm"
-                        onClick={handleCreateNote}
-                        disabled={creating || !newNoteText.trim()}
-                        className="vpm-btn vpm-btn-save"
-                      >
-                        <Save className="w-4 h-4" />
-                        Crear
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleCancelCreate}
-                        disabled={creating}
-                        className="vpm-btn vpm-btn-ghost"
-                      >
-                        <X className="w-4 h-4" />
-                        Cancelar
-                      </Button>
-                    </div>
+                  {/* Botones de acción en una segunda fila, como en el mockup */}
+                  <div className="vpm-edit-actions">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCancelCreate}
+                      disabled={creating}
+                      className="vpm-btn vpm-btn-ghost"
+                    >
+                      <X className="w-4 h-4" />
+                      Cancelar
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={handleCreateNote}
+                      disabled={creating || !newNoteText.trim()}
+                      className="vpm-btn vpm-btn-save"
+                    >
+                      <Save className="w-4 h-4" />
+                      Crear
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -341,6 +332,18 @@ const StickyNotesContainer = () => {
                 onDelete={handleDeleteNote}
               />
             ))}
+
+            {/* Alta rápida, como en el mockup */}
+            {!showCreateForm && (
+              <button
+                type="button"
+                onClick={() => setShowCreateForm(true)}
+                className="vpm-note-add"
+              >
+                <Plus className="w-6 h-6" />
+                Agregar nota
+              </button>
+            )}
           </div>
         )}
       </CardContent>

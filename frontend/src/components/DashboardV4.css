@@ -9,6 +9,16 @@
   color: var(--vpm-text);
 }
 
+.vpm-app .vpm-main {
+  padding: 56px 16px 120px;
+}
+
+@media (min-width: 1024px) {
+  .vpm-app .vpm-main {
+    padding: 36px 40px 120px;
+  }
+}
+
 .vpm-app .vpm-sidebar {
   gap: 18px;
   padding: 16px 14px;
@@ -16,6 +26,21 @@
   border-right: 1px solid var(--vpm-border);
   box-shadow: none;
   overflow-y: auto;
+}
+
+.vpm-app .vpm-nav-badge {
+  display: grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  margin-left: auto;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--vpm-accent-soft);
+  color: var(--vpm-accent-hover);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .vpm-app .vpm-sidebar-header {
@@ -26,8 +51,18 @@
 .vpm-app .vpm-brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   min-width: 0;
+}
+
+/* El chevron va al lado del título "Vino Por Mí", pegado al borde derecho. */
+.vpm-app .vpm-brand > div {
+  min-width: 0;
+}
+
+.vpm-app .vpm-sidebar-toggle {
+  flex: none;
+  margin-left: auto;
 }
 
 .vpm-app .vpm-brand img {
@@ -312,6 +347,11 @@
   font-size: 0;
 }
 
+/* En modo compacto el ítem es sólo el ícono: no mostramos el contador. */
+.vpm-app .vpm-sidebar--compact .vpm-nav-badge {
+  display: none;
+}
+
 .vpm-app .vpm-sidebar--compact .vpm-user-card {
   flex-direction: column;
   gap: 4px;
@@ -355,6 +395,23 @@
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+/* La tuerca del header va como botón, al mismo tamaño que el chip de "Caja abierta". */
+.vpm-app .vpm-gear-btn {
+  width: 38px;
+  height: 38px;
+  border-color: var(--vpm-border);
+  background: var(--vpm-panel);
+}
+
+.vpm-app .vpm-gear-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.vpm-app .vpm-gear-btn:hover {
+  background: var(--vpm-overlay-strong);
 }
 
 .vpm-app .vpm-chip i {
@@ -499,6 +556,9 @@
 .vpm-app .vpm-split-part--transferencia { background: var(--vpm-accent); }
 .vpm-app .vpm-split-part--posnet { background: var(--vpm-faint); }
 .vpm-app .vpm-split-part--cobros { background: var(--vpm-pos); }
+.vpm-app .vpm-split-part--egresos { background: var(--vpm-neg); }
+
+.vpm-app .vpm-split span[class*='vpm-split-part--'] { min-width: 4px; }
 
 .vpm-app .vpm-legend {
   display: grid;
@@ -664,8 +724,31 @@
 }
 
 .vpm-app .vpm-notes-grid {
+  display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)) !important;
+  gap: 12px;
   align-items: start;
+}
+
+.vpm-app .vpm-note-add {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 140px;
+  border: 1px dashed var(--vpm-border-strong);
+  border-radius: 16px;
+  background: transparent;
+  color: var(--vpm-faint);
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+
+.vpm-app .vpm-note-add:hover {
+  border-color: var(--vpm-accent);
+  background: var(--vpm-accent-soft);
+  color: var(--vpm-text);
 }
 
 .vpm-app .vpm-note {
@@ -936,6 +1019,10 @@
   cursor: not-allowed;
 }
 
+.vpm-app .vpm-section-head { min-height: 38px; }
+
+.vpm-app .vpm-notes-grid { margin-top: 20px; }
+
 .vpm-app .vpm-note-add {
   display: flex;
   flex-direction: column;
@@ -994,10 +1081,799 @@
   background: var(--vpm-accent-hover);
 }
 
+/* ---------- Port fiel del mockup: cards, grilla y sidebar ----------
+   Estas reglas van al final para ganar sobre el CSS v4 anterior. Usan los
+   tokens --vpm-* (única fuente de verdad) y no cambian el modo claro. */
+
+.vpm-app .vpm-card {
+  position: relative;
+  padding: 20px;
+  border: 1px solid var(--vpm-border);
+  border-radius: 20px;
+  background: var(--vpm-panel);
+  transition: border-color 0.2s, transform 0.2s;
+}
+
+/* Los cards enlazados son <button> (el mockup usa <a>). El navegador centra
+   verticalmente el contenido de un button cuando crece más que su contenido,
+   así que forzamos flujo desde arriba para que el título + ícono queden igual
+   que en el resto de cards, incluso cuando la grilla estira la tarjeta. */
+.vpm-app .vpm-card.vpm-link {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  padding-bottom: 64px;
+}
+
+.vpm-app .vpm-card.vpm-link:hover {
+  border-color: var(--vpm-border-strong);
+}
+
+.vpm-app .vpm-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.vpm-app .vpm-card-title {
+  color: var(--vpm-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.vpm-app .vpm-card-ico {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--vpm-border);
+  border-radius: 10px;
+  background: var(--vpm-overlay);
+  color: var(--vpm-muted);
+}
+
+.vpm-app .vpm-card-ico svg {
+  width: 16px;
+  height: 16px;
+}
+
+.vpm-app .vpm-value {
+  margin-top: 18px;
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.vpm-app .vpm-value small {
+  margin-right: 4px;
+  color: var(--vpm-faint);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.vpm-app .vpm-hint {
+  margin-top: 10px;
+  color: var(--vpm-faint);
+  font-size: 13px;
+}
+
+.vpm-app .vpm-go {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 6px 0 12px;
+  border: 1px solid var(--vpm-border);
+  border-radius: 999px;
+  background: var(--vpm-panel-2);
+  color: var(--vpm-muted);
+  font-size: 12px;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+
+.vpm-app .vpm-go svg {
+  width: 14px;
+  height: 14px;
+  transition: transform 0.2s;
+}
+
+.vpm-app .vpm-go .vpm-dot {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--vpm-overlay-strong);
+}
+
+.vpm-app .vpm-card.vpm-link:hover .vpm-go {
+  border-color: var(--vpm-border-strong);
+  color: var(--vpm-text);
+}
+
+.vpm-app .vpm-card.vpm-link:hover .vpm-go svg {
+  transform: translateX(2px);
+}
+
+.vpm-app .vpm-balance {
+  background: radial-gradient(ellipse 80% 90% at 100% 0%, var(--vpm-accent-soft), transparent 60%), var(--vpm-panel);
+  border-color: var(--vpm-accent-border);
+}
+
+.vpm-app .vpm-balance .vpm-value {
+  font-family: 'Manrope', sans-serif;
+  font-size: 32px;
+  font-weight: 600;
+}
+
+.vpm-app .vpm-balance-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  margin-top: 12px;
+}
+
+.vpm-app .vpm-balance-delta {
+  color: var(--vpm-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.vpm-app .vpm-balance-delta.is-pos { color: var(--vpm-accent); }
+.vpm-app .vpm-balance-delta.is-neg { color: var(--vpm-neg); }
+
+.vpm-app .vpm-balance-ticket {
+  color: var(--vpm-faint);
+  font-size: 12px;
+}
+
+.vpm-app .vpm-balance-ticket b {
+  color: var(--vpm-text);
+  font-weight: 600;
+}
+
+.vpm-app .vpm-balance .vpm-card-ico {
+  border-color: var(--vpm-accent-border);
+  background: var(--vpm-accent-soft);
+  color: var(--vpm-accent-hover);
+}
+
+.vpm-app .vpm-split {
+  display: flex;
+  gap: 2px;
+  height: 8px;
+  margin-top: 22px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--vpm-overlay-strong);
+}
+
+.vpm-app .vpm-split span {
+  height: 100%;
+}
+
+.vpm-app .vpm-legend {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px 16px;
+  margin-top: 16px;
+}
+
+.vpm-app .vpm-legend div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--vpm-muted);
+  font-size: 13px;
+}
+
+.vpm-app .vpm-legend b {
+  margin-left: auto;
+  color: var(--vpm-text);
+  font-weight: 600;
+}
+
+.vpm-app .vpm-legend i {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 3px;
+}
+
+.vpm-app .vpm-legend .vpm-out b {
+  color: var(--vpm-neg);
+}
+
+.vpm-app .vpm-debt-tag {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(251, 146, 60, 0.12);
+  color: #fdba74;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.vpm-app .vpm-debtors {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 18px;
+  list-style: none;
+}
+
+.vpm-app .vpm-debtors li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 12px;
+  font-size: 13px;
+}
+
+.vpm-app .vpm-debtors .vpm-name {
+  overflow: hidden;
+  color: var(--vpm-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vpm-app .vpm-debtors .vpm-amt {
+  color: #fdba74;
+  font-weight: 600;
+}
+
+.vpm-app .vpm-bar {
+  grid-column: 1 / -1;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--vpm-overlay-strong);
+}
+
+.vpm-app .vpm-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #fb923c, var(--vpm-accent));
+}
+
+.vpm-app .vpm-empty-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  color: var(--vpm-faint);
+  font-size: 12px;
+}
+
+.vpm-app .vpm-kpi-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+@media (min-width: 720px) {
+  .vpm-app .vpm-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .vpm-app .vpm-balance { grid-column: 1 / -1; }
+}
+
+@media (min-width: 1024px) {
+  .vpm-app .vpm-kpi-grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    grid-auto-rows: minmax(0, auto);
+  }
+  .vpm-app .vpm-balance {
+    grid-area: span 2 / span 7;
+    display: flex;
+    flex-direction: column;
+  }
+  .vpm-app .vpm-balance .vpm-legend-wrap { margin-top: auto; }
+  .vpm-app .vpm-kpi-sold,
+  .vpm-app .vpm-kpi-out,
+  .vpm-app .vpm-kpi-sales { grid-column: span 5; }
+  .vpm-app .vpm-debt { grid-column: span 7; }
+  .vpm-app .vpm-balance .vpm-value { font-size: 32px; }
+}
+
+@media (min-width: 1280px) {
+  .vpm-app .vpm-balance { grid-column: span 6; }
+  .vpm-app .vpm-kpi-sold,
+  .vpm-app .vpm-kpi-out,
+  .vpm-app .vpm-kpi-sales,
+  .vpm-app .vpm-debt { grid-column: span 3; }
+}
+
+/* Sidebar y notas, según el mockup */
+.vpm-app .vpm-sidebar { gap: 20px; }
+
+.vpm-app .vpm-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 2px 0;
+}
+
+.vpm-app .vpm-brand img {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--vpm-border), 0 0 0 5px var(--vpm-accent-soft);
+}
+
+.vpm-app .vpm-brand-title {
+  display: block;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.vpm-app .vpm-brand-title em { color: var(--vpm-accent); }
+
+.vpm-app .vpm-brand-sub {
+  color: var(--vpm-faint);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.vpm-app .vpm-cta-sale {
+  height: 46px;
+  padding: 0 6px 0 16px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--vpm-accent);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 12px 26px -12px var(--vpm-accent);
+}
+
+.vpm-app .vpm-cta-sale:hover { background: var(--vpm-accent-hover); }
+
+.vpm-app .vpm-nav {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+}
+
+.vpm-app .vpm-nav-label {
+  padding: 14px 12px 6px;
+  color: var(--vpm-faint);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.vpm-app .vpm-nav-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 10px;
+  color: var(--vpm-muted);
+  font-weight: 500;
+}
+
+.vpm-app .vpm-nav-link:hover {
+  background: var(--vpm-overlay);
+  color: var(--vpm-text);
+}
+
+.vpm-app .vpm-nav-link.active {
+  background: var(--vpm-accent-soft);
+  color: var(--vpm-text);
+}
+
+.vpm-app .vpm-nav-link.active::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: -14px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--vpm-accent);
+}
+
+.vpm-app .vpm-nav-link.active svg { color: var(--vpm-accent); }
+
+.vpm-app .vpm-nav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  margin-left: auto;
+  /* Manrope: el dígito tiene ascent pero casi ningún descent, así que el
+     1px extra abajo compensa la métrica y el glifo queda visualmente centrado. */
+  padding: 0 6px 1px;
+  border-radius: 999px;
+  background: var(--vpm-overlay-strong);
+  color: var(--vpm-muted);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.vpm-app .vpm-user-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--vpm-border);
+  border-radius: 14px;
+  background: var(--vpm-panel-2);
+}
+
+.vpm-app .vpm-user-card .vpm-avatar {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--vpm-accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.vpm-app .vpm-user-info {
+  flex: 1 1 0;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.vpm-app .vpm-user-name { display: block; font-size: 13px; }
+.vpm-app .vpm-user-handle {
+  overflow: hidden;
+  color: var(--vpm-faint);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Botones del usuario más compactos para que el card quepa en el sidebar angosto. */
+.vpm-app .vpm-user-actions .vpm-icon-btn {
+  width: 30px;
+  height: 30px;
+}
+
+.vpm-app .vpm-note-top .vpm-avatar {
+  width: 28px;
+  height: 28px;
+  font-size: 11px;
+}
+
+.vpm-app .vpm-note-meta strong { display: block; font-size: 13px; }
+.vpm-app .vpm-note-meta span { color: var(--vpm-note-text-soft); font-size: 11px; }
+
+.vpm-app .vpm-note-tools {
+  display: flex;
+  gap: 2px;
+  opacity: 0.55;
+  transition: opacity 0.2s;
+}
+
+.vpm-app .vpm-note:hover .vpm-note-tools,
+.vpm-app .vpm-note:focus-within .vpm-note-tools { opacity: 1; }
+
+.vpm-app .vpm-note-tool {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  background: transparent;
+  color: var(--vpm-text);
+}
+
+.vpm-app .vpm-note-text {
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-line;
+}
+
+.vpm-app .vpm-note-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--vpm-border);
+}
+
+.vpm-app .vpm-comments-toggle {
+  align-self: flex-start;
+  color: var(--vpm-note-text-soft);
+  font-size: 12px;
+}
+
+.vpm-app .vpm-comment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  list-style: none;
+}
+
+.vpm-app .vpm-comment {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--vpm-note-soft);
+}
+
+/* ---------- Ajustes finales según el mockup (última capa) ---------- */
+.vpm-app .vpm-card-title {
+  font-family: 'Manrope', sans-serif;
+}
+
+/* Los cards son <button>: el navegador los centra por defecto. */
+.vpm-app .vpm-card.vpm-link {
+  text-align: left;
+}
+
+.vpm-app .vpm-debtors li {
+  text-align: left;
+}
+
+/* Botón de actualizar al lado de "Nueva nota": con fondo, como el mockup. */
+.vpm-app .vpm-btn-row .vpm-icon-btn {
+  border: 1px solid var(--vpm-border);
+  background: var(--vpm-panel-2);
+}
+
+/* Editor de notas: paleta siempre visible + separador + pin en la misma fila,
+   y las acciones en una segunda fila. */
+.vpm-app .vpm-edit-bar {
+  justify-content: flex-start;
+}
+
+.vpm-app .vpm-edit-actions {
+  margin-top: 12px;
+}
+
+.vpm-app .vpm-edit-actions button {
+  height: 38px;
+}
+
+.vpm-app .vpm-sep {
+  width: 1px;
+  height: 18px;
+  margin: 0 2px;
+  background: var(--vpm-border-strong);
+}
+
+.vpm-app .vpm-pin-btn {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--vpm-note-text-soft);
+}
+
+.vpm-app .vpm-pin-btn:hover,
+.vpm-app .vpm-pin-btn[aria-pressed='true'] {
+  background: var(--vpm-overlay-strong);
+  color: var(--vpm-text);
+}
+
+.vpm-app .vpm-pin-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* ---------- Popover de configuración del sidebar (portal) ---------- */
+.vpm-config-pop--modern {
+  position: fixed;
+  z-index: 80;
+  width: 208px;
+  padding: 8px;
+  border: 1px solid var(--vpm-border-strong);
+  border-radius: 16px;
+  background: var(--vpm-panel);
+  box-shadow:
+    0 24px 60px -20px rgba(0, 0, 0, 0.65),
+    0 0 0 1px var(--vpm-border);
+  transform-origin: bottom right;
+}
+
+.vpm-config-pop--modern[data-placement='bottom'] {
+  transform-origin: top right;
+}
+
+.vpm-config-pop--modern[data-sidebar-width='expanded'] {
+  width: 240px;
+}
+
+.vpm-config-pop-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+  padding: 10px 10px 12px;
+  border-bottom: 1px solid var(--vpm-border);
+}
+
+.vpm-config-pop-avatar {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--vpm-accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.vpm-config-pop-user {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.vpm-config-pop-user strong {
+  overflow: hidden;
+  color: var(--vpm-text);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vpm-config-pop-user span {
+  color: var(--vpm-faint);
+  font-size: 11px;
+}
+
+.vpm-config-pop-label {
+  margin: 0;
+  padding: 6px 10px;
+  color: var(--vpm-faint);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.vpm-config-pop-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.vpm-config-pop-items a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  color: var(--vpm-muted);
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.15s, color 0.15s;
+}
+
+.vpm-config-pop-items a:hover {
+  background: var(--vpm-overlay);
+  color: var(--vpm-text);
+}
+
+.vpm-config-pop-items a.active {
+  background: var(--vpm-accent-soft);
+  color: var(--vpm-text);
+}
+
+.vpm-config-pop-items a.active svg {
+  color: var(--vpm-accent);
+}
+
+.vpm-config-pop-items svg {
+  width: 16px;
+  height: 16px;
+}
+
+.vpm-config-pop-divider {
+  height: 1px;
+  margin: 8px 4px;
+  background: var(--vpm-border);
+}
+
+.vpm-config-pop-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  transition: background 0.15s;
+}
+
+.vpm-config-pop-row:hover {
+  background: var(--vpm-overlay);
+}
+
+.vpm-config-pop-row-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--vpm-muted);
+  font-size: 13px;
+}
+
+.vpm-config-pop-row-label svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ---------- Últimas ventas dentro del card "Ventas realizadas" ---------- */
+.vpm-app .vpm-last-sales {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vpm-app .vpm-last-sale {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--vpm-border);
+}
+
+.vpm-app .vpm-last-sale:last-child {
+  border-bottom: 0;
+}
+
+.vpm-app .vpm-last-sale-time {
+  color: var(--vpm-muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.vpm-app .vpm-last-sale-medio {
+  overflow: hidden;
+  color: var(--vpm-faint);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vpm-app .vpm-last-sale-total {
+  color: var(--vpm-text);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .vpm-app *,
   .vpm-app *::before,
-  .vpm-app *::after {
+  .vpm-app *::after,
+  .vpm-config-pop--modern,
+  .vpm-config-pop--modern * {
     animation: none !important;
     transition: none !important;
   }

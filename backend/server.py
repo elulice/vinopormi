@@ -263,6 +263,7 @@ class MovimientoCuentaCorriente(BaseModel):
 
 class DashboardStats(BaseModel):
     total_vendido_hoy: float
+    total_vendido_ayer: float = 0
     cantidad_ventas_hoy: int
     ventas_por_medio_pago: dict
     total_saldo_cuenta_corriente: float
@@ -270,6 +271,7 @@ class DashboardStats(BaseModel):
     ingresos_cta_cte_hoy: float = 0
     caja_real: float = 0
     ultimos_clientes_cta_cte: list = []
+    ultimas_ventas: list = []
 
 class CuentaCorrienteInfo(BaseModel):
     cliente: Optional[Cliente] = None
@@ -1977,20 +1979,55 @@ async def get_dashboard_stats(current_user: Usuario = Depends(get_current_user))
     
     hoy_inicio_str = hoy_inicio_utc.isoformat()
     hoy_fin_str = hoy_fin_utc.isoformat()
+
+    # Rango local de ayer, en UTC para comparar con la base de datos.
+    ayer_local = ahora_local - timedelta(days=1)
+    ayer_inicio_utc = ayer_local.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
+    ayer_fin_utc = ayer_local.replace(hour=23, minute=59, second=59, microsecond=999999).astimezone(timezone.utc)
+    ayer_inicio_str = ayer_inicio_utc.isoformat()
+    ayer_fin_str = ayer_fin_utc.isoformat()
     
     # Filtro base para ventas y egresos
     filtro_fecha = {'fecha': {'$gte': hoy_inicio_str, '$lte': hoy_fin_str}}
+    filtro_fecha_ayer = {'fecha': {'$gte': ayer_inicio_str, '$lte': ayer_fin_str}}
     
     # Filtrar ventas del día actual (00:00:00 - 23:59:59)
     if solo_mis_datos:
         filtro_ventas = {**filtro_fecha, 'usuario_id': current_user.id}
+        filtro_ventas_ayer = {**filtro_fecha_ayer, 'usuario_id': current_user.id}
     else:
         filtro_ventas = filtro_fecha
+        filtro_ventas_ayer = filtro_fecha_ayer
     
     ventas_hoy = await db.ventas.find(filtro_ventas, {'_id': 0}).to_list(1000)
+    ventas_ayer = await db.ventas.find(filtro_ventas_ayer, {'_id': 0}).to_list(1000)
     
     total_vendido = sum(v['total'] for v in ventas_hoy)
+    total_vendido_ayer = sum(v['total'] for v in ventas_ayer)
     cantidad_ventas = len(ventas_hoy)
+
+    # Últimas ventas del día para el dashboard. Se derivan de `ventas_hoy`, que
+    # ya viene filtrado por usuario cuando está activo "Solo mis datos".
+    ultimas_ventas = []
+    for venta in sorted(ventas_hoy, key=lambda v: v.get('fecha') or '', reverse=True)[:4]:
+        medios = []
+        for pago in (venta.get('pagos') or []):
+            medio = pago.get('medio_pago')
+            if medio and medio not in medios:
+                medios.append(medio)
+        if not medios and venta.get('medio_pago'):
+            medios = [venta['medio_pago']]
+
+        fecha = venta.get('fecha')
+        if isinstance(fecha, datetime):
+            fecha = fecha.isoformat()
+
+        ultimas_ventas.append({
+            'id': venta.get('id') or venta.get('_id'),
+            'fecha': fecha,
+            'total': venta.get('total', 0),
+            'medio_pago': ' + '.join(medios) if medios else 'desconocido',
+        })
     
     ventas_por_medio = {}
     for venta in ventas_hoy:
@@ -2093,13 +2130,15 @@ async def get_dashboard_stats(current_user: Usuario = Depends(get_current_user))
     
     return DashboardStats(
         total_vendido_hoy=total_vendido,
+        total_vendido_ayer=total_vendido_ayer,
         cantidad_ventas_hoy=cantidad_ventas,
         ventas_por_medio_pago=ventas_por_medio,
         total_saldo_cuenta_corriente=total_saldo_cuenta_corriente,
         total_egresos_hoy=total_egresos_hoy,
         ingresos_cta_cte_hoy=ingresos_cta_cte_hoy,
         caja_real=caja_real,
-        ultimos_clientes_cta_cte=ultimos_clientes
+        ultimos_clientes_cta_cte=ultimos_clientes,
+        ultimas_ventas=ultimas_ventas
     )
 
 # ===== PROVEEDORES ROUTES =====

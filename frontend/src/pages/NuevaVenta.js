@@ -697,7 +697,7 @@ const NuevaVenta = () => {
     }
   };
 
-  const fixedBarMargin = sidebarWidth === 'compact' ? 'lg:left-24' : sidebarWidth === 'expanded' ? 'lg:left-72' : 'lg:left-56';
+  const fixedBarMargin = sidebarWidth === 'compact' ? 'lg:left-24' : 'lg:left-60';
 
   return (
     <div className={totalFlotante ? 'space-y-4 pb-36' : 'space-y-4'}>

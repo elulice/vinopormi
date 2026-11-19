@@ -25,7 +25,10 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import { API } from '@/lib/config';
+import { apiGet } from '@/lib/api';
 import { logoImage } from '@/assets/images';
 import MercadopagoIcon from '@/components/MercadopagoIcon';
 import BackgroundSync from '@/components/BackgroundSync';
@@ -35,17 +38,33 @@ import '@/components/DashboardV4.css';
 const Layout = () => {
   const { user, logout } = useAuth();
   const { sidebarWidth, setSidebarWidth, floatingMenu, darkMode, setDarkMode, hiddenSidebarItems } = useConfig();
+  // Sólo dos tamaños: compacto y grande. Cualquier valor viejo ("normal") se trata como grande.
+  const isCompact = sidebarWidth === 'compact';
   const location = useLocation();
   const navigate = useNavigate();
+  const [debtCount, setDebtCount] = useState(0);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [configMenuOpen, setConfigMenuOpen] = useState(false);
-  const configMenuRef = useRef(null);
+  const [configMenuPos, setConfigMenuPos] = useState(null);
+  const configTriggerRef = useRef(null);
+  const configPopRef = useRef(null);
   const [sidebarVisible, setSidebarVisible] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setSidebarVisible(true), 200);
     return () => clearTimeout(timer);
+  }, []);
+
+  // Badge del sidebar: cantidad real de clientes en cuenta corriente.
+  useEffect(() => {
+    let active = true;
+    apiGet(`${API}/dashboard/stats`)
+      .then((res) => {
+        if (active) setDebtCount(res.data?.ultimos_clientes_cta_cte?.length || 0);
+      })
+      .catch(() => {});
+    return () => { active = false; };
   }, []);
 
   const handleLogout = () => {
@@ -57,39 +76,73 @@ const Layout = () => {
     setSidebarOpen(!sidebarOpen);
   };
 
-  // Cerrar menú de configuración al hacer clic fuera
+  const closeConfigMenu = useCallback(() => {
+    setConfigMenuOpen(false);
+  }, []);
+
+  // El popover vive en un portal (fuera del aside con overflow), así que hay
+  // que chequear tanto el botón como el panel para cerrarlo al clic fuera.
   useEffect(() => {
+    if (!configMenuOpen) return;
+
     const handleClickOutside = (event) => {
-      if (configMenuRef.current && !configMenuRef.current.contains(event.target)) {
-        setConfigMenuOpen(false);
-      }
+      if (configTriggerRef.current?.contains(event.target)) return;
+      if (configPopRef.current?.contains(event.target)) return;
+      closeConfigMenu();
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') closeConfigMenu();
     };
 
     document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('resize', closeConfigMenu);
+    window.addEventListener('scroll', closeConfigMenu, true);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('resize', closeConfigMenu);
+      window.removeEventListener('scroll', closeConfigMenu, true);
     };
-  }, []);
+  }, [configMenuOpen, closeConfigMenu]);
+
+  // Calcular la posición justo antes del paint: el rect del botón ya existe
+  // y evita que el portal aparezca en 0,0 por un estado inicial vacío.
+  useLayoutEffect(() => {
+    if (!configMenuOpen) return;
+    const rect = configTriggerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const width = isCompact ? 208 : 240;
+    const left = Math.min(
+      Math.max(12, rect.right - width),
+      Math.max(12, window.innerWidth - width - 12)
+    );
+    const opensAbove = rect.top > 340;
+    setConfigMenuPos({
+      left,
+      top: rect.bottom + 10,
+      bottom: window.innerHeight - rect.top + 10,
+      placement: opensAbove ? 'top' : 'bottom',
+    });
+  }, [configMenuOpen]);
 
   const toggleConfigMenu = () => {
-    setConfigMenuOpen(!configMenuOpen);
+    if (configMenuOpen) closeConfigMenu();
+    else setConfigMenuOpen(true);
   };
 
   const toggleSidebarWidth = () => {
-    const widths = ['compact', 'normal', 'expanded'];
-    const currentIndex = widths.indexOf(sidebarWidth);
-    const nextIndex = (currentIndex + 1) % widths.length;
-    setSidebarWidth(widths[nextIndex]);
+    setSidebarWidth(isCompact ? 'expanded' : 'compact');
   };
 
   const getSidebarClasses = () => {
     const baseClasses = 'fixed left-0 top-0 z-50 h-full flex flex-col transform transition-all duration-300 ease-in-out vpm-sidebar';
     const widthClasses = {
-      compact: 'w-30 lg:w-30 vpm-sidebar--compact',
-      normal: 'w-56 lg:w-56',
-      expanded: 'w-72 lg:w-72'
+      compact: 'w-24 lg:w-24 vpm-sidebar--compact',
+      expanded: 'w-60 lg:w-60'
     };
-    return `${baseClasses} ${widthClasses[sidebarWidth]} ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`;
+    return `${baseClasses} ${widthClasses[isCompact ? 'compact' : 'expanded']} ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`;
   };
 
   const allMenuItems = [
@@ -160,7 +213,7 @@ const Layout = () => {
       </div>
 
       {/* SIDEBAR - Responsive */}
-      <div className={`${!sidebarVisible ? 'hidden' : ''} ${getSidebarClasses()}`}>
+      <aside aria-label="Navegación principal" className={`${!sidebarVisible ? 'hidden' : ''} ${getSidebarClasses()}`}>
         {/* Close button for mobile */}
         <div className="lg:hidden p-4 border-b border-border flex justify-end">
           <Button
@@ -185,11 +238,11 @@ const Layout = () => {
               variant="ghost"
               size="sm"
               onClick={toggleSidebarWidth}
-              aria-label={sidebarWidth === 'compact' ? 'Expandir menú' : 'Comprimir menú'}
-              title={`${sidebarWidth === 'compact' ? 'Expandir' : 'Comprimir'} sidebar`}
-              className="vpm-icon-btn"
+              aria-label={isCompact ? 'Expandir menú' : 'Comprimir menú'}
+              title={`${isCompact ? 'Expandir' : 'Comprimir'} sidebar`}
+              className="vpm-icon-btn vpm-sidebar-toggle"
             >
-              <ChevronRight className={`w-4 h-4 transition-transform ${sidebarWidth === 'compact' ? '' : 'rotate-180'}`} />
+              <ChevronRight className={`w-4 h-4 transition-transform ${isCompact ? '' : 'rotate-180'}`} />
             </Button>
           </div>
         </div>
@@ -216,29 +269,31 @@ const Layout = () => {
             return (
               <div key={group.label}>
                 <p className="vpm-nav-label">{group.label}</p>
-                <ul className="vpm-nav-list">
-                  {items.map((item) => {
-                    const Icon = item.icon;
-                    const isActive = location.pathname === item.path;
-                    return (
-                      <li key={item.path}>
-                        <Link
-                          to={item.path}
-                          aria-current={isActive ? 'page' : undefined}
-                          className={`vpm-nav-link ${isActive ? 'active' : ''}`}
-                          onClick={() => {
-                            // Cerrar sidebar en móviles al navegar
-                            if (window.innerWidth < 1024) setSidebarOpen(false);
-                          }}
-                          title={item.label}
-                        >
-                          <Icon className="w-5 h-5 flex-shrink-0" />
-                          <span>{item.label}</span>
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
+                {items.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = location.pathname === item.path;
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      aria-current={isActive ? 'page' : undefined}
+                      className={`vpm-nav-link ${isActive ? 'active' : ''}`}
+                      onClick={() => {
+                        // Cerrar sidebar en móviles al navegar
+                        if (window.innerWidth < 1024) setSidebarOpen(false);
+                      }}
+                      title={item.label}
+                    >
+                      <Icon className="w-5 h-5 flex-shrink-0" />
+                      <span>{item.label}</span>
+                      {item.path === '/clientes' && debtCount > 0 && (
+                        <span className="vpm-nav-badge" aria-label={`${debtCount} clientes en cuenta corriente`}>
+                          {debtCount}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
               </div>
             );
           })}
@@ -256,54 +311,19 @@ const Layout = () => {
 
             <div className="vpm-user-actions">
               {user && (
-                <div className="relative" ref={configMenuRef}>
-                  <Button
-                    onClick={toggleConfigMenu}
-                    variant="ghost"
-                    size="sm"
-                    aria-label="Configuración"
-                    aria-expanded={configMenuOpen}
-                    aria-controls="layout-config-pop"
-                    title="Configuración"
-                    className="vpm-icon-btn"
-                  >
-                    <SettingsIcon className="w-4 h-4" />
-                  </Button>
-
-                  {configMenuOpen && (
-                    <div
-                      id="layout-config-pop"
-                      role="menu"
-                      aria-label="Configuración"
-                      className="absolute bottom-full left-0 mb-2 w-56 py-1 vpm-config-pop"
-                    >
-                      {configMenuItems.map((item) => (
-                        <Link
-                          key={item.path}
-                          to={item.path}
-                          role="menuitem"
-                          className={location.pathname === item.path ? 'active' : ''}
-                          onClick={() => {
-                            setConfigMenuOpen(false);
-                            setSidebarOpen(false); // Cerrar sidebar en móviles
-                          }}
-                        >
-                          <item.icon className="w-4 h-4 flex-shrink-0" />
-                          <span>{item.label}</span>
-                        </Link>
-                      ))}
-
-                      <div className="my-1 border-t border-border" />
-                      <div className="flex items-center justify-between gap-3 px-4 py-2">
-                        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                          <Moon className="w-4 h-4 flex-shrink-0" />
-                          <span>Modo oscuro</span>
-                        </div>
-                        <Switch checked={darkMode} onCheckedChange={setDarkMode} />
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <Button
+                  ref={configTriggerRef}
+                  onClick={toggleConfigMenu}
+                  variant="ghost"
+                  size="sm"
+                  aria-label="Configuración"
+                  aria-expanded={configMenuOpen}
+                  aria-controls="layout-config-pop"
+                  title="Configuración"
+                  className="vpm-icon-btn"
+                >
+                  <SettingsIcon className="w-4 h-4" />
+                </Button>
               )}
 
               <Button
@@ -322,7 +342,7 @@ const Layout = () => {
             </div>
           </div>
         </div>
-      </div>
+      </aside>
 
       {/* OVERLAY para móviles cuando el sidebar está abierto */}
       {sidebarOpen && (
@@ -335,9 +355,8 @@ const Layout = () => {
       {/* CONTENT */}
       <main className={`vpm-main min-h-screen p-4 lg:p-8 overflow-x-auto pt-14 lg:pt-8 transition-all duration-300 ${
         !sidebarVisible ? 'lg:ml-0' :
-        sidebarWidth === 'compact' ? 'lg:ml-24' : 
-        sidebarWidth === 'normal' ? 'lg:ml-56' : 
-        'lg:ml-72'
+        isCompact ? 'lg:ml-24' :
+        'lg:ml-60'
       }`}>
         <div className="max-w-7xl mx-auto pt-4 lg:pt-0">
           <Outlet />
@@ -348,6 +367,66 @@ const Layout = () => {
       {user && floatingMenu && <FloatingMenu />}
       <BackgroundSync />
       <WelcomeModal />
+
+      {/* Menú de configuración: portal para que el overflow del sidebar no lo recorte. */}
+      {user && configMenuOpen && configMenuPos && createPortal(
+        <div
+          id="layout-config-pop"
+          ref={configPopRef}
+          role="menu"
+          aria-label="Configuración"
+          data-placement={configMenuPos.placement}
+          data-sidebar-width={isCompact ? 'compact' : 'expanded'}
+          className="vpm-config-pop vpm-config-pop--modern"
+          style={
+            configMenuPos.placement === 'top'
+              ? { left: configMenuPos.left, bottom: configMenuPos.bottom }
+              : { left: configMenuPos.left, top: configMenuPos.top }
+          }
+        >
+          <div className="vpm-config-pop-head">
+            <span className="vpm-config-pop-avatar" aria-hidden="true">
+              {user?.nombre?.charAt(0)?.toUpperCase()}
+            </span>
+            <div className="vpm-config-pop-user">
+              <strong>{user?.nombre}</strong>
+              <span>@{user?.username}</span>
+            </div>
+          </div>
+
+          <p className="vpm-config-pop-label">Configuración</p>
+          <div className="vpm-config-pop-items">
+            {configMenuItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  role="menuitem"
+                  className={location.pathname === item.path ? 'active' : ''}
+                  onClick={() => {
+                    closeConfigMenu();
+                    setSidebarOpen(false);
+                  }}
+                >
+                  <Icon className="w-4 h-4 flex-shrink-0" />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+
+          <div className="vpm-config-pop-divider" />
+          <div className="vpm-config-pop-row">
+            <div className="vpm-config-pop-row-label">
+              <Moon className="w-4 h-4 flex-shrink-0" />
+              <span>Modo oscuro</span>
+            </div>
+            <Switch checked={darkMode} onCheckedChange={setDarkMode} />
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };

@@ -23,7 +23,7 @@ import MercadopagoIcon from '@/components/MercadopagoIcon';
 import { useAuth } from '@/context/AuthContext';
 import { useConfig } from '@/context/ConfigContext';
 
-const DEFAULT_POS = { bottom: 112, right: 16 }; // bottom-28, right-4
+const DEFAULT_POS = { bottom: 20, right: 20 }; // pegado a la esquina, como el mockup
 const BTN_SIZE = 56;
 const MARGIN = 8;
 const DRAG_THRESHOLD = 4;
@@ -212,7 +212,7 @@ const FloatingMenu = () => {
     <>
       {/* Menú flotante comprimido (arrastrable, posición guardada por usuario) */}
       <div ref={containerRef} className="fixed z-50" style={containerStyle}>
-        <div className="group flex flex-col items-center">
+        <div className="group flex flex-col items-end">
           {/* Panel que se expande al hacer hover */}
           <div className="opacity-0 invisible translate-y-1 transition-all duration-200 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0">
             <div className="vpm-fab-panel">

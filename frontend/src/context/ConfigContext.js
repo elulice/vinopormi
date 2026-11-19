@@ -30,7 +30,7 @@ const MIRROR_KEYS = {
 // Valores por defecto según la fuente: espejo local (primer render) y backend (usuario logueado)
 const MIRROR_DEFAULTS = {
   showCents: true,
-  sidebarWidth: 'normal',
+  sidebarWidth: 'expanded',
   floatingMenu: false,
   autoLogout: true,
   calcularVuelto: true,
@@ -42,7 +42,7 @@ const MIRROR_DEFAULTS = {
 
 const BACKEND_DEFAULTS = {
   showCents: true,
-  sidebarWidth: 'normal',
+  sidebarWidth: 'expanded',
   floatingMenu: false,
   autoLogout: true,
   calcularVuelto: true,
@@ -87,7 +87,10 @@ const writeMirror = (key, value) => {
 export const ConfigProvider = ({ children, forceDark = false }) => {
   const { user, getAuthHeader, updateAutoLogoutSetting } = useAuth();
   const [showCents, setShowCentsState] = useState(() => readMirror(MIRROR_KEYS.showCents, MIRROR_DEFAULTS.showCents));
-  const [sidebarWidth, setSidebarWidthState] = useState(() => readMirror(MIRROR_KEYS.sidebarWidth, MIRROR_DEFAULTS.sidebarWidth));
+  const [sidebarWidth, setSidebarWidthState] = useState(() => {
+    const guardado = readMirror(MIRROR_KEYS.sidebarWidth, MIRROR_DEFAULTS.sidebarWidth);
+    return guardado === 'compact' ? 'compact' : 'expanded';
+  });
   const [floatingMenu, setFloatingMenuState] = useState(() => readMirror(MIRROR_KEYS.floatingMenu, MIRROR_DEFAULTS.floatingMenu));
   const [autoLogout, setAutoLogoutState] = useState(() => readMirror(MIRROR_KEYS.autoLogout, MIRROR_DEFAULTS.autoLogout));
   const [calcularVuelto, setCalcularVueltoState] = useState(() => readMirror(MIRROR_KEYS.calcularVuelto, MIRROR_DEFAULTS.calcularVuelto));
@@ -125,6 +128,7 @@ export const ConfigProvider = ({ children, forceDark = false }) => {
       for (const key of PREF_KEYS) {
         let valor = preferencias[key] !== undefined ? preferencias[key] : BACKEND_DEFAULTS[key];
         if (key === 'darkMode') valor = forceDark ? true : valor;
+        if (key === 'sidebarWidth') valor = valor === 'compact' ? 'compact' : 'expanded';
         valores[key] = valor;
         writeMirror(MIRROR_KEYS[key], valor);
       }
