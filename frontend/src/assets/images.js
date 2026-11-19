@@ -1,5 +1,7 @@
-// Placeholder - reemplaza con tu imagen real
-// Para usar tu imagen, copia 113914269_709619839892686_8995954519793435303_n.jpg aquí
-// y renómbrala a logo.jpg
-
+// Logo usado por el Layout y el Navbar público.
 export { default as logoImage } from './logo.jpg';
+
+// Imágenes del rediseño de /login.
+export { default as loginLogoImage } from './login-logo.png';
+// WebP: ~120 KB vs 1,6 MB del PNG original (mismo aspecto visual).
+export { default as cellarImage } from './cellar.webp';

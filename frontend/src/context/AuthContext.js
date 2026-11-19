@@ -141,12 +141,18 @@ export const AuthProvider = ({ children }) => {
     };
   }, [autoLogoutEnabled]);
 
-  const login = async (username, password) => {
+  // remember=false evita guardar las credenciales usadas por el re-login silencioso.
+  // El default es true para no cambiar el comportamiento de otros callers.
+  const login = async (username, password, remember = true) => {
     const response = await axios.post(`${API}/auth/login`, { username, password });
     const { token: newToken, user: userData } = response.data;
     localStorage.setItem('token', newToken);
     localStorage.setItem('user', JSON.stringify(userData));
-    localStorage.setItem('offline_credentials', JSON.stringify({ username, password }));
+    if (remember) {
+      localStorage.setItem('offline_credentials', JSON.stringify({ username, password }));
+    } else {
+      localStorage.removeItem('offline_credentials');
+    }
     setToken(newToken);
     setUser(userData);
     
