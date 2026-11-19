@@ -73,7 +73,6 @@ const Mercadopago = () => {
       );
       const ventasEnFecha = response.data.ventas_coincidentes || [];
       
-      console.log('Ventas coincidencias (fecha + monto):', ventasEnFecha);
       setVentasCoincidentes(ventasEnFecha);
     } catch (error) {
       console.error('Error fetching ventas coincidentes:', error);

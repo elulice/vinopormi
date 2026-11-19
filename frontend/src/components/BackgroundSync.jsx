@@ -158,7 +158,6 @@ const BackgroundSync = () => {
     const handleOffline = () => {
       setIsOnline(false);
       setServerAvailable(false);
-      setServerOnline(false);
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;

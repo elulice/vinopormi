@@ -82,10 +82,6 @@ const StickyNotesContainer = () => {
       });
       setStickyNotes(response.data);
     } catch (error) {
-      console.error('Error fetching sticky notes:', error);
-      console.error('Error response:', error.response);
-      console.error('Error request:', error.request);
-      
       if (error.code === 'NETWORK_ERROR' || !error.response) {
         toast.error('Error de red: No se puede conectar al backend. Verifica la conexión.');
       } else if (error.response?.status === 405) {

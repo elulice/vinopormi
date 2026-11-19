@@ -787,14 +787,13 @@ async def update_preferencias(
         preferencias_actuales['hiddenFloatingMenuActions'] = preferencias.hiddenFloatingMenuActions
 
     # Guardar en la base de datos
-    result = await db.usuarios.update_one(
+    await db.usuarios.update_one(
         {'id': current_user.id},
         {'$set': {'preferencias': preferencias_actuales}}
     )
-    
-    if result.modified_count == 0:
-        raise HTTPException(status_code=500, detail="Error al actualizar preferencias")
-    
+
+    # modified_count == 0 también ocurre cuando el cliente reenvía las mismas
+    # preferencias: eso no es un error, simplemente no hay nada que cambiar.
     return {"message": "Preferencias actualizadas exitosamente", "preferencias": preferencias_actuales}
 
 @api_router.get("/auth/login-registros")
@@ -1223,9 +1222,7 @@ async def update_producto(
     
     # Obtener todos los datos del input excepto los que son None
     input_data = input.model_dump()
-    print(f"DEBUG input_data: {input_data}")
     update_data = {k: v for k, v in input_data.items() if v is not None}
-    print(f"DEBUG update_data before force: {update_data}")
 
     # Forzar precio_costo si viene en el payload (inclusive si es 0)
     if 'precio_costo' in input_data:
@@ -1245,7 +1242,6 @@ async def update_producto(
             update_data['categoria_id'] = None
             update_data['categoria_nombre'] = None
 
-    print(f"DEBUG update_data after force: {update_data}")
 
     if update_data:
         await db.productos.update_one({'id': producto_id}, {'$set': update_data})
@@ -2633,13 +2629,14 @@ async def admin_update_usuario(
         await db.usuarios.update_one({'id': usuario_id}, {'$set': update_data})
         
         # Registrar auditoría (sin contraseña por seguridad)
+        valores_nuevos_auditoria = {k: v for k, v in update_data.items() if k != 'password'}
         await registrar_auditoria(
             entidad='usuario',
             entidad_id=usuario_id,
             entidad_nombre=usuario.get('nombre'),
             accion='modificado',
             valores_anteriores=valores_anteriores,
-            valores_nuevos=update_data,
+            valores_nuevos=valores_nuevos_auditoria,
             usuario_id=current_user.id,
             usuario_nombre=current_user.nombre,
             ip_address=request.client.host if request.client else None
@@ -2665,7 +2662,8 @@ async def admin_delete_usuario(
         raise HTTPException(status_code=400, detail="No puedes eliminar tu propio usuario")
     
     # Verificar si es el último admin
-    usuario_a_eliminar = await db.usuarios.find_one({'id': usuario_id}, {'_id': 0})
+    # Excluir password: este documento se guarda en la auditoría (valores_anteriores).
+    usuario_a_eliminar = await db.usuarios.find_one({'id': usuario_id}, {'_id': 0, 'password': 0})
     if usuario_a_eliminar and usuario_a_eliminar.get('rol') == 'admin':
         total_admins = await db.usuarios.count_documents({'rol': 'admin'})
         if total_admins <= 1:
@@ -3693,14 +3691,6 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 # ===== CREAR ÍNDICES AL INICIAR =====
 async def create_indexes():
     """Crear índices para optimizar rendimiento"""
-    
-    # LIMPIEZA FORZADA DE ÍNDICES CONFLICTIVOS
-    # Auditoría: eliminar todos los índices excepto _id
-    try:
-        await db.auditoria.drop_indexes()
-        print("Todos los índices de auditoria eliminados")
-    except Exception as e:
-        print(f"Error eliminando índices de auditoria: {e}")
     
     # Productos: eliminar índice conflictivo
     try:

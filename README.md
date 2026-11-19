@@ -26,6 +26,11 @@ Una solución web responsiva que combina la potencia de FastAPI + MongoDB en el 
 - **Herramientas Administrativas**: Utilidades de gestión avanzada
 - **Recomendaciones**: Módulo inteligente por reglas que analiza la velocidad de venta para sugerir reposición y detectar exceso de stock
 - **Modo Offline / Sincronización automática**: Almacenamiento local con Dexie (IndexedDB) para ventas y egresos sin conexión, con sincronización automática al restaurarse la conectividad
+- **Chat IA**: Consultas en lenguaje natural sobre ventas, productos, cuentas corrientes, egresos, MercadoPago y auditoría, con historial por usuario, dictado por voz y respuestas en Markdown. Solo lectura.
+- **Categorías de productos**: Crear, editar y eliminar categorías desde Productos; al renombrar una categoría se actualizan los productos asociados.
+- **Novedades**: Modal versionado gestionado desde el backend/base de datos, con seguimiento de lo ya visto por versión en el navegador.
+- **Preferencias configurables**: Elementos del sidebar y acciones del menú flotante configurables por usuario, con opción de mostrar/ocultar cada una.
+- **Actualización automática**: Service Worker con recarga automática al desplegar una nueva versión (sin CTRL+F5).
 
 ## 🛠️ Arquitectura y Tecnologías
 
@@ -36,7 +41,7 @@ Una solución web responsiva que combina la potencia de FastAPI + MongoDB en el 
 - **React 18**, **React Router**, **Tailwind CSS**, **Radix UI**, **Axios**, **Lucide React**, **Date-fns**, **Sonner**, **Vaul**
 
 ### Infraestructura y DevOps
-- **Node.js**, **Yarn**, **CRACO**, **Python 3.11+**, **UVicorn**, **Vercel**, **Health Check Plugin**
+- **Node.js**, **Yarn**, **CRACO**, **Python 3.11+**, **UVicorn**, **nginx** (reverse proxy + HTTPS), **DDNS**, **Service Worker**, **Health Check Plugin**
 
 ## 📁 Estructura del Proyecto
 
@@ -44,17 +49,21 @@ Una solución web responsiva que combina la potencia de FastAPI + MongoDB en el 
 vinopormi/
 ├── backend/                # API FastAPI
 │   ├── server.py           # Servidor principal y endpoints
+│   ├── ai_chat.py          # Herramientas y lógica del Chat IA (solo lectura)
 │   ├── recommendations.py  # Módulo de recomendaciones por velocidad de venta
 │   ├── check_tipos.py      # Utilidad de verificación de tipos
 │   ├── test_recomendaciones.py # Tests del módulo de recomendaciones
 │   ├── requirements.txt    # Dependencias Python
-│   └── .env                # Variables de entorno
+│   ├── .env.example        # Plantilla de variables de entorno (no subir .env real)
+│   └── .env                # Variables de entorno (ignorado por Git)
 ├── frontend/               # Aplicación React
 │   ├── src/
 │   │   ├── components/    # Componentes UI reutilizables
 │   │   │   ├── ui/        # Componentes UI base (shadcn/ui)
 │   │   │   ├── common/    # Componentes comunes reutilizables
 │   │   │   ├── BackgroundSync.jsx # Sincronización offline con Dexie
+│   │   │   ├── AutoUpdater.jsx    # Detección y recarga automática de nuevas versiones
+│   │   │   ├── WelcomeModal.jsx   # Modal de novedades (datos del backend)
 │   │   │   ├── Layout.js
 │   │   │   ├── FloatingMenu.js
 │   │   │   ├── ResponsiveTable.js
@@ -65,6 +74,7 @@ vinopormi/
 │   │   │   ├── Recomendaciones.js, Auditoria.js, Configuracion.js
 │   │   │   ├── Herramientas.js, LoginRegistros.js, Mercadopago.js
 │   │   │   ├── PaginaCatalogo.js, SeccionClientes.js
+│   │   │   ├── ChatIA.js
 │   │   │   └── LandingPage.js, Login.js
 │   │   ├── hooks/         # Hooks personalizados
 │   │   │   ├── useDebounce.js
@@ -78,7 +88,6 @@ vinopormi/
 │   │   └── assets/        # Imágenes y recursos
 │   ├── plugins/           # Plugins custom de webpack (health-check)
 │   ├── craco.config.js    # Configuración CRACO
-│   ├── vercel.json        # Configuración de despliegue Vercel
 │   ├── package.json       # Dependencias Node.js
 │   └── tailwind.config.js # Configuración Tailwind
 └── README.md              # Este archivo
@@ -97,12 +106,12 @@ vinopormi/
 
 ## 🔐 Seguridad
 
-- Autenticación JWT con expiración configurable
+- Autenticación JWT con expiración configurable (firma mediante `JWT_SECRET`)
 - Encriptación de contraseñas con bcrypt
-- Rate limiting en endpoints
-- Validación de datos con Pydantic/Zod
+- Rate limiting en endpoints de autenticación
+- Validación de datos con Pydantic
 - Registro de auditoría completo
-- Protección CORS configurada
+- Protección CORS configurable mediante `CORS_ORIGINS`
 
 ## 📊 Dashboard y Métricas
 
@@ -118,9 +127,14 @@ vinopormi/
 ### Backend
 ```bash
 cd backend
+cp .env.example .env   # en Windows: copy .env.example .env
+# Editar .env: MONGO_URL, DB_NAME, JWT_SECRET, CORS_ORIGINS, GROQ_API_KEY
 pip install -r requirements.txt
-uvicorn server:app --reload
+uvicorn server:app --reload --host 127.0.0.1 --port 8001
 ```
+
+Configurá `JWT_SECRET` con un valor propio: `python -c "import secrets; print(secrets.token_urlsafe(48))"`.
+El frontend de desarrollo usa `REACT_APP_BACKEND_URL=http://localhost:8001` en `frontend/.env.development`.
 
 ### Frontend
 ```bash
@@ -147,10 +161,9 @@ La API expone endpoints RESTful para:
 - **Responsive Design**: Interfaz adaptable a todos los dispositivos
 - **Real-time Updates**: Actualizaciones en tiempo real del dashboard
 - **Scalability**: Arquitectura preparada para escalabilidad horizontal
-- **Performance**: 
-  - Optimizado con paginación, caching y consultas eficientes
-  - Bundle size reducido (~175 kB gzipped)
-  - Dependencias optimizadas
+- **Performance**:
+  - Paginación y consultas optimizadas en los listados principales
+  - Service Worker con precache de assets en producción
   - Componentes UI optimizados
 
 ## 🎯 Ideal Para
@@ -164,7 +177,7 @@ La API expone endpoints RESTful para:
 
 ## 📄 Licencia
 
-Este proyecto está licenciado bajo la [MIT License](LICENSE).
+Este proyecto está licenciado bajo la licencia MIT.
 
 ---
 

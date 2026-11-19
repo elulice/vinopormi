@@ -31,6 +31,7 @@ MAX_MESSAGES = 8
 MAX_MSG_CHARS = 1500
 MAX_TOOL_RESULT_CHARS = 4000
 MAX_TOOL_STEPS = 5
+MAX_TOKENS = 4000  # incluye tokens de razonamiento del modelo
 
 
 def _parse_date_start(value: Optional[str]) -> Optional[str]:
@@ -928,6 +929,7 @@ async def run_chat(messages: List[Dict[str, str]], db, current_user) -> str:
         "tool_choice": "auto",
         "temperature": 0.1,
         "timeout": 120,
+        "max_tokens": MAX_TOKENS,
     }
     if api_key:
         kwargs["api_key"] = api_key

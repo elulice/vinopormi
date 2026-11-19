@@ -368,7 +368,7 @@ const NuevaVenta = () => {
   };
 
   const handleKeyDown = (e, index) => {
-    if (!activeDetalleIndex === index || !productoSearchTerm) return;
+    if (activeDetalleIndex !== index || !productoSearchTerm) return;
 
     switch (e.key) {
       case 'ArrowDown':

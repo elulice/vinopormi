@@ -54,30 +54,11 @@ const Herramientas = () => {
     setLoading(true);
     
     try {
-      console.log("Iniciando limpieza de base de datos...");
-      console.log("URL:", `${API}/limpiar-base-datos-direct`);
-      console.log("User:", user);
-      
       // Usar endpoint directo - no va por /api
       const response = await apiPost(`${API}/limpiar-base-datos-direct`, {});
-      
-      console.log("Respuesta del servidor:", response.data);
       toast.success(response.data.message);
-      
-      // Mostrar detalles de lo eliminado
-      const { eliminados } = response.data;
-      let mensajeDetallado = "Datos eliminados:\n";
-      for (const [coleccion, cantidad] of Object.entries(eliminados)) {
-        mensajeDetallado += `- ${coleccion}: ${cantidad} registros\n`;
-      }
-      console.log(mensajeDetallado);
-      
       setDialogOpen(false);
     } catch (error) {
-      console.error("Error completo:", error);
-      console.error("Error response:", error.response);
-      console.error("Error message:", error.message);
-      
       let errorMessage = "Error al limpiar base de datos";
       if (error.response?.data?.detail) {
         errorMessage = error.response.data.detail;
