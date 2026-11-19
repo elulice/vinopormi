@@ -125,7 +125,7 @@ const Layout = () => {
       bottom: window.innerHeight - rect.top + 10,
       placement: opensAbove ? 'top' : 'bottom',
     });
-  }, [configMenuOpen]);
+  }, [configMenuOpen, isCompact]);
 
   const toggleConfigMenu = () => {
     if (configMenuOpen) closeConfigMenu();
