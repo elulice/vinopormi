@@ -493,8 +493,8 @@ const ChatIA = () => {
   };
 
   return (
-    <div className="space-y-4">
-      <Tabs value={vista} onValueChange={setVista}>
+    <div className="flex h-[calc(100dvh-132px)] flex-col lg:h-[calc(100dvh-80px)]">
+      <Tabs value={vista} onValueChange={setVista} className="flex min-h-0 flex-1 flex-col">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
@@ -519,12 +519,12 @@ const ChatIA = () => {
           </div>
         </div>
 
-        <TabsContent value="chat" className="mt-4">
-          <Card className="flex flex-col h-[70vh] min-h-[420px]">
+        <TabsContent value="chat" className="mt-4 flex min-h-0 flex-1 flex-col">
+          <Card className="flex min-h-0 flex-1 flex-col">
             <CardHeader className="py-3 border-b border-border">
               <CardTitle className="text-base">Conversación</CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
+            <CardContent className="min-h-0 flex-1 overflow-y-auto p-4 space-y-4">
               {loadingHistory ? (
                 <div className="flex items-center justify-center py-10 text-muted-foreground gap-2">
                   <Loader2 className="w-4 h-4 animate-spin" /> Cargando historial...
