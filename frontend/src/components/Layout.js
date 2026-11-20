@@ -21,7 +21,8 @@ import {
   LogOut,
   Moon,
   Bot,
-  Sparkles
+  Sparkles,
+  FileText
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -150,6 +151,7 @@ const Layout = () => {
     { path: '/nueva-venta', icon: Plus, label: 'Nueva Venta' },
     { path: '/ventas', icon: ShoppingCart, label: 'Ventas' },
     { path: '/productos', icon: Package, label: 'Productos' },
+    { path: '/presupuestos', icon: FileText, label: 'Presupuestos' },
     { path: '/clientes', icon: Users, label: 'Ctas. Ctes.' },
     { path: '/proveedores', icon: Truck, label: 'Proveedores' },
     { path: '/egresos', icon: TrendingDown, label: 'Egresos' },
@@ -167,7 +169,7 @@ const Layout = () => {
   const ctaItem = menuItems.find((item) => item.path === '/nueva-venta');
   const navItems = menuItems.filter((item) => item.path !== '/nueva-venta');
   const navGroups = [
-    { label: 'General', paths: ['/dashboard', '/ventas', '/productos'] },
+    { label: 'General', paths: ['/dashboard', '/ventas', '/productos', '/presupuestos'] },
     { label: 'Finanzas', paths: ['/clientes', '/proveedores', '/egresos', '/mercadopago'] },
     { label: 'Herramientas', paths: ['/ia', '/recomendaciones'] }
   ];

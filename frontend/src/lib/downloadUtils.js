@@ -27,8 +27,8 @@ export const downloadVentaAsImage = async (contentRef, ventaId) => {
   }
 };
 
-export const downloadVentaAsPDF = async (contentRef, ventaId) => {
-  if (!contentRef) return;
+export const downloadElementAsPDF = async (contentRef, filename) => {
+  if (!contentRef) return false;
   try {
     const canvas = await html2canvas(contentRef, {
       backgroundColor: '#ffffff',
@@ -48,11 +48,15 @@ export const downloadVentaAsPDF = async (contentRef, ventaId) => {
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
     pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-    pdf.save(`venta-${ventaId}-${format(new Date(), 'yyyyMMdd-HHmmss')}.pdf`);
+    pdf.save(`${filename}-${format(new Date(), 'yyyyMMdd-HHmmss')}.pdf`);
     toast.success('PDF descargado correctamente');
     return true;
   } catch (error) {
     toast.error('Error al descargar el PDF');
     return false;
   }
+};
+
+export const downloadVentaAsPDF = async (contentRef, ventaId) => {
+  return downloadElementAsPDF(contentRef, `venta-${ventaId}`);
 };

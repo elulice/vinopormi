@@ -546,8 +546,7 @@
   display: none;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(15, 15, 15, 0.5);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  /* Sin backdrop-filter: en Edge congela la animación del hijo al compositar. */
 }
 
 .login-v4 .marquee-track {
@@ -555,6 +554,9 @@
   gap: 40px;
   padding: 14px 0;
   width: max-content;
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+  -webkit-animation: login-scroll 40s linear infinite;
   animation: login-scroll 40s linear infinite;
   font-size: 12px;
   letter-spacing: 0.22em;
@@ -568,9 +570,25 @@
   margin-right: 40px;
 }
 
-@keyframes login-scroll {
+@-webkit-keyframes login-scroll {
+  from {
+    -webkit-transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0);
+  }
   to {
-    transform: translateX(-50%);
+    -webkit-transform: translate3d(-50%, 0, 0);
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@keyframes login-scroll {
+  from {
+    -webkit-transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    -webkit-transform: translate3d(-50%, 0, 0);
+    transform: translate3d(-50%, 0, 0);
   }
 }
 
@@ -615,6 +633,14 @@
   .login-v4 *::before,
   .login-v4 *::after {
     animation: none !important;
+    transition: none !important;
+  }
+
+  /* El marquee es decorativo: Edge puede informar movimiento reducido y
+     dejarlo quieto, así que lo mantenemos animado explícitamente. */
+  .login-v4 .marquee-track {
+    -webkit-animation: login-scroll 40s linear infinite !important;
+    animation: login-scroll 40s linear infinite !important;
     transition: none !important;
   }
 }

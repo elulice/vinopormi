@@ -1,0 +1,317 @@
+/* Nota de presupuesto: misma estética en el armado (autenticado) y en el link público. */
+
+.presupuesto-nota {
+  width: 100%;
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 20px 24px;
+  color: var(--vpm-text);
+  background: linear-gradient(180deg, var(--vpm-panel) 0%, var(--vpm-panel-2) 100%);
+  border: 1px solid var(--vpm-border-strong);
+  border-radius: var(--vpm-radius);
+  box-shadow: 0 18px 50px -28px rgba(0, 0, 0, 0.55);
+}
+
+.presupuesto-nota__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px dashed var(--vpm-border-strong);
+}
+
+.presupuesto-nota__marca {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* Logo circular con el mismo anillo que el sidebar. */
+.presupuesto-nota__logo {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--vpm-border), 0 0 0 5px var(--vpm-accent-soft);
+}
+
+.presupuesto-nota__vinoteca {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 600;
+  color: var(--vpm-text);
+}
+
+.presupuesto-nota__vinoteca em {
+  color: var(--vpm-accent);
+  font-style: normal;
+}
+
+.presupuesto-nota__titulo {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 600;
+  color: var(--vpm-accent);
+  white-space: nowrap;
+}
+
+.presupuesto-nota__fecha {
+  margin-top: 5px;
+  font-size: 12px;
+  text-align: right;
+  color: var(--vpm-muted);
+}
+
+.presupuesto-nota__aviso {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--vpm-accent-border);
+  background: var(--vpm-accent-soft);
+  color: var(--vpm-text);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.presupuesto-nota__columnas,
+.presupuesto-nota__fila {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 64px 108px 116px;
+  gap: 10px;
+  align-items: center;
+}
+
+.presupuesto-nota__columnas {
+  padding: 0 0 8px;
+  color: var(--vpm-faint);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--vpm-border);
+}
+
+.presupuesto-nota__fila {
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--vpm-border);
+  font-size: 14px;
+}
+
+/* El precio tachado va debajo del unitario, sin correrlo del centro de la fila. */
+.presupuesto-nota__fila--descuento {
+  padding-bottom: 20px;
+}
+
+.presupuesto-nota__nombre {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.presupuesto-nota__num,
+.presupuesto-nota__importe {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.presupuesto-nota__importe {
+  font-weight: 600;
+}
+
+.presupuesto-nota__precio {
+  position: relative;
+  display: inline-block;
+}
+
+.presupuesto-nota__precio-base {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 1px;
+  font-size: 11px;
+  line-height: 1.1;
+  color: var(--vpm-faint);
+  text-decoration: line-through;
+  white-space: nowrap;
+}
+
+.presupuesto-nota__sin-stock {
+  color: var(--vpm-neg);
+  font-size: 12px;
+}
+
+.presupuesto-nota__descuento {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.presupuesto-nota__descuento-valor {
+  font-size: 13px;
+  line-height: 1.4;
+  font-weight: 600;
+  color: var(--vpm-pos);
+  font-variant-numeric: tabular-nums;
+}
+
+.presupuesto-nota__total {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 16px;
+  padding-top: 14px;
+}
+
+.presupuesto-nota__descuento + .presupuesto-nota__total {
+  padding-top: 6px;
+}
+
+.presupuesto-nota__total-label {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--vpm-faint);
+}
+
+.presupuesto-nota__total-valor {
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+  font-weight: 700;
+  color: var(--vpm-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.presupuesto-nota__observaciones {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--vpm-border-strong);
+}
+
+.presupuesto-nota__observaciones h4 {
+  margin: 0 0 6px;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--vpm-faint);
+}
+
+.presupuesto-nota__observaciones p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.presupuesto-nota__pie {
+  margin-top: 14px;
+  font-size: 11px;
+  color: var(--vpm-faint);
+  text-align: center;
+}
+
+.presupuesto-publico {
+  min-height: 100vh;
+  padding: 20px 12px 40px;
+  background: var(--vpm-bg);
+}
+
+.presupuesto-publico__topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: 760px;
+  margin: 0 auto 24px;
+}
+
+.presupuesto-publico__acciones {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+@media (max-width: 640px) {
+  .presupuesto-nota {
+    padding: 22px 18px;
+  }
+
+  .presupuesto-nota__header {
+    flex-direction: column;
+  }
+
+  .presupuesto-nota__fecha {
+    text-align: left;
+    margin-top: 0;
+  }
+
+  .presupuesto-nota__columnas {
+    display: none;
+  }
+
+  .presupuesto-nota__fila {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 3px;
+  }
+
+  .presupuesto-nota__nombre {
+    grid-column: 1 / -1;
+  }
+
+  .presupuesto-nota__precio {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+  }
+
+  .presupuesto-nota__precio-base {
+    position: static;
+    margin-top: 1px;
+  }
+
+  .presupuesto-nota__fila--descuento {
+    padding-bottom: 8px;
+  }
+}
+
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+
+  .presupuesto-imprimible,
+  .presupuesto-imprimible * {
+    visibility: visible !important;
+  }
+
+  .presupuesto-imprimible {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: #fff !important;
+  }
+
+  .no-print,
+  .no-print * {
+    display: none !important;
+  }
+
+  @page {
+    margin: 15mm;
+  }
+}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useConfig } from '@/context/ConfigContext';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -6,12 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, ShoppingCart, Search, RefreshCw, X, Split } from 'lucide-react';
+import { Plus, Trash2, ShoppingCart, RefreshCw, X, Split } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency, formatNumber } from '@/lib/currency';
 import { capitalizeWords } from '@/lib/utils';
 import { API } from '@/lib/config';
-import { useDebounce } from '@/hooks/useDebounce';
+import ProductSearch from '@/components/ProductSearch';
 import { apiGet, apiPost } from '@/lib/api';
 import { actualizarCacheProductos, actualizarCacheClientes, obtenerTodosProductos, obtenerTodosClientes, guardarVentaOffline } from '@/db/offlineDB';
 
@@ -63,9 +63,7 @@ const NuevaVenta = () => {
     return [getEmptyDetalle()];
   });
   const [loading, setLoading] = useState(false);
-  const [productoSearchTerm, setProductoSearchTerm] = useState('');
   const [refreshingProductos, setRefreshingProductos] = useState(false);
-  const [activeDetalleIndex, setActiveDetalleIndex] = useState(null);
 
   // Estado para múltiples pagos
   const [pagos, setPagos] = useState(() => {
@@ -86,12 +84,8 @@ const NuevaVenta = () => {
   const [ajusteMonto, setAjusteMonto] = useState(() => draft?.ajusteMonto ?? '');
   const [ajusteDetalle, setAjusteDetalle] = useState(() => draft?.ajusteDetalle ?? '');
   
-  // Aplicar debouncing al término de búsqueda de productos (300ms)
-  const debouncedProductoSearchTerm = useDebounce(productoSearchTerm, 300);
-  const searchRefs = useRef([]);
-  const [selectedResultIndex, setSelectedResultIndex] = useState(0);
+  const searchRefs = useRef([]); // Instancias de ProductSearch (focus/clear)
   const cantidadRefs = useRef([]);
-  const resultRefs = useRef([]); // Para hacer scroll a los elementos de resultados
   const formRef = useRef(null);
 
   // Mantener el scroll siempre al final de la página al agregar productos
@@ -107,48 +101,16 @@ const NuevaVenta = () => {
     return () => clearTimeout(timer);
   }, [detalles.length]);
 
-  // Set initial focus on first product search field after component loads (solo una vez)
+  // Dar foco al primer buscador cuando llega el catálogo (solo una vez).
   const initialFocusSet = useRef(false);
   useEffect(() => {
-    if (initialFocusSet.current) return;
+    if (initialFocusSet.current || productos.length === 0) return undefined;
     const timer = setTimeout(() => {
-      if (searchRefs.current[0] && productos.length > 0) {
-        searchRefs.current[0].focus();
-        initialFocusSet.current = true;
-      }
+      searchRefs.current[0]?.focus();
+      initialFocusSet.current = true;
     }, 500);
     return () => clearTimeout(timer);
   }, [productos]);
-
-  // Cerrar dropdown de búsqueda al hacer clic fuera
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      // Si no hay dropdown activo, no hacer nada
-      if (activeDetalleIndex === null) return;
-      
-      const target = event.target;
-      
-      // Verificar si el click fue dentro del input de búsqueda activo
-      const activeInput = searchRefs.current[activeDetalleIndex];
-      if (activeInput && activeInput.contains(target)) return;
-      
-      // Verificar si el click fue dentro de algún dropdown de resultados
-      const dropdowns = document.querySelectorAll('.search-dropdown');
-      for (const dropdown of dropdowns) {
-        if (dropdown.contains(target)) return;
-      }
-      
-      // Si llegamos aquí, el click fue fuera, cerrar el dropdown
-      // NO limpiar el término de búsqueda para que el usuario pueda retomar
-      setActiveDetalleIndex(null);
-      setSelectedResultIndex(0);
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [activeDetalleIndex, productoSearchTerm]);
 
   const fetchProductos = useCallback(async () => {
     try {
@@ -367,66 +329,13 @@ const NuevaVenta = () => {
     return monto - calcularTotal();
   };
 
-  const handleKeyDown = (e, index) => {
-    if (activeDetalleIndex !== index || !productoSearchTerm) return;
-
-    switch (e.key) {
-      case 'ArrowDown':
-        e.preventDefault();
-        const nextIndex = selectedResultIndex < filteredProductos.length - 1 ? selectedResultIndex + 1 : selectedResultIndex;
-        setSelectedResultIndex(nextIndex);
-        
-        // Hacer scroll al elemento seleccionado
-        setTimeout(() => {
-          const element = resultRefs.current[nextIndex];
-          if (element) {
-            element.scrollIntoView({ 
-              behavior: 'smooth', 
-              block: 'nearest' 
-            });
-          }
-        }, 0);
-        break;
-      case 'ArrowUp':
-        e.preventDefault();
-        const prevIndex = selectedResultIndex > 0 ? selectedResultIndex - 1 : 0;
-        setSelectedResultIndex(prevIndex);
-        
-        // Hacer scroll al elemento seleccionado
-        setTimeout(() => {
-          const element = resultRefs.current[prevIndex];
-          if (element) {
-            element.scrollIntoView({ 
-              behavior: 'smooth', 
-              block: 'nearest' 
-            });
-          }
-        }, 0);
-        break;
-      case 'Enter':
-        e.preventDefault();
-        if (filteredProductos[selectedResultIndex]) {
-          actualizarDetalle(index, 'producto_id', filteredProductos[selectedResultIndex].id);
-          setProductoSearchTerm('');
-          setActiveDetalleIndex(null);
-          setSelectedResultIndex(0);
-          // Focus on quantity field after product selection
-          setTimeout(() => {
-            if (cantidadRefs.current[index]) {
-              cantidadRefs.current[index].focus();
-              cantidadRefs.current[index].select();
-            }
-          }, 100);
-        }
-        break;
-      case 'Escape':
-        e.preventDefault();
-        setProductoSearchTerm('');
-        setActiveDetalleIndex(null);
-        setSelectedResultIndex(0);
-        resultRefs.current = []; // Limpiar referencias
-        break;
-    }
+  const seleccionarProducto = (index, producto) => {
+    actualizarDetalle(index, 'producto_id', producto.id);
+    // Focus en la cantidad después de elegir, igual que antes.
+    setTimeout(() => {
+      cantidadRefs.current[index]?.focus();
+      cantidadRefs.current[index]?.select();
+    }, 100);
   };
 
   const agregarDetalle = () => {
@@ -435,14 +344,8 @@ const NuevaVenta = () => {
     
     if (emptyIndex !== -1) {
       // Si hay un item vacío, hacer focus en su campo de búsqueda
-      setActiveDetalleIndex(emptyIndex);
-      setSelectedResultIndex(0);
-      setProductoSearchTerm('');
-      setTimeout(() => {
-        if (searchRefs.current[emptyIndex]) {
-          searchRefs.current[emptyIndex].focus();
-        }
-      }, 100);
+      searchRefs.current[emptyIndex]?.clear();
+      setTimeout(() => searchRefs.current[emptyIndex]?.focus(), 100);
     } else {
       // Si no hay items vacíos, agregar uno nuevo
       const newDetalleIndex = detalles.length;
@@ -454,13 +357,8 @@ const NuevaVenta = () => {
         subtotal: 0
       };
       setDetalles([...detalles, newDetalle]);
-      setActiveDetalleIndex(newDetalleIndex);
       // Focus on search field after adding new row
-      setTimeout(() => {
-        if (searchRefs.current[newDetalleIndex]) {
-          searchRefs.current[newDetalleIndex].focus();
-        }
-      }, 100);
+      setTimeout(() => searchRefs.current[newDetalleIndex]?.focus(), 100);
     }
   };
 
@@ -492,9 +390,7 @@ const NuevaVenta = () => {
     setDetalles([getEmptyDetalle()]);
     setMedioPago('efectivo');
     setClienteId('');
-    setProductoSearchTerm('');
-    setActiveDetalleIndex(0); // Set focus on first product search field
-    setSelectedResultIndex(0);
+    searchRefs.current.forEach((buscador) => buscador?.clear());
     setPagos(getDefaultPagos());
     setMultiplesPagos(false);
     setAjusteMonto('');
@@ -583,40 +479,6 @@ const NuevaVenta = () => {
     return detalles.some(detalle => detalle.producto_id === productoId);
   }, [detalles]);
 
-  const getProductosDisponibles = useCallback(() => {
-    const productosAgregadosIds = detalles
-      .filter(detalle => detalle.producto_id)
-      .map(detalle => detalle.producto_id);
-    
-    return productos.filter(producto => !productosAgregadosIds.includes(producto.id));
-  }, [detalles, productos]);
-
-  // Memoizar productos filtrados para mejor rendimiento
-  const filteredProductos = useMemo(() => {
-    const productosDisponibles = getProductosDisponibles();
-    if (!debouncedProductoSearchTerm) return productosDisponibles;
-    
-    const searchTermLower = debouncedProductoSearchTerm.toLowerCase();
-    const searchTerms = searchTermLower.split(/\s+/).filter(term => term.length > 0);
-    
-    return productosDisponibles.filter(producto => {
-      const productoNombreLower = producto.nombre.toLowerCase();
-      
-      // Si hay múltiples términos, todos deben estar presentes
-      if (searchTerms.length > 1) {
-        return searchTerms.every(term => productoNombreLower.includes(term));
-      }
-      
-      // Búsqueda simple para un solo término
-      return productoNombreLower.includes(searchTermLower);
-    });
-  }, [getProductosDisponibles, debouncedProductoSearchTerm]);
-
-  useEffect(() => {
-    setSelectedResultIndex(0);
-    resultRefs.current = [];
-  }, [debouncedProductoSearchTerm]);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -700,7 +562,7 @@ const NuevaVenta = () => {
   const fixedBarMargin = sidebarWidth === 'compact' ? 'lg:left-24' : 'lg:left-60';
 
   return (
-    <div className={totalFlotante ? 'space-y-4 pb-36' : 'space-y-4'}>
+    <div className={totalFlotante ? 'space-y-4 pb-10' : 'space-y-4'}>
       <div>
         <h1 className="text-2xl font-bold text-foreground">Nueva Venta</h1>
         <p className="text-sm text-muted-foreground">Registra una nueva venta</p>
@@ -951,93 +813,16 @@ const NuevaVenta = () => {
                               </div>
                             </div>
                           ) : (
-                            <>
-                              <div className="relative">
-                                <Input
-                                  ref={el => searchRefs.current[index] = el}
-                                  id={`producto-search-${index}`}
-                                  name={`producto-search-${index}`}
-                                  placeholder="Buscar..."
-                                  value={productoSearchTerm ? productoSearchTerm : (activeDetalleIndex === index ? productoSearchTerm : '')}
-                                  onChange={(e) => {
-                                    setProductoSearchTerm(e.target.value);
-                                    setActiveDetalleIndex(index);
-                                  }}
-                                  onFocus={() => {
-                                    setActiveDetalleIndex(index);
-                                      setProductoSearchTerm(productoSearchTerm ? productoSearchTerm : '');
-                                  }}
-                                  onKeyDown={(e) => handleKeyDown(e, index)}
-                                  className="h-7 text-sm pr-8"
-                                />
-                                {activeDetalleIndex === index && (
-                                  <Search className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground w-3 h-3 pointer-events-none" />
-                                )}
-                                {activeDetalleIndex === index && productoSearchTerm && (
-                                  <div className="search-dropdown absolute z-10 left-0 right-0 mt-1 bg-background border border-border rounded-md shadow-lg max-h-40 overflow-auto">
-                          {filteredProductos.length > 0 ? (
-                             filteredProductos.map((producto, resultIndex) => (
-                              <div
-                                key={producto.id}
-                                ref={el => resultRefs.current[resultIndex] = el}
-                                className={`px-2 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/40 cursor-pointer flex justify-between items-center transition-colors text-sm ${
-                                  resultIndex === selectedResultIndex ? 'bg-blue-100 dark:bg-blue-900/50 border-l-4 border-blue-500 dark:border-blue-400' : ''
-                                }`}
-                                onClick={() => {
-                                  actualizarDetalle(index, 'producto_id', producto.id);
-                                  setProductoSearchTerm('');
-                                  setActiveDetalleIndex(null);
-                                  setSelectedResultIndex(0);
-                                  resultRefs.current = [];
-                                  setTimeout(() => {
-                                    if (cantidadRefs.current[index]) {
-                                      cantidadRefs.current[index].focus();
-                                      cantidadRefs.current[index].select();
-                                    }
-                                  }, 100);
-                                }}
-                              >
-                                <div>
-                                  <span>{capitalizeWords(producto.nombre)} - ${producto.precio_unitario}</span>
-                                  {producto.descuento_cantidad_minima && producto.descuento_precio_unitario && (
-                                    <div className="text-xs text-green-600 font-medium">
-                                      ≥{producto.descuento_cantidad_minima}: ${producto.descuento_precio_unitario}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            ))
-                          ) : (
-                            <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                              {productos.length === 0 
-                                ? 'No hay productos' 
-                                : 'Todos agregados o no coinciden'}
-                            </div>
-                          )}
-                                  </div>
-                                )}
-                              </div>
-                              </>
+                            <ProductSearch
+                              ref={(elemento) => { searchRefs.current[index] = elemento; }}
+                              productos={productos}
+                              excludeIds={detalles.map((item) => item.producto_id).filter(Boolean)}
+                              onSelect={(producto) => seleccionarProducto(index, producto)}
+                              inputId={`producto-search-${index}`}
+                              inputName={`producto-search-${index}`}
+                            />
                           )}
                           </div>
-
-                        {(!detalle.producto_id && !activeDetalleIndex === index) && (
-                        <Select
-                          value={detalle.producto_id}
-                          onValueChange={(value) => actualizarDetalle(index, 'producto_id', value)}
-                        >
-                          <SelectTrigger className="h-7 text-sm" data-testid={`producto-select-${index}`}>
-                            <SelectValue placeholder="Selecciona" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {getProductosDisponibles().map(producto => (
-                              <SelectItem key={producto.id} value={producto.id}>
-                                {capitalizeWords(producto.nombre)} - ${producto.precio_unitario}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
                         </div>
                         <div className="w-16">
                           <Input

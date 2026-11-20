@@ -137,8 +137,12 @@ const Dashboard = () => {
     return <div className="vpm-dashboard py-12 text-center text-muted-foreground">Cargando...</div>;
   }
 
-  const mediosPago = Object.entries(stats.ventas_por_medio_pago || {});
-  const totalMedios = mediosPago.reduce((acc, [, total]) => acc + (Number(total) || 0), 0);
+  // Los pagos en cuenta corriente ya están incluidos en ingresos_cta_cte_hoy;
+  // se excluyen de los medios de pago para no contarlos dos veces en el pie.
+  const mediosPago = Object.entries(stats.ventas_por_medio_pago || {})
+    .filter(([medio]) => medio !== 'cuenta_corriente');
+  const ingresosCtaCte = Math.abs(Number(stats.ingresos_cta_cte_hoy) || 0);
+  const totalMedios = mediosPago.reduce((acc, [, total]) => acc + (Number(total) || 0), 0) + ingresosCtaCte;
   const deudores = stats.ultimos_clientes_cta_cte || [];
   const ultimasVentas = stats.ultimas_ventas || [];
   const maxDeuda = Math.max(...deudores.map((c) => Math.abs(Number(c.saldo) || 0)), 1);
@@ -152,7 +156,7 @@ const Dashboard = () => {
   const firstName = user?.nombre?.trim().split(' ')[0] || 'usuario';
 
   const colorSufijo = (medio) =>
-    ['efectivo', 'transferencia', 'posnet'].includes(medio) ? medio : 'cobros';
+    ({ efectivo: 'efectivo', transferencia: 'transferencia', posnet: 'posnet', cta_cte: 'cta-cte', egresos: 'egresos' }[medio] || 'cobros');
   const dotClass = (medio) => `vpm-legend-dot vpm-legend-dot--${colorSufijo(medio)}`;
 
   // Contexto para "Balance del día": evolución de ventas vs. ayer y ticket promedio.
@@ -168,6 +172,11 @@ const Dashboard = () => {
       valor: Math.abs(Number(total) || 0),
       cls: `vpm-split-part--${colorSufijo(medio)}`
     })),
+    {
+      key: 'cta_cte',
+      valor: ingresosCtaCte,
+      cls: 'vpm-split-part--cta-cte'
+    },
     {
       key: 'egresos',
       valor: Math.abs(Number(stats.total_egresos_hoy) || 0),
@@ -246,10 +255,13 @@ const Dashboard = () => {
               )}
             </div>
             <div className="vpm-legend">
-              <div><i style={{ background: 'var(--vpm-text)' }} />Efectivo<b className="vpm-num">{formatCurrency(stats.ventas_por_medio_pago?.efectivo || 0, showCents)}</b></div>
-              <div><i style={{ background: 'var(--vpm-accent)' }} />Transferencia<b className="vpm-num">{formatCurrency(stats.ventas_por_medio_pago?.transferencia || 0, showCents)}</b></div>
-              <div><i style={{ background: 'var(--vpm-faint)' }} />PosNet<b className="vpm-num">{formatCurrency(stats.ventas_por_medio_pago?.posnet || 0, showCents)}</b></div>
-              <div className="vpm-out"><i style={{ background: 'var(--vpm-neg)' }} />Egresos<b className="vpm-num">−{formatCurrency(stats.total_egresos_hoy || 0, showCents)}</b></div>
+              {splitPartes.map((p) => (
+                <div key={p.key} className={p.key === 'egresos' ? 'vpm-out' : ''}>
+                  <i className={p.cls} />
+                  {p.key === 'cta_cte' ? 'Ctas. Ctes.' : p.key === 'egresos' ? 'Egresos' : medioLabel(p.key)}
+                  <b className="vpm-num">{p.key === 'egresos' ? '−' : ''}{formatCurrency(p.valor, showCents)}</b>
+                </div>
+              ))}
             </div>
           </div>
         </article>

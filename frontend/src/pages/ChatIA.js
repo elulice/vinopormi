@@ -7,6 +7,8 @@ import { API } from '@/lib/config';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import MetricasPanel, { MetricasResumen } from '@/components/MetricasPanel';
 
 const canRecordAudio = () =>
   typeof window !== 'undefined' &&
@@ -163,6 +165,15 @@ const SUGERENCIAS = [
   '¿Cuánto se vendió los últimos 3 días?'
 ];
 
+const SUGERENCIAS_METRICAS = ['¿Cuántas horas trabajé este mes?'];
+
+const SUGERENCIAS_METRICAS_ADMIN = [
+  '¿Cuánto vendió Tomás en noviembre?',
+  'Estimá las horas que trabajó Juan esta semana',
+  'Hacé el ranking de mejor a peor',
+  'Hacé el ranking de peor a mejor usando pesos parejos'
+];
+
 const GREETING = {
   role: 'assistant',
   content:
@@ -186,6 +197,12 @@ const ChatIA = () => {
   const cooldownTimerRef = useRef(null);
   const loadingRef = useRef(false);
   const userInitial = (user?.nombre || user?.username || 'U').trim().charAt(0).toUpperCase() || 'U';
+  const [vista, setVista] = useState('chat');
+  const esAdmin = user?.rol === 'admin';
+  const sugerencias = useMemo(
+    () => (esAdmin ? [...SUGERENCIAS, ...SUGERENCIAS_METRICAS_ADMIN] : [...SUGERENCIAS, ...SUGERENCIAS_METRICAS]),
+    [esAdmin]
+  );
 
   useEffect(() => {
     loadingRef.current = loading;
@@ -285,7 +302,8 @@ const ChatIA = () => {
     try {
       const res = await apiPost(`${API}/chat`, { message: content });
       const reply = res?.data?.reply || 'No recibí respuesta del asistente.';
-      setMessages((prev) => [...prev, { role: 'assistant', content: reply }]);
+      const datoMetrica = res?.data?.data || null;
+      setMessages((prev) => [...prev, { role: 'assistant', content: reply, data: datoMetrica }]);
     } catch (error) {
       const status = error?.response?.status;
       const detail = error?.response?.data?.detail || 'No se pudo obtener respuesta del asistente.';
@@ -476,151 +494,170 @@ const ChatIA = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
-            <Bot className="w-6 h-6 text-primary" />
-            Chat IA
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Consultá datos del sistema (solo lectura): productos, ventas, cuentas corrientes (clientes y proveedores), egresos, MercadoPago y auditoría.
-          </p>
+      <Tabs value={vista} onValueChange={setVista}>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
+              <Bot className="w-6 h-6 text-primary" />
+              Chat IA
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Consultá datos del sistema (solo lectura): productos, ventas, cuentas corrientes, egresos, MercadoPago, auditoría y métricas del equipo.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <TabsList>
+              <TabsTrigger value="chat">Chat</TabsTrigger>
+              <TabsTrigger value="metricas">Métricas</TabsTrigger>
+            </TabsList>
+            {vista === 'chat' && (
+              <Button variant="outline" size="sm" onClick={clearChat} disabled={loading || loadingHistory}>
+                <Trash2 className="w-4 h-4 mr-2" />
+                Borrar historial
+              </Button>
+            )}
+          </div>
         </div>
-        <Button variant="outline" size="sm" onClick={clearChat} disabled={loading || loadingHistory}>
-          <Trash2 className="w-4 h-4 mr-2" />
-          Borrar historial
-        </Button>
-      </div>
 
-      <Card className="flex flex-col h-[70vh] min-h-[420px]">
-        <CardHeader className="py-3 border-b border-border">
-          <CardTitle className="text-base">Conversación</CardTitle>
-        </CardHeader>
-        <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
-          {loadingHistory ? (
-            <div className="flex items-center justify-center py-10 text-muted-foreground gap-2">
-              <Loader2 className="w-4 h-4 animate-spin" /> Cargando historial...
-            </div>
-          ) : (
-            <>
-              {messages.map((m, idx) => {
-                const isUser = m.role === 'user';
-                return (
-                  <div key={idx} className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
-                    {!isUser && (
+        <TabsContent value="chat" className="mt-4">
+          <Card className="flex flex-col h-[70vh] min-h-[420px]">
+            <CardHeader className="py-3 border-b border-border">
+              <CardTitle className="text-base">Conversación</CardTitle>
+            </CardHeader>
+            <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
+              {loadingHistory ? (
+                <div className="flex items-center justify-center py-10 text-muted-foreground gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Cargando historial...
+                </div>
+              ) : (
+                <>
+                  {messages.map((m, idx) => {
+                    const isUser = m.role === 'user';
+                    return (
+                      <div key={idx} className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
+                        {!isUser && (
+                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                            <Bot className="w-4 h-4 text-primary" />
+                          </div>
+                        )}
+                        <div
+                          aria-live={isUser ? undefined : 'polite'}
+                          className={`max-w-[90%] sm:max-w-[85%] lg:max-w-[80%] rounded-lg px-4 py-2 text-sm leading-relaxed ${
+                            isUser
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-muted text-foreground border border-border'
+                          }`}
+                        >
+                          {isUser ? (
+                            <div className="whitespace-pre-wrap">{m.content}</div>
+                          ) : (
+                            <>
+                              <MarkdownMessage content={m.content} />
+                              {m.data && <MetricasResumen dato={m.data} />}
+                            </>
+                          )}
+                        </div>
+                        {isUser && (
+                          <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center flex-shrink-0 text-sm font-semibold">
+                            {userInitial}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {loading && (
+                    <div className="flex gap-3 justify-start">
                       <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                         <Bot className="w-4 h-4 text-primary" />
                       </div>
-                    )}
-                    <div
-                      aria-live={isUser ? undefined : 'polite'}
-                      className={`max-w-[90%] sm:max-w-[85%] lg:max-w-[80%] rounded-lg px-4 py-2 text-sm leading-relaxed ${
-                        isUser
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-muted text-foreground border border-border'
-                      }`}
-                    >
-                      {isUser ? (
-                        <div className="whitespace-pre-wrap">{m.content}</div>
-                      ) : (
-                        <MarkdownMessage content={m.content} />
-                      )}
-                    </div>
-                    {isUser && (
-                      <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center flex-shrink-0 text-sm font-semibold">
-                        {userInitial}
+                      <div className="bg-muted border border-border rounded-lg px-4 py-2 text-sm text-muted-foreground flex items-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" /> Consultando datos...
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-              {loading && (
-                <div className="flex gap-3 justify-start">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <Bot className="w-4 h-4 text-primary" />
-                  </div>
-                  <div className="bg-muted border border-border rounded-lg px-4 py-2 text-sm text-muted-foreground flex items-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin" /> Consultando datos...
-                  </div>
+                    </div>
+                  )}
+                </>
+              )}
+              <div ref={endRef} />
+            </CardContent>
+
+            <div className="p-3 border-t border-border space-y-3">
+              {messages.length <= 1 && !loading && !loadingHistory && (
+                <div className="flex flex-wrap gap-2">
+                  {sugerencias.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => sendMessage(s)}
+                      className="text-xs px-3 py-1.5 rounded-full border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {s}
+                    </button>
+                  ))}
                 </div>
               )}
-            </>
-          )}
-          <div ref={endRef} />
-        </CardContent>
-
-        <div className="p-3 border-t border-border space-y-3">
-          {messages.length <= 1 && !loading && !loadingHistory && (
-            <div className="flex flex-wrap gap-2">
-              {SUGERENCIAS.map((s) => (
-                <button
-                  key={s}
+              <div className="flex gap-2 items-end">
+                <Textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={onKeyDown}
+                  rows={1}
+                  placeholder="Escribí o dictá tu consulta... (Enter para enviar, Shift+Enter para salto de línea)"
+                  className="min-h-[44px] max-h-32 h-[44px] resize-none overflow-y-auto py-2.5 leading-5"
+                  disabled={loading || loadingHistory}
+                />
+                <Button
                   type="button"
-                  onClick={() => sendMessage(s)}
-                  className="text-xs px-3 py-1.5 rounded-full border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  variant={listening ? 'destructive' : 'outline'}
+                  onClick={toggleListening}
+                  disabled={loading || loadingHistory || transcribing || !speechSupported}
+                  className="h-[44px] px-3"
+                  title={
+                    !speechSupported
+                      ? 'Grabación de voz no soportada en este navegador'
+                      : transcribing
+                      ? 'Transcribiendo audio...'
+                      : listening
+                      ? 'Detener grabación'
+                      : 'Dictar por voz'
+                  }
                 >
-                  {s}
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="flex gap-2 items-end">
-            <Textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={onKeyDown}
-              rows={1}
-              placeholder="Escribí o dictá tu consulta... (Enter para enviar, Shift+Enter para salto de línea)"
-              className="min-h-[44px] max-h-32 h-[44px] resize-none overflow-y-auto py-2.5 leading-5"
-              disabled={loading || loadingHistory}
-            />
-            <Button
-              type="button"
-              variant={listening ? 'destructive' : 'outline'}
-              onClick={toggleListening}
-              disabled={loading || loadingHistory || transcribing || !speechSupported}
-              className="h-[44px] px-3"
-              title={
-                !speechSupported
-                  ? 'Grabación de voz no soportada en este navegador'
+                  {transcribing ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : listening ? (
+                    <MicOff className="w-4 h-4" />
+                  ) : (
+                    <Mic className="w-4 h-4" />
+                  )}
+                </Button>
+                <Button
+                  onClick={() => sendMessage()}
+                  disabled={!canSend}
+                  className="h-[44px] px-4"
+                  title={cooldown ? 'Esperá unos segundos antes de reintentar' : undefined}
+                >
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                </Button>
+              </div>
+              <p className="text-[12px] text-muted-foreground flex justify-end">
+                {cooldown
+                  ? 'Límite de uso alcanzado: esperá unos segundos antes de reintentar.'
                   : transcribing
                   ? 'Transcribiendo audio...'
                   : listening
-                  ? 'Detener grabación'
-                  : 'Dictar por voz'
-              }
-            >
-              {transcribing ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : listening ? (
-                <MicOff className="w-4 h-4" />
-              ) : (
-                <Mic className="w-4 h-4" />
-              )}
-            </Button>
-            <Button
-              onClick={() => sendMessage()}
-              disabled={!canSend}
-              className="h-[44px] px-4"
-              title={cooldown ? 'Esperá unos segundos antes de reintentar' : undefined}
-            >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            </Button>
-          </div>
-          <p className="text-[12px] text-muted-foreground flex justify-end">
-            {cooldown
-              ? 'Límite de uso alcanzado: esperá unos segundos antes de reintentar.'
-              : transcribing
-              ? 'Transcribiendo audio...'
-              : listening
-              ? 'Grabando... (tocá el micrófono para detener y transcribir)'
-              : speechSupported
-              ? 'Podés dictar con el micrófono.'
-              : 'Dictado por voz no disponible en este navegador.'}
-          </p>
-        </div>
-      </Card>
+                  ? 'Grabando... (tocá el micrófono para detener y transcribir)'
+                  : speechSupported
+                  ? 'Podés dictar con el micrófono.'
+                  : 'Dictado por voz no disponible en este navegador.'}
+              </p>
+            </div>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="metricas" className="mt-4">
+          <MetricasPanel />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

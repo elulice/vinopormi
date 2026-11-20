@@ -27,10 +27,12 @@ const DEFAULT_POS = { bottom: 20, right: 20 }; // pegado a la esquina, como el m
 const BTN_SIZE = 56;
 const MARGIN = 8;
 const DRAG_THRESHOLD = 4;
+const PANEL_OFFSET = 60; // alto del panel + puente de hover (versión anterior del menú)
 
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
 
-const getStorageKey = (userId) => `floatingMenuPosition_${userId || 'anon'}`;
+const getStorageKey = (userId) => `floatingMenuPosition_v2_${userId || 'anon'}`;
+const getLegacyStorageKey = (userId) => `floatingMenuPosition_${userId || 'anon'}`;
 
 const FloatingMenu = () => {
   const { user } = useAuth();
@@ -62,10 +64,29 @@ const FloatingMenu = () => {
     setMenuOpen(true);
   };
 
+  const closeMenuNow = () => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    setMenuOpen(false);
+  };
+
   const scheduleClose = () => {
     if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-    closeTimerRef.current = setTimeout(() => setMenuOpen(false), 180);
+    closeTimerRef.current = setTimeout(() => setMenuOpen(false), 120);
   };
+
+  const anyModalOpen =
+    productModalOpen ||
+    customerModalOpen ||
+    providerModalOpen ||
+    egressModalOpen ||
+    mercadopagoModalOpen ||
+    chatIAModalOpen;
+
+  // Si se abre cualquiera de los modales, el panel de acciones debe desaparecer
+  // para no quedar superpuesto / "buggeado" detrás del dialog.
+  useEffect(() => {
+    if (anyModalOpen) closeMenuNow();
+  }, [anyModalOpen]);
 
   useEffect(() => () => {
     if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
@@ -73,8 +94,9 @@ const FloatingMenu = () => {
 
   const clampPos = (left, top) => {
     if (typeof window === 'undefined') return { left, top };
-    const panelReserve = 80; // espacio para que el panel hover hacia arriba sea visible
-    const minTop = MARGIN + panelReserve;
+    // El panel es absoluto: el botón puede llegar hasta el borde superior.
+    // Cuando está cerca de arriba el panel se abre hacia abajo (ver panelBelow).
+    const minTop = MARGIN;
     const maxLeft = Math.max(MARGIN, window.innerWidth - BTN_SIZE - MARGIN);
     const maxTop = Math.max(minTop, window.innerHeight - BTN_SIZE - MARGIN);
     return {
@@ -86,10 +108,22 @@ const FloatingMenu = () => {
   const loadPos = () => {
     try {
       const raw = localStorage.getItem(storageKey);
-      if (!raw) return null;
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed.left === 'number' && typeof parsed.top === 'number') {
-        return clampPos(parsed.left, parsed.top);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed.left === 'number' && typeof parsed.top === 'number') {
+          return clampPos(parsed.left, parsed.top);
+        }
+      }
+      // Migración: antes la posición guardada era del contenedor (panel + botón).
+      // Ahora guardamos la posición del botón, así que compensamos ese offset.
+      const legacyRaw = localStorage.getItem(getLegacyStorageKey(user?.id));
+      if (legacyRaw) {
+        const parsed = JSON.parse(legacyRaw);
+        if (parsed && typeof parsed.left === 'number' && typeof parsed.top === 'number') {
+          const migrated = clampPos(parsed.left, parsed.top + PANEL_OFFSET);
+          savePos(migrated);
+          return migrated;
+        }
       }
     } catch {}
     return null;
@@ -204,18 +238,18 @@ const FloatingMenu = () => {
       setOpen: setEgressModalOpen,
     },
     {
-      id: 'mercadopago',
-      icon: MercadopagoIcon,
-      label: 'Mercado Pago',
-      modal: 'mercadopago',
-      setOpen: setMercadopagoModalOpen,
-    },
-    {
       id: 'chatia',
       icon: Bot,
       label: 'Chat IA',
       modal: 'chatia',
       setOpen: setChatIAModalOpen,
+    },
+    {
+      id: 'mercadopago',
+      icon: MercadopagoIcon,
+      label: 'Mercado Pago',
+      modal: 'mercadopago',
+      setOpen: setMercadopagoModalOpen,
     },
   ];
 
@@ -226,6 +260,9 @@ const FloatingMenu = () => {
     ? { left: pos.left, top: pos.top, right: 'auto', bottom: 'auto' }
     : { right: DEFAULT_POS.right, bottom: DEFAULT_POS.bottom };
 
+  // Cerca del borde superior no hay lugar para el panel arriba: lo abrimos abajo.
+  const panelBelow = Boolean(pos && pos.top < 88);
+
   return (
     <>
       {/* Menú flotante comprimido (arrastrable, posición guardada por usuario) */}
@@ -235,14 +272,19 @@ const FloatingMenu = () => {
         style={containerStyle}
         onMouseLeave={scheduleClose}
       >
-        <div className="flex flex-col items-end">
-          {/* Panel: se abre al entrar al botón y se mantiene al cruzar al panel */}
-          <div
-            onMouseEnter={openMenu}
-            className={`transition-all duration-200 ${
-              menuOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible translate-y-1'
-            }`}
-          >
+        {/* Panel en posición absoluta: cuando está cerrado no ocupa espacio ni
+            intercepta el mouse (el contenedor mide sólo el botón). */}
+        <div
+          onMouseEnter={openMenu}
+          onMouseLeave={scheduleClose}
+          className={`absolute right-0 transition-all duration-200 ${
+            panelBelow ? 'top-full pt-3 origin-top-right' : 'bottom-full pb-3 origin-bottom-right'
+          } ${
+            menuOpen && !anyModalOpen
+              ? 'opacity-100 visible translate-y-0 pointer-events-auto'
+              : 'opacity-0 invisible translate-y-1 pointer-events-none'
+          }`}
+        >
             <div className="vpm-fab-panel">
               <div className="flex flex-row items-center gap-1">
           {quickActions.map((action) => {
@@ -255,7 +297,14 @@ const FloatingMenu = () => {
               action.modal === 'mercadopago' ? mercadopagoModalOpen :
               chatIAModalOpen;
             return (
-              <Dialog key={action.modal} open={isOpen} onOpenChange={action.setOpen}>
+              <Dialog
+                key={action.modal}
+                open={isOpen}
+                onOpenChange={(next) => {
+                  if (next) closeMenuNow();
+                  action.setOpen(next);
+                }}
+              >
                 <DialogTrigger asChild>
                   <Button
                     variant="ghost"
@@ -313,14 +362,12 @@ const FloatingMenu = () => {
           </div>
         </div>
 
-        {/* Puente de hover que mantiene el menú expandido al mover el cursor */}
-        <div className="h-3 w-16" />
-
         {/* Botón principal (arrastrar para mover, doble clic para restablecer posición) */}
         <Button
           className="vpm-fab-button cursor-grab active:cursor-grabbing touch-none"
           title="Accesos rápidos (arrastrá para mover, doble clic para restablecer)"
           onMouseEnter={openMenu}
+          onMouseLeave={scheduleClose}
           onFocus={openMenu}
           onPointerDown={handlePointerDown}
           onDoubleClick={resetPosition}
@@ -328,7 +375,6 @@ const FloatingMenu = () => {
           <Menu className="w-5 h-5" />
         </Button>
       </div>
-    </div>
 
       {/* Contenido de los modales */}
     </>

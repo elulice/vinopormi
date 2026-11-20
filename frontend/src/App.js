@@ -13,6 +13,8 @@ import Clientes from "@/pages/Clientes";
 import Proveedores from "@/pages/Proveedores";
 import Ventas from "@/pages/Ventas";
 import NuevaVenta from "@/pages/NuevaVenta";
+import Presupuestos from "@/pages/Presupuestos";
+import PresupuestoPublico from "@/pages/PresupuestoPublico";
 
 import Egresos from "@/pages/Egresos";
 import Usuarios from "@/pages/Usuarios";
@@ -43,6 +45,7 @@ function App() {
         <Route path="/Landing" element={<LandingPage />} />
         <Route path="/catalogo" element={<PaginaCatalogo />} />
         <Route path="/miembros" element={<SeccionClientes />} />
+        <Route path="/presupuesto/:token" element={<PresupuestoPublico />} />
         
         {/* LOGIN - Con AuthProvider pero sin ProtectedRoute */}
         <Route path="/login" element={
@@ -68,6 +71,7 @@ function App() {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/nueva-venta" element={<NuevaVenta />} />
+          <Route path="/presupuestos" element={<Presupuestos />} />
           <Route path="/productos" element={<Productos />} />             
           <Route path="/recomendaciones" element={<Recomendaciones />} />
           <Route path="/ia" element={<ChatIA />} />

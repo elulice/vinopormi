@@ -10,12 +10,12 @@
 }
 
 .vpm-app .vpm-main {
-  padding: 56px 16px 120px;
+  padding: 56px 16px;
 }
 
 @media (min-width: 1024px) {
   .vpm-app .vpm-main {
-    padding: 36px 40px 120px;
+    padding: 36px 40px;
   }
 }
 
@@ -123,8 +123,13 @@
 .vpm-app .vpm-cta-sale span {
   display: inline-flex;
   align-items: center;
+  align-self: center;
   gap: 10px;
   min-width: 0;
+}
+
+.vpm-app .vpm-cta-sale span svg {
+  flex: none;
 }
 
 .vpm-app .vpm-nav {
@@ -305,7 +310,6 @@
 .vpm-app .vpm-main {
   background: var(--vpm-bg);
   color: var(--vpm-text);
-  padding-bottom: 120px;
 }
 
 /* Sidebar comprimida: se ocultan etiquetas, se conservan iconos y tooltips. */
@@ -369,13 +373,14 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
+  font-size: 30px;
 }
 
 .vpm-app .vpm-hello {
   margin-top: 12px;
   color: var(--vpm-text);
   font-family: 'Cormorant Garamond', serif;
-  font-size: clamp(38px, 5vw, 52px);
+  font-size: 30px;
   font-weight: 500;
   line-height: 1;
   letter-spacing: -0.01em;
@@ -438,7 +443,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 12px;
-  margin-top: 28px;
+  margin-top: 20px;
 }
 
 .vpm-app .vpm-kpi-card {
@@ -555,6 +560,7 @@
 .vpm-app .vpm-split-part--efectivo { background: var(--vpm-text); }
 .vpm-app .vpm-split-part--transferencia { background: var(--vpm-accent); }
 .vpm-app .vpm-split-part--posnet { background: var(--vpm-faint); }
+.vpm-app .vpm-split-part--cta-cte { background: var(--vpm-pos); }
 .vpm-app .vpm-split-part--cobros { background: var(--vpm-pos); }
 .vpm-app .vpm-split-part--egresos { background: var(--vpm-neg); }
 
@@ -1356,7 +1362,13 @@
   display: grid;
   grid-template-columns: 1fr;
   gap: 12px;
-  margin-top: 28px;
+  margin-top: 20px;
+}
+
+/* El parent .space-y-8 de Tailwind empuja 32px este bloque; esta regla
+   más específica deja el margen pedido de 20px. */
+.vpm-app .vpm-kpi-grid.dashboard-stats-grid {
+  margin-top: 20px;
 }
 
 @media (min-width: 720px) {
@@ -1885,6 +1897,65 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+/* ---------- Cards más bajos para pantallas de 1366x768 ----------
+   Ajuste puntual sobre el dashboard en desktop: se condensan paddings y
+   márgenes internos sin tocar tipografías ni la estructura. El chip "Ver…"
+   sigue a 16px del borde inferior, así que el padding inferior del card
+   enlazado se deja en 54px (16 + 32 de alto del chip + 6 de holgura). */
+@media (min-width: 1024px) {
+  .vpm-app .vpm-dashboard .vpm-card {
+    padding: 16px;
+  }
+
+  .vpm-app .vpm-dashboard .vpm-card.vpm-link {
+    padding-bottom: 54px;
+  }
+
+  .vpm-app .vpm-dashboard .vpm-value {
+    margin-top: 12px;
+  }
+
+  .vpm-app .vpm-dashboard .vpm-hint,
+  .vpm-app .vpm-dashboard .vpm-empty-line {
+    margin-top: 8px;
+  }
+
+  .vpm-app .vpm-dashboard .vpm-balance-meta {
+    margin-top: 8px;
+  }
+
+  .vpm-app .vpm-dashboard .vpm-split {
+    margin-top: 14px;
+  }
+
+  .vpm-app .vpm-dashboard .vpm-legend {
+    gap: 8px 14px;
+    margin-top: 12px;
+  }
+
+  .vpm-app .vpm-dashboard .vpm-debtors {
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .vpm-app .vpm-dashboard .vpm-debtors li {
+    row-gap: 4px;
+  }
+
+  .vpm-app .vpm-dashboard .vpm-bar {
+    height: 3px;
+  }
+
+  .vpm-app .vpm-dashboard .vpm-last-sales {
+    gap: 0;
+    margin-top: 10px;
+  }
+
+  .vpm-app .vpm-dashboard .vpm-last-sale {
+    padding: 4px 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

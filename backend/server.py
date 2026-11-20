@@ -14,8 +14,9 @@ import logging
 import asyncio
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
-from typing import List, Optional
+from typing import Any, Dict, List, Optional, Union
 import uuid
+import secrets
 from datetime import datetime, timezone, timedelta
 import math
 import bcrypt
@@ -29,6 +30,7 @@ from recommendations import (
     calcular as calcular_recomendaciones,
 )
 from ai_chat import run_chat, warmup_chat_model, transcribe_audio
+from ia_metricas import ranking as calcular_ranking, tiempo_trabajado as calcular_tiempo_trabajado
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -385,6 +387,134 @@ class ProductoCatalogo(BaseModel):
     image_url: Optional[str] = None
     categoria: Optional[str] = None
 
+# ----- Presupuestos -----
+VINOTECA_NOMBRE_DEFAULT = "Vino por Mí"
+
+class PresupuestoItemIn(BaseModel):
+    producto_id: str
+    cantidad: int = Field(gt=0)
+
+class PresupuestoCreate(BaseModel):
+    items: List[PresupuestoItemIn]
+    observaciones: str = ""
+    vinoteca_nombre: str = VINOTECA_NOMBRE_DEFAULT
+    descuento: Optional[Union[str, float]] = None
+
+class PresupuestoUpdate(BaseModel):
+    items: Optional[List[PresupuestoItemIn]] = None
+    observaciones: Optional[str] = None
+    vinoteca_nombre: Optional[str] = None
+    descuento: Optional[Union[str, float]] = None
+    activo: Optional[bool] = None
+
+class PresupuestoItemGuardado(BaseModel):
+    producto_id: str
+    nombre: str
+    cantidad: int
+    # Precio al momento de crear el presupuesto (para detectar cambios)
+    precio_unitario: float
+    descuento_cantidad_minima: Optional[int] = None
+    descuento_precio_unitario: Optional[float] = None
+
+class Presupuesto(BaseModel):
+    id: str
+    token: str
+    activo: bool = True
+    vinoteca_nombre: str
+    observaciones: str = ""
+    items: List[PresupuestoItemGuardado]
+    fecha_emision: datetime
+    usuario_id: Optional[str] = None
+    usuario_nombre: Optional[str] = None
+    descuento: str = ""
+    descuento_monto: float = 0.0
+    total: float = 0.0
+
+class PresupuestoItemPublico(BaseModel):
+    producto_id: str
+    nombre: str
+    cantidad: int
+    precio_unitario: float  # vigente (con descuento por cantidad si aplica)
+    precio_original: Optional[float] = None  # precio de lista cuando hay descuento
+    subtotal: float
+    disponible: bool = True
+    precio_cambio: bool = False
+
+class PresupuestoPublico(BaseModel):
+    vinoteca_nombre: str
+    observaciones: str
+    fecha_emision: datetime
+    items: List[PresupuestoItemPublico]
+    descuento_monto: float = 0.0
+    total: float
+    hay_cambios: bool = False
+
+def precio_unitario_presupuesto(producto: dict, cantidad: int):
+    """Devuelve (precio vigente, precio de lista) aplicando descuento por cantidad."""
+    precio_lista = float(producto.get('precio_unitario') or 0)
+    minimo = producto.get('descuento_cantidad_minima')
+    precio_descuento = producto.get('descuento_precio_unitario')
+    if (
+        minimo is not None
+        and precio_descuento is not None
+        and cantidad >= int(minimo)
+    ):
+        return float(precio_descuento), precio_lista
+    return precio_lista, None
+
+def monto_descuento_presupuesto(descuento, subtotal: float) -> float:
+    """Convierte '1500' en monto o '10%' en porcentaje del subtotal."""
+    texto = str(descuento or '').strip().replace(' ', '')
+    if not texto:
+        return 0.0
+    es_porcentaje = texto.endswith('%')
+    if es_porcentaje:
+        texto = texto[:-1]
+    texto = texto.replace(',', '.')
+    try:
+        valor = float(texto)
+    except ValueError:
+        return 0.0
+    if valor <= 0 or subtotal <= 0:
+        return 0.0
+    monto = subtotal * valor / 100 if es_porcentaje else valor
+    return round(min(max(monto, 0.0), subtotal), 2)
+
+
+def _fecha_presupuesto(doc: dict) -> datetime:
+    fecha = doc.get('timestamp')
+    if isinstance(fecha, str):
+        try:
+            return datetime.fromisoformat(fecha)
+        except ValueError:
+            return datetime.now(timezone.utc)
+    if isinstance(fecha, datetime):
+        return fecha
+    return datetime.now(timezone.utc)
+
+def _doc_a_presupuesto(doc: dict) -> Presupuesto:
+    items = [PresupuestoItemGuardado(**item) for item in (doc.get('items') or [])]
+    subtotal = round(sum(
+        float(item.precio_unitario) * int(item.cantidad) for item in items
+    ), 2)
+    descuento = str(doc.get('descuento') or '').strip()
+    descuento_monto = monto_descuento_presupuesto(descuento, subtotal)
+    total = round(subtotal - descuento_monto, 2)
+    return Presupuesto(
+        id=doc.get('id', ''),
+        token=doc.get('token', ''),
+        activo=doc.get('activo', True) is not False,
+        vinoteca_nombre=doc.get('vinoteca_nombre') or VINOTECA_NOMBRE_DEFAULT,
+        observaciones=doc.get('observaciones') or '',
+        items=items,
+        fecha_emision=_fecha_presupuesto(doc),
+        usuario_id=doc.get('usuario_id'),
+        usuario_nombre=doc.get('usuario_nombre'),
+        descuento=descuento,
+        descuento_monto=descuento_monto,
+        total=total,
+    )
+
 public_router = APIRouter()
 
 @public_router.get("/public/destacados", response_model=List[ProductoPublico])
@@ -462,6 +592,73 @@ async def get_catalogo(
             p['categoria'] = p.get('categoria_nombre')
 
     return [ProductoCatalogo(**p) for p in productos]
+
+@public_router.get("/public/presupuesto/{token}", response_model=PresupuestoPublico)
+async def get_presupuesto_publico(token: str):
+    """Nota pública: recalcula precios vigentes con descuento por cantidad."""
+    doc = await db.presupuestos.find_one(
+        {'token': token, 'activo': {'$ne': False}},
+        {'_id': 0}
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="Presupuesto no encontrado o revocado")
+
+    items_guardados = doc.get('items') or []
+    ids = [item.get('producto_id') for item in items_guardados if item.get('producto_id')]
+    productos = await db.productos.find(
+        {'id': {'$in': ids}},
+        {'_id': 0, 'id': 1, 'nombre': 1, 'precio_unitario': 1,
+         'descuento_cantidad_minima': 1, 'descuento_precio_unitario': 1}
+    ).to_list(1000)
+    por_id = {p.get('id'): p for p in productos}
+
+    items = []
+    hay_cambios = False
+    for guardado in items_guardados:
+        producto_id = guardado.get('producto_id', '')
+        cantidad = max(1, int(guardado.get('cantidad') or 1))
+        nombre_guardado = guardado.get('nombre') or producto_id
+        precio_guardado = float(guardado.get('precio_unitario') or 0)
+        producto = por_id.get(producto_id)
+
+        if not producto:
+            hay_cambios = True
+            items.append(PresupuestoItemPublico(
+                producto_id=producto_id,
+                nombre=nombre_guardado,
+                cantidad=cantidad,
+                precio_unitario=0,
+                subtotal=0,
+                disponible=False,
+                precio_cambio=True,
+            ))
+            continue
+
+        precio, precio_lista = precio_unitario_presupuesto(producto, cantidad)
+        cambio = abs(precio - precio_guardado) > 0.001
+        if cambio:
+            hay_cambios = True
+        items.append(PresupuestoItemPublico(
+            producto_id=producto_id,
+            nombre=producto.get('nombre') or nombre_guardado,
+            cantidad=cantidad,
+            precio_unitario=precio,
+            precio_original=precio_lista,
+            subtotal=round(precio * cantidad, 2),
+            precio_cambio=cambio,
+        ))
+
+    subtotal = round(sum(item.subtotal for item in items), 2)
+    descuento_monto = monto_descuento_presupuesto(doc.get('descuento'), subtotal)
+    return PresupuestoPublico(
+        vinoteca_nombre=doc.get('vinoteca_nombre') or VINOTECA_NOMBRE_DEFAULT,
+        observaciones=doc.get('observaciones') or '',
+        fecha_emision=_fecha_presupuesto(doc),
+        items=items,
+        descuento_monto=descuento_monto,
+        total=round(subtotal - descuento_monto, 2),
+        hay_cambios=hay_cambios,
+    )
 
 @public_router.get("/public/cliente/{dni}", response_model=ClientePublico)
 async def get_cliente_por_dni(dni: str):
@@ -1201,6 +1398,142 @@ async def get_producto(producto_id: str, current_user: Usuario = Depends(get_cur
         producto['timestamp'] = datetime.fromisoformat(producto['timestamp'])
     
     return Producto(**producto)
+
+# ----- Presupuestos (autenticados) -----
+
+async def _build_items_presupuesto(items: List[PresupuestoItemIn]) -> List[dict]:
+    if not items:
+        raise HTTPException(status_code=400, detail="El presupuesto debe tener al menos un producto")
+
+    ids = []
+    for item in items:
+        if item.producto_id in ids:
+            raise HTTPException(status_code=400, detail="No se puede repetir un producto en el presupuesto")
+        ids.append(item.producto_id)
+
+    productos = await db.productos.find(
+        {'id': {'$in': ids}},
+        {'_id': 0, 'id': 1, 'nombre': 1, 'precio_unitario': 1,
+         'descuento_cantidad_minima': 1, 'descuento_precio_unitario': 1}
+    ).to_list(1000)
+    por_id = {p.get('id'): p for p in productos}
+
+    faltantes = [item.producto_id for item in items if item.producto_id not in por_id]
+    if faltantes:
+        raise HTTPException(status_code=404, detail=f"Productos no encontrados: {', '.join(faltantes)}")
+
+    guardados = []
+    for item in items:
+        producto = por_id[item.producto_id]
+        precio, _ = precio_unitario_presupuesto(producto, item.cantidad)
+        guardados.append({
+            'producto_id': item.producto_id,
+            'nombre': producto.get('nombre') or item.producto_id,
+            'cantidad': item.cantidad,
+            'precio_unitario': precio,
+            'descuento_cantidad_minima': producto.get('descuento_cantidad_minima'),
+            'descuento_precio_unitario': producto.get('descuento_precio_unitario'),
+        })
+    return guardados
+
+@api_router.post("/presupuestos", response_model=Presupuesto)
+async def create_presupuesto(
+    input: PresupuestoCreate,
+    current_user: Usuario = Depends(get_current_user)
+):
+    items = await _build_items_presupuesto(input.items)
+    doc = {
+        'id': str(uuid.uuid4()),
+        'token': secrets.token_urlsafe(24),
+        'activo': True,
+        'usuario_id': current_user.id,
+        'usuario_nombre': current_user.nombre,
+        'vinoteca_nombre': (input.vinoteca_nombre or '').strip() or VINOTECA_NOMBRE_DEFAULT,
+        'observaciones': (input.observaciones or '').strip(),
+        'descuento': str(input.descuento or '').strip(),
+        'items': items,
+        'timestamp': datetime.now(timezone.utc).isoformat(),
+    }
+    await db.presupuestos.insert_one(doc)
+    return _doc_a_presupuesto(doc)
+
+@api_router.get("/presupuestos", response_model=List[Presupuesto])
+async def list_presupuestos(current_user: Usuario = Depends(get_current_user)):
+    filtro = {} if current_user.rol == 'admin' else {'usuario_id': current_user.id}
+    docs = await db.presupuestos.find(filtro, {'_id': 0}).sort('timestamp', -1).to_list(200)
+
+    # Los presupuestos viejos no guardaban el nombre del creador.
+    ids_faltantes = list({
+        doc.get('usuario_id') for doc in docs
+        if doc.get('usuario_id') and not doc.get('usuario_nombre')
+    })
+    nombres = {}
+    if ids_faltantes:
+        usuarios = await db.usuarios.find(
+            {'id': {'$in': ids_faltantes}}, {'_id': 0, 'id': 1, 'nombre': 1}
+        ).to_list(1000)
+        nombres = {u.get('id'): u.get('nombre') for u in usuarios}
+        for doc in docs:
+            if not doc.get('usuario_nombre'):
+                doc['usuario_nombre'] = nombres.get(doc.get('usuario_id'))
+
+    return [_doc_a_presupuesto(doc) for doc in docs]
+
+@api_router.get("/presupuestos/{presupuesto_id}", response_model=Presupuesto)
+async def get_presupuesto(
+    presupuesto_id: str,
+    current_user: Usuario = Depends(get_current_user)
+):
+    doc = await db.presupuestos.find_one({'id': presupuesto_id}, {'_id': 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Presupuesto no encontrado")
+    if current_user.rol != 'admin' and doc.get('usuario_id') != current_user.id:
+        raise HTTPException(status_code=403, detail="No tenés permiso para ver este presupuesto")
+    return _doc_a_presupuesto(doc)
+
+@api_router.put("/presupuestos/{presupuesto_id}", response_model=Presupuesto)
+async def update_presupuesto(
+    presupuesto_id: str,
+    input: PresupuestoUpdate,
+    current_user: Usuario = Depends(get_current_user)
+):
+    doc = await db.presupuestos.find_one({'id': presupuesto_id}, {'_id': 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Presupuesto no encontrado")
+    if current_user.rol != 'admin' and doc.get('usuario_id') != current_user.id:
+        raise HTTPException(status_code=403, detail="No tenés permiso para editar este presupuesto")
+
+    cambios = {}
+    if input.items is not None:
+        cambios['items'] = await _build_items_presupuesto(input.items)
+    if input.observaciones is not None:
+        cambios['observaciones'] = input.observaciones.strip()
+    if input.vinoteca_nombre is not None:
+        cambios['vinoteca_nombre'] = input.vinoteca_nombre.strip() or VINOTECA_NOMBRE_DEFAULT
+    if input.descuento is not None:
+        cambios['descuento'] = str(input.descuento).strip()
+    if input.activo is not None:
+        cambios['activo'] = input.activo
+    if 'items' in cambios:
+        cambios['timestamp'] = datetime.now(timezone.utc).isoformat()
+
+    if cambios:
+        await db.presupuestos.update_one({'id': presupuesto_id}, {'$set': cambios})
+        doc.update(cambios)
+    return _doc_a_presupuesto(doc)
+
+@api_router.delete("/presupuestos/{presupuesto_id}")
+async def eliminar_presupuesto(
+    presupuesto_id: str,
+    current_user: Usuario = Depends(get_current_user)
+):
+    doc = await db.presupuestos.find_one({'id': presupuesto_id}, {'_id': 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Presupuesto no encontrado")
+    if current_user.rol != 'admin' and doc.get('usuario_id') != current_user.id:
+        raise HTTPException(status_code=403, detail="No tenés permiso para eliminar este presupuesto")
+    await db.presupuestos.delete_one({'id': presupuesto_id})
+    return {"success": True, "message": "Presupuesto eliminado"}
 
 @api_router.put("/productos/{producto_id}", response_model=Producto)
 async def update_producto(
@@ -3383,6 +3716,9 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     reply: str
+    # Datos estructurados de la última tool consultada (ranking / tiempos), para
+    # que el frontend pueda dibujar una tabla ordenable sin parsear el texto.
+    data: Optional[Dict[str, Any]] = None
 
 
 class ChatHistoryItem(BaseModel):
@@ -3452,7 +3788,8 @@ async def chat_ia(request: Request, body: ChatRequest, current_user: Usuario = D
     msgs = [{"role": d.get("role"), "content": d.get("content", "")} for d in history_docs if d.get("role") in ("user", "assistant")]
     msgs.append({"role": "user", "content": user_text})
 
-    reply = await run_chat(msgs, db, current_user)
+    collector: Dict[str, Any] = {}
+    reply = await run_chat(msgs, db, current_user, collector=collector)
 
     # Persistir intercambio
     try:
@@ -3461,7 +3798,38 @@ async def chat_ia(request: Request, body: ChatRequest, current_user: Usuario = D
     except Exception:
         pass
 
-    return ChatResponse(reply=reply)
+    return ChatResponse(reply=reply, data=collector.get("ultimo"))
+
+
+@api_router.get("/ia/metricas/tiempo-trabajado")
+async def ia_tiempo_trabajado(
+    usuario_id: Optional[str] = Query(None),
+    desde: Optional[str] = Query(None),
+    hasta: Optional[str] = Query(None),
+    agrupar: str = Query("dia", pattern="^(dia|semana|mes|total)$"),
+    current_user: Usuario = Depends(get_current_user),
+):
+    """Horas estimadas por día/semana/mes/total. Un usuario común sólo ve las suyas."""
+    if usuario_id and usuario_id != current_user.id and current_user.rol != "admin":
+        raise HTTPException(status_code=403, detail="Sólo los administradores pueden consultar las métricas de otros usuarios.")
+    if not usuario_id and current_user.rol != "admin":
+        usuario_id = current_user.id
+    return await calcular_tiempo_trabajado(db, usuario_id, desde, hasta, agrupar)
+
+
+@api_router.get("/ia/metricas/ranking")
+async def ia_ranking(
+    desde: Optional[str] = Query(None),
+    hasta: Optional[str] = Query(None),
+    ordenar_por: str = Query("score"),
+    ascendente: bool = Query(False),
+    pesos: Optional[str] = Query(None),
+    current_user: Usuario = Depends(get_current_user),
+):
+    """Ranking de empleados. Sólo administradores."""
+    if current_user.rol != "admin":
+        raise HTTPException(status_code=403, detail="El ranking de empleados es exclusivo de administradores.")
+    return await calcular_ranking(db, desde, hasta, ordenar_por, ascendente, pesos)
 
 
 @api_router.post("/chat/transcribe")

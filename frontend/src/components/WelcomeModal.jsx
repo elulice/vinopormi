@@ -91,7 +91,10 @@ const WelcomeModal = () => {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleClose(); else setIsOpen(true); }}>
-      <DialogContent className="max-w-sm bg-background border-border">
+      <DialogContent
+        className="max-w-sm bg-background border-border"
+        style={{ maxHeight: 'calc(100vh - 2rem)', overflowY: 'auto' }}
+      >
         <div className="text-center mb-4">
           <h2 className="font-semibold text-lg text-foreground">Novedades</h2>
         </div>
