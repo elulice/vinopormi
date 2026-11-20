@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Save, Move, Bot, Sparkles, Mic, Tags } from 'lucide-react';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Save, Move, Bot, Sparkles, Mic, Tags, FileText } from 'lucide-react';
 import { apiGet } from '@/lib/api';
 import { API } from '@/lib/config';
 
 const SEEN_PREFIX = 'vpm_news_seen_';
 const POLL_MS = 60000;
 
-const ICONS = { Save, Move, Bot, Sparkles, Mic, Tags };
+const ICONS = { Save, Move, Bot, Sparkles, Mic, Tags, FileText };
 
 const WelcomeModal = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -96,7 +96,7 @@ const WelcomeModal = () => {
         style={{ maxHeight: 'calc(100vh - 2rem)', overflowY: 'auto' }}
       >
         <div className="text-center mb-4">
-          <h2 className="font-semibold text-lg text-foreground">Novedades</h2>
+          <DialogTitle className="font-semibold text-lg text-foreground">Novedades</DialogTitle>
         </div>
 
         <div className="space-y-3 mb-4">

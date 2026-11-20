@@ -1459,8 +1459,8 @@ async def create_presupuesto(
 
 @api_router.get("/presupuestos", response_model=List[Presupuesto])
 async def list_presupuestos(current_user: Usuario = Depends(get_current_user)):
-    filtro = {} if current_user.rol == 'admin' else {'usuario_id': current_user.id}
-    docs = await db.presupuestos.find(filtro, {'_id': 0}).sort('timestamp', -1).to_list(200)
+    # Presupuestos es una sección compartida: cualquier usuario ve todos los guardados.
+    docs = await db.presupuestos.find({}, {'_id': 0}).sort('timestamp', -1).to_list(200)
 
     # Los presupuestos viejos no guardaban el nombre del creador.
     ids_faltantes = list({
@@ -1487,8 +1487,6 @@ async def get_presupuesto(
     doc = await db.presupuestos.find_one({'id': presupuesto_id}, {'_id': 0})
     if not doc:
         raise HTTPException(status_code=404, detail="Presupuesto no encontrado")
-    if current_user.rol != 'admin' and doc.get('usuario_id') != current_user.id:
-        raise HTTPException(status_code=403, detail="No tenés permiso para ver este presupuesto")
     return _doc_a_presupuesto(doc)
 
 @api_router.put("/presupuestos/{presupuesto_id}", response_model=Presupuesto)
@@ -1500,8 +1498,6 @@ async def update_presupuesto(
     doc = await db.presupuestos.find_one({'id': presupuesto_id}, {'_id': 0})
     if not doc:
         raise HTTPException(status_code=404, detail="Presupuesto no encontrado")
-    if current_user.rol != 'admin' and doc.get('usuario_id') != current_user.id:
-        raise HTTPException(status_code=403, detail="No tenés permiso para editar este presupuesto")
 
     cambios = {}
     if input.items is not None:
@@ -1530,8 +1526,6 @@ async def eliminar_presupuesto(
     doc = await db.presupuestos.find_one({'id': presupuesto_id}, {'_id': 0})
     if not doc:
         raise HTTPException(status_code=404, detail="Presupuesto no encontrado")
-    if current_user.rol != 'admin' and doc.get('usuario_id') != current_user.id:
-        raise HTTPException(status_code=403, detail="No tenés permiso para eliminar este presupuesto")
     await db.presupuestos.delete_one({'id': presupuesto_id})
     return {"success": True, "message": "Presupuesto eliminado"}
 
@@ -3620,8 +3614,13 @@ async def set_configuracion_mercadopago(
 # ===== NOVEDADES (modal forzado por backend) =====
 
 DEFAULT_NOVEDADES = {
-    "version": "v1.06.2",
+    "version": "v1.07.0",
     "features": [
+        {
+            "icon": "FileText",
+            "title": "Presupuestos con link público",
+            "description": "Ahora podés armar presupuestos y compartirlos con un enlace público sin inicio de sesión, con los precios actualizados al abrirlo. Incluye descuentos por monto o porcentaje, PDF e impresión.",
+        },
         {
             "icon": "Sparkles",
             "title": "Nueva interfaz (en proceso)",
