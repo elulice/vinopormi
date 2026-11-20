@@ -39,8 +39,8 @@ MAX_MOVIMIENTOS = 15
 MAX_MESSAGES = 8
 MAX_MSG_CHARS = 1500
 MAX_TOOL_RESULT_CHARS = 4000
-MAX_TOOL_STEPS = 5
-MAX_TOKENS = 4000  # incluye tokens de razonamiento del modelo
+MAX_TOOL_STEPS = 3
+MAX_TOKENS = 2000  # incluye tokens de razonamiento del modelo (Groq free: 8000 TPM)
 
 
 def _parse_date_start(value: Optional[str]) -> Optional[str]:
@@ -586,6 +586,267 @@ async def tool_listar_egresos(
     }
 
 
+def _monto_descuento_presupuesto(descuento: Any, subtotal: float) -> float:
+    """Misma regla que el backend: número = monto, con % = porcentaje del subtotal."""
+    texto = str(descuento or "").strip().replace(" ", "")
+    if not texto:
+        return 0.0
+    es_porcentaje = texto.endswith("%")
+    if es_porcentaje:
+        texto = texto[:-1]
+    texto = texto.replace(",", ".")
+    try:
+        valor = float(texto)
+    except ValueError:
+        return 0.0
+    if valor <= 0 or subtotal <= 0:
+        return 0.0
+    monto = subtotal * valor / 100 if es_porcentaje else valor
+    return round(min(max(monto, 0.0), subtotal), 2)
+
+
+def _fecha_presupuesto_doc(value: Any) -> Optional[datetime]:
+    if isinstance(value, datetime):
+        fecha = value
+    elif isinstance(value, str):
+        try:
+            fecha = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except Exception:
+            return None
+    else:
+        return None
+    if fecha.tzinfo is not None:
+        fecha = fecha.replace(tzinfo=None)
+    return fecha
+
+
+async def tool_listar_categorias(
+    db,
+    current_user,
+    search: Optional[str] = None,
+    limit: int = DEFAULT_LIMIT,
+    ordenar_por: str = "nombre",
+    orden: str = "asc",
+) -> Dict[str, Any]:
+    """Lista el catálogo de categorías con resumen de productos, stock y precios."""
+    limit = max(1, min(int(limit or DEFAULT_LIMIT), MAX_LIMIT))
+    categorias = await db.categorias.find({}, {"_id": 0}).to_list(1000)
+    productos = await db.productos.find(
+        {},
+        {
+            "_id": 0, "nombre": 1, "precio_unitario": 1, "stock": 1,
+            "categoria_id": 1, "categoria_nombre": 1, "categoria": 1,
+        },
+    ).to_list(10000)
+
+    def nombre_categoria(producto: dict) -> Optional[str]:
+        return producto.get("categoria_nombre") or producto.get("categoria")
+
+    def productos_de(cat_id: Any, cat_nombre: str) -> List[dict]:
+        return [
+            p for p in productos
+            if (cat_id is not None and p.get("categoria_id") == cat_id)
+            or nombre_categoria(p) == cat_nombre
+        ]
+
+    filas = []
+    for cat in categorias:
+        cid = cat.get("id")
+        nombre = cat.get("nombre") or "Sin nombre"
+        items = productos_de(cid, nombre)
+        precios = [
+            float(p.get("precio_unitario"))
+            for p in items
+            if p.get("precio_unitario") is not None
+        ]
+        filas.append({
+            "id": cid,
+            "nombre": nombre,
+            "cantidad_productos": len(items),
+            "stock_total": sum(int(p.get("stock") or 0) for p in items),
+            "productos_sin_stock": sum(1 for p in items if int(p.get("stock") or 0) <= 0),
+            "precio_promedio": _fmt_money_ar(round(sum(precios) / len(precios), 2)) if precios else None,
+            "fecha_creacion": _fmt_date_ar(cat.get("fecha_creacion")),
+        })
+
+    sin_cat = [p for p in productos if not p.get("categoria_id") and not nombre_categoria(p)]
+    if sin_cat:
+        filas.append({
+            "id": None,
+            "nombre": "Sin categoría",
+            "cantidad_productos": len(sin_cat),
+            "stock_total": sum(int(p.get("stock") or 0) for p in sin_cat),
+            "productos_sin_stock": sum(1 for p in sin_cat if int(p.get("stock") or 0) <= 0),
+            "precio_promedio": None,
+            "fecha_creacion": None,
+        })
+
+    if search:
+        patron = re.escape(str(search).strip())
+        filas = [f for f in filas if re.search(patron, f["nombre"], re.IGNORECASE)]
+
+    sort_map = {
+        "nombre": "nombre",
+        "productos": "cantidad_productos",
+        "stock": "stock_total",
+        "precio_promedio": "precio_promedio",
+    }
+    campo = sort_map.get(str(ordenar_por or "nombre").lower(), "nombre")
+    descendente = str(orden or "asc").lower() in ("desc", "descendente", "-1")
+    filas.sort(
+        key=lambda f: str(f[campo]).lower() if campo == "nombre" else (f[campo] if f[campo] is not None else -1),
+        reverse=descendente,
+    )
+    visibles = filas[:limit]
+    return {
+        "cantidad_mostrada": len(visibles),
+        "cantidad_total_categorias": len(filas),
+        "total_productos": sum(f["cantidad_productos"] for f in filas),
+        "ordenado_por": ordenar_por,
+        "orden": "desc" if descendente else "asc",
+        "categorias": visibles,
+    }
+
+
+async def tool_consultar_presupuestos(
+    db,
+    current_user,
+    estado: str = "todos",
+    fecha_inicio: Optional[str] = None,
+    fecha_fin: Optional[str] = None,
+    usuario: Optional[str] = None,
+    vinoteca: Optional[str] = None,
+    search: Optional[str] = None,
+    limit: int = DEFAULT_LIMIT,
+    ordenar_por: str = "fecha",
+    orden: str = "desc",
+) -> Dict[str, Any]:
+    """Consulta presupuestos guardados (acceso compartido) con filtros y totales."""
+    limit = max(1, min(int(limit or DEFAULT_LIMIT), MAX_LIMIT))
+    docs = await db.presupuestos.find({}, {"_id": 0}).to_list(5000)
+
+    estado_txt = str(estado or "todos").lower()
+    if estado_txt in ("activo", "activos", "vigente", "vigentes"):
+        docs = [d for d in docs if d.get("activo") is not False]
+    elif estado_txt in ("revocado", "revocados", "inactivo", "inactivos"):
+        docs = [d for d in docs if d.get("activo") is False]
+
+    inicio = fin = None
+    if fecha_inicio:
+        try:
+            inicio = datetime.strptime(str(fecha_inicio)[:10], "%Y-%m-%d")
+        except ValueError:
+            pass
+    if fecha_fin:
+        try:
+            fin = datetime.strptime(str(fecha_fin)[:10], "%Y-%m-%d") + timedelta(days=1)
+        except ValueError:
+            pass
+    if inicio or fin:
+        filtrados = []
+        for d in docs:
+            fecha = _fecha_presupuesto_doc(d.get("timestamp"))
+            if fecha is None:
+                continue
+            if inicio and fecha < inicio:
+                continue
+            if fin and fecha >= fin:
+                continue
+            filtrados.append(d)
+        docs = filtrados
+
+    if usuario:
+        valor = str(usuario).strip().lower()
+        if valor in ("yo", "mi", "mio", "míos"):
+            valor = str(
+                getattr(current_user, "nombre", None)
+                or getattr(current_user, "username", None)
+                or ""
+            ).lower()
+        docs = [d for d in docs if valor in str(d.get("usuario_nombre") or "").lower()]
+
+    if vinoteca:
+        valor = str(vinoteca).strip().lower()
+        docs = [d for d in docs if valor in str(d.get("vinoteca_nombre") or "").lower()]
+
+    if search:
+        valor = str(search).strip()
+        patron = re.compile(re.escape(valor), re.IGNORECASE)
+
+        def coincide(d: dict) -> bool:
+            campos = [d.get("vinoteca_nombre"), d.get("observaciones"), d.get("usuario_nombre")]
+            campos += [i.get("nombre") for i in (d.get("items") or [])]
+            return any(patron.search(str(c or "")) for c in campos)
+
+        docs = [d for d in docs if coincide(d)]
+
+    filas = []
+    for d in docs:
+        items = d.get("items") or []
+        subtotal = round(sum(
+            float(i.get("precio_unitario") or 0) * int(i.get("cantidad") or 0)
+            for i in items
+        ), 2)
+        descuento_monto = _monto_descuento_presupuesto(d.get("descuento"), subtotal)
+        total = round(subtotal - descuento_monto, 2)
+        resumen_items = ", ".join(
+            f"{i.get('cantidad') or 0}× {i.get('nombre') or 'Producto'}" for i in items[:5]
+        )
+        if len(items) > 5:
+            resumen_items += f" … (+{len(items) - 5})"
+        fecha = _fecha_presupuesto_doc(d.get("timestamp"))
+        filas.append({
+            "fecha": _fmt_date_ar(fecha, with_time=True),
+            "_fecha_orden": fecha,
+            "vinoteca": d.get("vinoteca_nombre") or "Sin vinoteca",
+            "estado": "Revocado" if d.get("activo") is False else "Activo",
+            "usuario": d.get("usuario_nombre") or "Sin usuario",
+            "observaciones": d.get("observaciones") or "",
+            "items": resumen_items or "Sin ítems",
+            "cantidad_items": len(items),
+            "descuento": str(d.get("descuento") or "").strip() or None,
+            "subtotal": _fmt_money_ar(subtotal),
+            "descuento_monto": _fmt_money_ar(descuento_monto),
+            "total": _fmt_money_ar(total),
+            "_total_orden": total,
+        })
+
+    sort_map = {"fecha": "_fecha_orden", "total": "_total_orden", "vinoteca": "vinoteca", "usuario": "usuario"}
+    campo = sort_map.get(str(ordenar_por or "fecha").lower(), "_fecha_orden")
+    descendente = str(orden or "desc").lower() in ("desc", "descendente", "-1")
+
+    def clave(fila: dict):
+        valor = fila[campo]
+        if valor is None:
+            return (0, "")
+        if isinstance(valor, (int, float)):
+            return (1, valor)
+        return (1, str(valor).lower())
+
+    filas.sort(key=clave, reverse=descendente)
+    visibles = filas[:limit]
+    for fila in visibles:
+        fila.pop("_fecha_orden", None)
+        fila.pop("_total_orden", None)
+
+    total_general = round(sum(
+        float(i.get("precio_unitario") or 0) * int(i.get("cantidad") or 0)
+        for d in docs for i in (d.get("items") or [])
+    ), 2)
+    return {
+        "cantidad_mostrada": len(visibles),
+        "cantidad_total_coincidencias": len(filas),
+        "totales": {
+            "monto_total": _fmt_money_ar(total_general),
+            "cantidad_activos": sum(1 for f in filas if f["estado"] == "Activo"),
+            "cantidad_revocados": sum(1 for f in filas if f["estado"] == "Revocado"),
+        },
+        "ordenado_por": ordenar_por,
+        "orden": "desc" if descendente else "asc",
+        "presupuestos": visibles,
+    }
+
+
 TOOL_DEFINITIONS = [
     {
         "type": "function",
@@ -732,6 +993,45 @@ TOOL_DEFINITIONS = [
                     "ordenar_por": {"type": "string", "enum": ["score", "cantidad_ventas", "monto_total", "horas_trabajadas", "dias_activos", "cantidad_auditorias"], "description": "Métrica por la que se ordena."},
                     "orden": {"type": "string", "enum": ["asc", "desc"], "description": "desc = mejor primero, asc = peor primero."},
                     "pesos": {"type": "string", "enum": ["balanceado", "parejo", "solo_ventas"], "description": "Preset de pesos del score (default: el configurado en el servidor)."},
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "listar_categorias",
+            "description": "Lista categorías con cantidad de productos, stock total, sin stock y precio promedio. Incluye 'Sin categoría' si corresponde.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "search": {"type": "string", "description": "Texto a buscar en el nombre."},
+                    "limit": {"type": "integer", "description": "Máximo de resultados (default 10, máx 25)."},
+                    "ordenar_por": {"type": "string", "enum": ["nombre", "productos", "stock", "precio_promedio"], "description": "Campo para ordenar."},
+                    "orden": {"type": "string", "enum": ["asc", "desc"], "description": "Dirección del orden."},
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "consultar_presupuestos",
+            "description": "Consulta presupuestos (acceso compartido). Filtra por estado/fechas/usuario/vinoteca/texto; devuelve totales, estado, ítems resumidos y montos. No incluye tokens ni links.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "estado": {"type": "string", "enum": ["todos", "activo", "revocado"], "description": "Estado. Default 'todos'."},
+                    "fecha_inicio": {"type": "string", "description": "Desde (YYYY-MM-DD)."},
+                    "fecha_fin": {"type": "string", "description": "Hasta (YYYY-MM-DD)."},
+                    "usuario": {"type": "string", "description": "Usuario (o 'yo')."},
+                    "vinoteca": {"type": "string", "description": "Vinoteca."},
+                    "search": {"type": "string", "description": "Texto en vinoteca, notas o productos."},
+                    "limit": {"type": "integer", "description": "Máximo de presupuestos a devolver (default 10, máx 25)."},
+                    "ordenar_por": {"type": "string", "enum": ["fecha", "total", "vinoteca", "usuario"], "description": "Campo para ordenar."},
+                    "orden": {"type": "string", "enum": ["asc", "desc"], "description": "Dirección del orden."},
                 },
                 "required": [],
             },
@@ -1111,6 +1411,10 @@ async def execute_tool(name: str, args: Dict[str, Any], db, current_user) -> Dic
     try:
         if name == "buscar_productos":
             return await tool_buscar_productos(db, current_user, **args)
+        if name == "listar_categorias":
+            return await tool_listar_categorias(db, current_user, **args)
+        if name == "consultar_presupuestos":
+            return await tool_consultar_presupuestos(db, current_user, **args)
         if name == "cuenta_corriente":
             return await tool_cuenta_corriente(db, current_user, **args)
         if name == "listar_ventas":
@@ -1134,8 +1438,10 @@ SYSTEM_PROMPT = (
     "Sos un asistente de consultas del sistema de gestión VinoPorMi. "
     "Respondé en español, de forma clara, breve y exacta. "
     "Mantené el contexto del historial de la conversación para entender referencias y preguntas de seguimiento (por ejemplo pronombres como 'él/ella/eso' o '¿de qué color?') usando lo que el usuario o vos dijeron antes en el chat. "
-    "Cuando la pregunta requiera datos del sistema (ventas, productos, cuentas corrientes de clientes/proveedores, egresos, MercadoPago, auditoría, horas trabajadas o ranking de empleados), usá las herramientas disponibles y basá esos datos únicamente en sus resultados. No inventes precios, stock, saldos, montos, fechas ni registros. "
-    "Aprovechá los parámetros de las herramientas cuando ayude: filtros (fechas, cliente, medio de pago, categoría, búsqueda, rangos, stock, descuento), orden (asc/desc por precio, fecha, monto, etc.) y agrupaciones/resúmenes (por día, mes, medio de pago, cliente, categoría) para responder totales y comparaciones de forma precisa. "
+    "Cuando la pregunta requiera datos del sistema (ventas, productos, categorías, presupuestos, cuentas corrientes de clientes/proveedores, egresos, MercadoPago, auditoría, horas trabajadas o ranking de empleados), usá las herramientas disponibles y basá esos datos únicamente en sus resultados. No inventes precios, stock, saldos, montos, fechas ni registros. "
+    "Aprovechá los parámetros de las herramientas cuando ayude: filtros (fechas, cliente, medio de pago, categoría, búsqueda, rangos, stock, descuento, estado del presupuesto), orden (asc/desc por precio, fecha, monto, etc.) y agrupaciones/resúmenes (por día, mes, medio de pago, cliente, categoría) para responder totales y comparaciones de forma precisa. "
+    "Para categorías usá listar_categorias; para los productos de una categoría, buscar_productos. "
+    "Para presupuestos usá consultar_presupuestos (acceso compartido; filtros por estado/fecha/usuario/vinoteca); nunca expongas tokens ni links públicos. "
     "Sobre los descuentos: un producto puede tener 'descuento por cantidad', que significa que si se compra una cantidad MAYOR O IGUAL a la cantidad mínima, el precio por unidad pasa a ser el precio con descuento (no es un porcentaje). En los resultados de buscar_productos, el campo 'descuento' indica 'Desde X unidades: $Y por unidad' cuando existe y es null cuando el producto no tiene descuento. Cuando te pregunten por descuentos, usá el filtro solo_con_descuento y explicá siempre la condición (desde cuántas unidades) y el precio unitario resultante, sin confundirlo con el precio de venta normal. "
     "Distinguí entre datos del sistema (solo desde herramientas) e información conversacional aportada por el usuario en el chat: podés recordar y referirte a lo conversado, pero no lo presentes como dato del sistema. "
     "SOLO podés consultar información usando las herramientas disponibles; no podés crear, editar ni eliminar datos. "
@@ -1218,7 +1524,7 @@ async def run_chat(messages: List[Dict[str, str]], db, current_user, collector: 
         "tool_choice": "auto",
         "temperature": 0.1,
         "timeout": 120,
-        "max_tokens": MAX_TOKENS,
+        "max_tokens": int(os.environ.get("CHAT_MAX_TOKENS", str(MAX_TOKENS)) or MAX_TOKENS),
     }
     if api_key:
         kwargs["api_key"] = api_key
@@ -1234,7 +1540,7 @@ async def run_chat(messages: List[Dict[str, str]], db, current_user, collector: 
     max_tool_chars = int(os.environ.get("CHAT_MAX_TOOL_RESULT_CHARS", str(MAX_TOOL_RESULT_CHARS)) or MAX_TOOL_RESULT_CHARS)
     for _ in range(MAX_TOOL_STEPS):
         resp = None
-        for attempt in range(2):
+        for attempt in range(3):
             try:
                 # litellm.completion es síncrona: hacerla en un thread aparte
                 # para no bloquear el event loop mientras responde el modelo.
@@ -1243,7 +1549,9 @@ async def run_chat(messages: List[Dict[str, str]], db, current_user, collector: 
             except Exception as e:
                 if _is_rate_limit_error(e):
                     wait_s = _extract_retry_seconds(e)
-                    if attempt == 0 and wait_s is not None and 0 < wait_s <= 25:
+                    # Groq devuelve "try again in Xs": esperamos hasta 60s y
+                    # reintentamos antes de mostrar el error al usuario.
+                    if attempt < 2 and wait_s is not None and 0 < wait_s <= 60:
                         await asyncio.sleep(wait_s + 0.5)
                         continue
                     secs = int(round(wait_s)) if wait_s is not None and wait_s > 0 else None
