@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Ban, Check, Copy, Download, ExternalLink, FilePlus2, FileText, Printer, RefreshCw, Trash2 } from 'lucide-react';
+import { Ban, Check, Copy, Download, ExternalLink, Eye, FilePlus2, FileText, Pencil, Printer, RefreshCw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,7 @@ import { formatCurrency } from '@/lib/currency';
 import { downloadElementAsPDF } from '@/lib/downloadUtils';
 import ProductSearch from '@/components/ProductSearch';
 import PresupuestoNota from '@/components/PresupuestoNota';
+import PresupuestoDetalle from '@/components/PresupuestoDetalle';
 import './Presupuestos.css';
 
 const VINOTECA_DEFAULT = 'Vino por Mí';
@@ -53,6 +54,12 @@ const calcularDescuento = (texto, subtotal) => {
   return Number(Math.min(monto, subtotal).toFixed(2));
 };
 
+const firmaDe = (lista, observaciones, descuento) => JSON.stringify({
+  items: (lista || []).map(({ producto_id, cantidad }) => [producto_id, cantidad]),
+  observaciones: (observaciones || '').trim(),
+  descuento: (descuento || '').trim(),
+});
+
 const Presupuestos = () => {
   const { showCents } = useConfig();
   const notaRef = useRef(null);
@@ -66,6 +73,8 @@ const Presupuestos = () => {
   const [linkGenerado, setLinkGenerado] = useState('');
   const [firmaGuardada, setFirmaGuardada] = useState('');
   const [guardando, setGuardando] = useState(false);
+  const [editando, setEditando] = useState(null);
+  const [detalle, setDetalle] = useState(null);
   const [confirmandoGuardar, setConfirmandoGuardar] = useState(false);
   const [cargando, setCargando] = useState(true);
 
@@ -125,11 +134,10 @@ const Presupuestos = () => {
   );
   const total = Number((subtotal - descuentoMonto).toFixed(2));
 
-  const firmaActual = useMemo(() => JSON.stringify({
-    items: items.map(({ producto_id, cantidad }) => [producto_id, cantidad]),
-    observaciones: observaciones.trim(),
-    descuento: descuento.trim(),
-  }), [items, observaciones, descuento]);
+  const firmaActual = useMemo(
+    () => firmaDe(items, observaciones, descuento),
+    [items, observaciones, descuento]
+  );
   const sinCambios = firmaGuardada !== '' && firmaGuardada === firmaActual;
   const hayCarga = items.length > 0 || Boolean(observaciones.trim()) || Boolean(descuento.trim());
 
@@ -152,22 +160,42 @@ const Presupuestos = () => {
   const accionesPresupuesto = (presupuesto) => {
     const url = `${window.location.origin}/presupuesto/${presupuesto.token}`;
     const revocado = presupuesto.activo === false;
+    const botonEliminar = (
+      <Button variant="ghost" size="sm" style={{ padding: 4 }} onClick={() => eliminar(presupuesto)} title="Eliminar presupuesto">
+        <Trash2 className="w-4 h-4" />
+      </Button>
+    );
+    if (revocado) {
+      return (
+        <div className="flex items-center justify-end gap-1">
+          <Button
+            variant="outline"
+            size="sm"
+            style={{ padding: 4 }}
+            onClick={() => setDetalle(presupuesto)}
+            title="Ver detalle del presupuesto"
+          >
+            <Eye className="w-4 h-4" />
+          </Button>
+          {botonEliminar}
+        </div>
+      );
+    }
     return (
       <div className="flex items-center justify-end gap-1">
-        <Button variant="outline" size="sm" onClick={() => copiarLink(url)} title="Copiar link" disabled={revocado}>
+        <Button variant="ghost" size="sm" style={{ padding: 4 }} onClick={() => editarPresupuesto(presupuesto)} title="Editar presupuesto">
+          <Pencil className="w-4 h-4" />
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => copiarLink(url)} title="Copiar link">
           <Copy className="w-4 h-4" />
         </Button>
-        <Button variant="outline" size="sm" onClick={() => window.open(url, '_blank', 'noopener,noreferrer')} title="Abrir link" disabled={revocado}>
+        <Button variant="outline" size="sm" onClick={() => window.open(url, '_blank', 'noopener,noreferrer')} title="Abrir link">
           <ExternalLink className="w-4 h-4" />
         </Button>
-        {!revocado && (
-          <Button variant="ghost" size="sm" onClick={() => revocar(presupuesto)} title="Revocar enlace">
-            <Ban className="w-4 h-4" />
-          </Button>
-        )}
-        <Button variant="ghost" size="sm" onClick={() => eliminar(presupuesto)} title="Eliminar presupuesto">
-          <Trash2 className="w-4 h-4" />
+        <Button variant="ghost" size="sm" onClick={() => revocar(presupuesto)} title="Revocar enlace">
+          <Ban className="w-4 h-4" />
         </Button>
+        {botonEliminar}
       </div>
     );
   };
@@ -218,7 +246,30 @@ const Presupuestos = () => {
     setDescuento('');
     setLinkGenerado('');
     setFirmaGuardada('');
+    setEditando(null);
     setConfirmandoGuardar(false);
+  };
+
+  const editarPresupuesto = (presupuesto) => {
+    const itemsCargados = (presupuesto.items || []).map((item) => ({
+      producto_id: item.producto_id,
+      nombre: item.nombre || item.producto_id,
+      cantidad: Number(item.cantidad) || 1,
+      precio_unitario: Number(item.precio_unitario) || 0,
+    }));
+    setItems(itemsCargados);
+    setObservaciones(presupuesto.observaciones || '');
+    setDescuento(presupuesto.descuento || '');
+    setLinkGenerado(`${window.location.origin}/presupuesto/${presupuesto.token}`);
+    setFirmaGuardada(firmaDe(itemsCargados, presupuesto.observaciones, presupuesto.descuento));
+    setEditando({
+      id: presupuesto.id,
+      token: presupuesto.token,
+      fechaEmision: presupuesto.fecha_emision,
+    });
+    setConfirmandoGuardar(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    toast.success('Presupuesto cargado para editar');
   };
 
   const guardar = async () => {
@@ -232,16 +283,19 @@ const Presupuestos = () => {
     }
     setGuardando(true);
     try {
-      const res = await apiPost(`${API}/presupuestos`, {
+      const payload = {
         items: items.map(({ producto_id, cantidad }) => ({ producto_id, cantidad })),
         observaciones: observaciones.trim(),
         descuento: descuento.trim(),
         vinoteca_nombre: VINOTECA_DEFAULT,
-      });
+      };
+      const res = editando
+        ? await apiPut(`${API}/presupuestos/${editando.id}`, payload)
+        : await apiPost(`${API}/presupuestos`, payload);
       const url = `${window.location.origin}/presupuesto/${res.data.token}`;
       setLinkGenerado(url);
       setFirmaGuardada(firmaActual);
-      toast.success('Presupuesto guardado y link generado');
+      toast.success(editando ? 'Presupuesto actualizado' : 'Presupuesto guardado y link generado');
       await cargarPresupuestos();
     } catch (error) {
       toast.error(error.response?.data?.detail || 'No se pudo guardar el presupuesto');
@@ -269,6 +323,7 @@ const Presupuestos = () => {
       toast.success('Presupuesto eliminado');
       await cargarPresupuestos();
       if (linkGenerado && linkGenerado.endsWith(`/${presupuesto.token}`)) setLinkGenerado('');
+      if (detalle?.id === presupuesto.id) setDetalle(null);
     } catch (error) {
       toast.error(error.response?.data?.detail || 'No se pudo eliminar el presupuesto');
     }
@@ -284,7 +339,11 @@ const Presupuestos = () => {
         <div>
           <p className="vpm-eyebrow">Ventas</p>
           <h1 className="vpm-heading">Presupuestos</h1>
-          <p className="vpm-hint">Generá un enlace público con los precios actualizados.</p>
+          <p className="vpm-hint">
+            {editando
+              ? 'Editando un presupuesto. Los cambios se actualizan en el mismo enlace.'
+              : 'Generá un enlace público con los precios actualizados.'}
+          </p>
         </div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
           <Button variant="ghost" size="sm" onClick={() => {
@@ -312,7 +371,15 @@ const Presupuestos = () => {
             title={sinCambios ? 'El presupuesto no cambió desde el último guardado' : undefined}
           >
             {sinCambios && !confirmandoGuardar ? <Check className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
-            {guardando ? 'Guardando...' : confirmandoGuardar ? 'Confirmar' : sinCambios ? 'Guardado' : 'Guardar y generar link'}
+            {guardando
+              ? 'Guardando...'
+              : confirmandoGuardar
+                ? 'Confirmar'
+                : sinCambios
+                  ? 'Guardado'
+                  : editando
+                    ? 'Guardar cambios'
+                    : 'Guardar y generar link'}
           </Button>
           {confirmandoGuardar && (
             <Button variant="ghost" size="sm" onClick={() => setConfirmandoGuardar(false)}>
@@ -412,7 +479,7 @@ const Presupuestos = () => {
           <PresupuestoNota
             ref={notaRef}
             vinotecaNombre={VINOTECA_DEFAULT}
-            fechaEmision={new Date()}
+            fechaEmision={editando?.fechaEmision ? new Date(editando.fechaEmision) : new Date()}
             items={itemsNota}
             observaciones={observaciones}
             descuentoMonto={descuentoMonto}
@@ -452,12 +519,12 @@ const Presupuestos = () => {
           <>
             <ResponsiveTable
               headers={[
-                { title: 'Fecha', width: '18%' },
-                { title: 'Usuario', width: '20%' },
+                { title: 'Fecha', width: '17%' },
+                { title: 'Usuario', width: '18%' },
                 { title: 'Productos', width: '12%' },
                 { title: 'Total', width: '15%' },
-                { title: 'Estado', width: '13%' },
-                { title: 'Acciones', width: '22%' },
+                { title: 'Estado', width: '12%' },
+                { title: 'Acciones', width: '26%' },
               ]}
               rows={presupuestosVisibles}
               renderDesktopRow={(presupuesto) => {
@@ -518,6 +585,13 @@ const Presupuestos = () => {
           </>
         )}
       </section>
+
+      <PresupuestoDetalle
+        presupuesto={detalle}
+        fechaTexto={detalle ? formatearFecha(detalle.fecha_emision) : ''}
+        showCents={showCents}
+        onClose={() => setDetalle(null)}
+      />
     </div>
   );
 };
