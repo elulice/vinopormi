@@ -18,7 +18,10 @@ import {
   Edit,
   Trash2,
   StickyNote,
-  Truck
+  Truck,
+  FileText,
+  Ban,
+  Tags
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -27,6 +30,162 @@ import ResponsiveTable from '@/components/ResponsiveTable';
 import { API } from '@/lib/config';
 import StatusBadge from '@/components/common/StatusBadge';
 import { apiGet } from '@/lib/api';
+import { formatCurrency } from '@/lib/currency';
+
+const ENTIDAD_LABELS = {
+  producto: 'producto',
+  categoria: 'categoría',
+  cliente: 'cuenta corriente',
+  proveedor: 'proveedor',
+  egreso: 'egreso',
+  usuario: 'usuario',
+  presupuesto: 'presupuesto',
+  sticky_note: 'nota',
+};
+
+const VERBOS_ACCION = {
+  creado: 'creó',
+  crear: 'creó',
+  modificado: 'modificó',
+  actualizar: 'actualizó',
+  eliminado: 'eliminó',
+  eliminar: 'eliminó',
+  revocado: 'revocó el enlace de',
+};
+
+const ETIQUETAS_CAMPO = {
+  nombre: 'Nombre',
+  apellido: 'Apellido',
+  dni: 'DNI',
+  telefono: 'Teléfono',
+  email: 'Email',
+  username: 'Usuario',
+  rol: 'Rol',
+  descripcion: 'Descripción',
+  monto: 'Monto',
+  categoria: 'Categoría',
+  categoria_id: 'Categoría',
+  categoria_nombre: 'Nombre de categoría',
+  productos_actualizados: 'Productos actualizados',
+  precio_unitario: 'Precio unitario',
+  precio_costo: 'Precio de costo',
+  stock: 'Stock',
+  descuento_cantidad_minima: 'Cantidad mínima para descuento',
+  descuento_precio_unitario: 'Precio con descuento',
+  activo: 'Enlace activo',
+  vinoteca_nombre: 'Vinoteca',
+  observaciones: 'Observaciones',
+  descuento: 'Descuento',
+  items: 'Productos',
+  tipo: 'Tipo',
+  is_public: 'Público',
+  is_featured: 'Destacado',
+  timestamp: 'Fecha',
+  fecha: 'Fecha',
+  fecha_creacion: 'Fecha de creación',
+};
+
+const CAMPOS_MONEDA = new Set([
+  'monto', 'precio_unitario', 'precio_costo', 'descuento_monto', 'descuento_precio_unitario'
+]);
+const CAMPOS_TECNICOS = new Set(['id', 'token', 'password', '_id']);
+const CAMPOS_FECHA = new Set(['fecha', 'fecha_creacion', 'timestamp', 'fecha_emision']);
+
+const formatearValor = (campo, valor) => {
+  if (valor === null || valor === undefined || valor === '') return '—';
+  if (typeof valor === 'boolean') return valor ? 'Sí' : 'No';
+
+  if (CAMPOS_FECHA.has(campo)) {
+    const fecha = new Date(valor);
+    if (!Number.isNaN(fecha.getTime())) return format(fecha, 'dd/MM/yyyy HH:mm');
+  }
+
+  if (campo === 'items' && Array.isArray(valor)) {
+    return valor.map((item) => {
+      const nombre = item?.nombre || item?.producto_id || 'Producto';
+      const cantidad = item?.cantidad ?? 1;
+      const precio = item?.precio_unitario != null
+        ? ` (${formatCurrency(item.precio_unitario, false)})`
+        : '';
+      return `${cantidad}× ${nombre}${precio}`;
+    }).join(' · ');
+  }
+
+  if (Array.isArray(valor)) return valor.map((v) => String(v)).join(', ');
+  if (typeof valor === 'object') {
+    return Object.entries(valor)
+      .map(([clave, valorHijo]) => `${ETIQUETAS_CAMPO[clave] || clave}: ${formatearValor(clave, valorHijo)}`)
+      .join(' · ');
+  }
+
+  if (CAMPOS_MONEDA.has(campo) && !Number.isNaN(Number(valor))) {
+    return formatCurrency(Number(valor));
+  }
+
+  const texto = String(valor);
+  return texto.length > 140 ? `${texto.slice(0, 140)}…` : texto;
+};
+
+const ResumenCambios = ({ anteriores, nuevos }) => {
+  const anterior = anteriores && typeof anteriores === 'object' ? anteriores : {};
+  const nuevo = nuevos && typeof nuevos === 'object' ? nuevos : {};
+  const comparar = Object.keys(anterior).length > 0 && Object.keys(nuevo).length > 0;
+
+  const campos = Array.from(new Set([...Object.keys(anterior), ...Object.keys(nuevo)]))
+    .filter((campo) => !CAMPOS_TECNICOS.has(campo))
+    .filter((campo) => {
+      const antes = formatearValor(campo, anterior[campo]);
+      const despues = formatearValor(campo, nuevo[campo]);
+      if (antes === '—' && despues === '—') return false;
+      if (!comparar) return true;
+      if (antes === despues) return false;
+      // Si el campo no estaba en el snapshot anterior, no podemos afirmar que cambió.
+      if (antes === '—' && !Object.prototype.hasOwnProperty.call(anterior, campo)) return false;
+      return true;
+    });
+
+  if (!campos.length) {
+    return <p className="text-xs text-muted-foreground py-3">No hay valores registrados para este evento.</p>;
+  }
+
+  const columnas = comparar
+    ? '110px minmax(0, 1fr) minmax(0, 1fr)'
+    : '130px minmax(0, 1fr)';
+  // En altas el valor está en "nuevos"; en bajas, en "anteriores".
+  const fuente = comparar || Object.keys(nuevo).length === 0 ? anterior : nuevo;
+
+  return (
+    <div className="rounded-lg border border-border overflow-hidden">
+      <div
+        className="grid gap-2 bg-muted/60 px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground"
+        style={{ gridTemplateColumns: columnas }}
+      >
+        <span>Campo</span>
+        <span>{comparar ? 'Antes' : 'Valor'}</span>
+        {comparar && <span>Ahora</span>}
+      </div>
+      {campos.map((campo) => (
+        <div
+          key={campo}
+          className="grid gap-2 border-t border-border px-3 py-2 items-start"
+          style={{ gridTemplateColumns: columnas }}
+        >
+          <span className="text-xs font-medium text-foreground break-words">
+            {ETIQUETAS_CAMPO[campo] || campo}
+          </span>
+          <span className={`text-xs break-words ${comparar ? 'text-muted-foreground' : 'text-foreground'}`}>
+            {formatearValor(campo, fuente[campo])}
+          </span>
+          {comparar && (
+            <span className="text-xs font-medium text-foreground break-words">
+              {formatearValor(campo, nuevo[campo])}
+            </span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
 
 const Auditoria = () => {
   const [registros, setRegistros] = useState([]);
@@ -111,10 +270,12 @@ const Auditoria = () => {
   const getEntidadIcon = (entidad) => {
     switch (entidad) {
       case 'producto': return <Package className="w-3 h-3 text-blue-600" />;
+      case 'categoria': return <Tags className="w-3 h-3 text-teal-600" />;
       case 'cliente': return <Users className="w-3 h-3 text-green-600" />;
       case 'proveedor': return <Truck className="w-3 h-3 text-orange-600" />;
       case 'egreso': return <TrendingDown className="w-3 h-3 text-red-600" />;
       case 'usuario': return <UserIcon className="w-3 h-3 text-purple-600" />;
+      case 'presupuesto': return <FileText className="w-3 h-3 text-indigo-600" />;
       case 'sticky_note': return <StickyNote className="w-3 h-3 text-yellow-600" />;
       default: return <History className="w-3 h-3 text-gray-600" />;
     }
@@ -131,6 +292,8 @@ const Auditoria = () => {
       case 'eliminado':
       case 'eliminar':
         return <Trash2 className="w-3 h-3 text-red-600" />;
+      case 'revocado':
+        return <Ban className="w-3 h-3 text-orange-600" />;
       default:
         return <History className="w-3 h-3 text-gray-600" />;
     }
@@ -144,11 +307,6 @@ const Auditoria = () => {
     return <StatusBadge status={accion} size="sm" />;
   };
 
-  const formatValores = (valores) => {
-    if (!valores) return '-';
-    return JSON.stringify(valores, null, 2).substring(0, 100) + (JSON.stringify(valores).length > 100 ? '...' : '');
-  };
- 
   if (loading) {
     return <div className="text-center py-8">Cargando registros de auditoría...</div>;
   }
@@ -184,10 +342,12 @@ const Auditoria = () => {
                 <SelectContent>
                   <SelectItem value="todos">Todas</SelectItem>
                   <SelectItem value="producto">Productos</SelectItem>
+                  <SelectItem value="categoria">Categorías</SelectItem>
                   <SelectItem value="cliente">Ctas Ctes</SelectItem>
                   <SelectItem value="proveedor">Proveedores</SelectItem>
                   <SelectItem value="egreso">Egresos</SelectItem>
                   <SelectItem value="usuario">Usuarios</SelectItem>
+                  <SelectItem value="presupuesto">Presupuestos</SelectItem>
                   <SelectItem value="sticky_note">Notas</SelectItem>
                 </SelectContent>
               </Select>
@@ -206,6 +366,7 @@ const Auditoria = () => {
                   <SelectItem value="todos">Todas</SelectItem>
                   <SelectItem value="creado">Creados</SelectItem>
                   <SelectItem value="modificado">Modificados</SelectItem>
+                  <SelectItem value="revocado">Revocados</SelectItem>
                   <SelectItem value="eliminado">Eliminados</SelectItem>
                 </SelectContent>
               </Select>
@@ -342,75 +503,83 @@ const Auditoria = () => {
       {/* MODAL DE DETALLES */}
       {selectedRegistro && (
         <Dialog open={!!selectedRegistro} onOpenChange={() => setSelectedRegistro(null)}>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader className="py-3 px-4">
-              <DialogTitle className="flex items-center gap-2 text-base">
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader className="pb-2">
+              <DialogTitle>Detalle de la auditoría</DialogTitle>
+              <div className="flex flex-wrap items-center gap-1 pt-1">
                 {getEntidadIcon(selectedRegistro.entidad)}
                 {getEntidadBadge(selectedRegistro.entidad)}
                 {getAccionIcon(selectedRegistro.accion)}
                 {getAccionBadge(selectedRegistro.accion)}
-              </DialogTitle>
+              </div>
             </DialogHeader>
 
-            <div className="px-4 pb-4 space-y-3">
-              {/* INFORMACIÓN GENERAL */}
-              <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded-md text-xs">
-                <div>
-                  <Label className="text-muted-foreground">Elemento</Label>
-                  <div className="font-medium">
+            <div className="px-1 pb-2 space-y-4">
+              {/* RESUMEN EN LENGUAJE NATURAL */}
+              <div className="rounded-lg border border-border bg-muted/40 p-3">
+                <div className="flex flex-wrap items-baseline gap-x-1.5 text-sm">
+                  <span className="font-semibold text-foreground">
+                    {selectedRegistro.usuario_nombre || 'El sistema'}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {VERBOS_ACCION[selectedRegistro.accion] || 'registró'}
+                  </span>
+                  <span>{ENTIDAD_LABELS[selectedRegistro.entidad] || selectedRegistro.entidad}</span>
+                  <span className="text-muted-foreground">·</span>
+                  <span className="font-semibold text-foreground">
                     {selectedRegistro.entidad_nombre || selectedRegistro.entidad_id}
-                  </div>
+                  </span>
                 </div>
-                <div>
-                  <Label className="text-muted-foreground">Fecha</Label>
-                  <div className="text-muted-foreground">
-                    {format(new Date(selectedRegistro.fecha), 'dd/MM/yyyy HH:mm')}
-                  </div>
-                </div>
-                <div className="col-span-2">
-                  <Label className="text-muted-foreground">Usuario</Label>
-                  <div className="font-medium">
-                    {selectedRegistro.usuario_nombre}
-                  </div>
-                  {selectedRegistro.ip_address && (
-                    <div className="text-xs text-muted-foreground font-mono">
-                      IP: {selectedRegistro.ip_address}
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {format(new Date(selectedRegistro.fecha), "dd 'de' MMMM 'de' yyyy 'a las' HH:mm", { locale: es })}
+                </p>
+              </div>
+
+              {/* CAMBIOS EN TABLA, EN LUGAR DE JSON */}
+              <div>
+                <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                  {selectedRegistro.accion === 'creado' || selectedRegistro.accion === 'crear'
+                    ? 'Datos registrados'
+                    : selectedRegistro.accion === 'eliminado' || selectedRegistro.accion === 'eliminar'
+                      ? 'Datos al eliminar'
+                      : 'Cambios registrados'}
+                </h3>
+                <ResumenCambios
+                  anteriores={selectedRegistro.valores_anteriores}
+                  nuevos={selectedRegistro.valores_nuevos}
+                />
+              </div>
+
+              {/* TRAZABILIDAD TÉCNICA, PLEGADA */}
+              <details className="rounded-lg border border-border">
+                <summary className="cursor-pointer px-3 py-2 text-xs text-muted-foreground hover:text-foreground">
+                  Ver datos técnicos (JSON)
+                </summary>
+                <div className="space-y-2 border-t border-border p-3">
+                  {selectedRegistro.valores_anteriores && (
+                    <div>
+                      <p className="text-[11px] font-medium text-muted-foreground mb-1">Valores anteriores</p>
+                      <pre className="text-xs font-mono whitespace-pre-wrap break-words bg-muted/50 rounded p-2">
+                        {JSON.stringify(selectedRegistro.valores_anteriores, null, 2)}
+                      </pre>
                     </div>
                   )}
+                  {selectedRegistro.valores_nuevos && (
+                    <div>
+                      <p className="text-[11px] font-medium text-muted-foreground mb-1">Valores nuevos</p>
+                      <pre className="text-xs font-mono whitespace-pre-wrap break-words bg-muted/50 rounded p-2">
+                        {JSON.stringify(selectedRegistro.valores_nuevos, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+                  <p className="text-[11px] text-muted-foreground break-words">
+                    ID del registro: <span className="font-mono">{selectedRegistro.id}</span>
+                    {selectedRegistro.ip_address && (
+                      <> · IP: <span className="font-mono">{selectedRegistro.ip_address}</span></>
+                    )}
+                  </p>
                 </div>
-              </div>
-
-              {/* VALORES ANTERIORES */}
-              {selectedRegistro.valores_anteriores && (
-                <div>
-                  <Label className="text-xs font-medium mb-2 block">Valores Anteriores</Label>
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-md p-2 dark:bg-yellow-500/10 dark:border-yellow-500/30">
-                    <pre className="text-xs font-mono whitespace-pre-wrap break-words">
-                      {JSON.stringify(selectedRegistro.valores_anteriores, null, 2)}
-                    </pre>
-                  </div>
-                </div>
-              )}
-
-              {/* VALORES NUEVOS */}
-              {selectedRegistro.valores_nuevos && (
-                <div>
-                  <Label className="text-xs font-medium mb-2 block">Valores Nuevos</Label>
-                  <div className="bg-green-50 border border-green-200 rounded-md p-2 dark:bg-green-500/10 dark:border-green-500/30">
-                    <pre className="text-xs font-mono whitespace-pre-wrap break-words">
-                      {JSON.stringify(selectedRegistro.valores_nuevos, null, 2)}
-                    </pre>
-                  </div>
-                </div>
-              )}
-
-              {/* ID DEL REGISTRO */}
-              <div>
-                <Label className="text-xs">ID de Auditoría</Label>
-                <div className="text-xs text-muted-foreground font-mono">
-                  {selectedRegistro.id}
-                </div>
-              </div>
+              </details>
             </div>
           </DialogContent>
         </Dialog>

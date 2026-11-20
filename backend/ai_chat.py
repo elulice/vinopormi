@@ -686,12 +686,12 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "consultar_auditoria",
-            "description": "Consulta registros de auditoría del sistema (solo administradores). Filtra por entidad, acción (creado/modificado/eliminado), fechas, texto y orden por fecha.",
+            "description": "Consulta registros de auditoría del sistema (solo administradores). Filtra por entidad (producto, categoria, cliente, proveedor, egreso, usuario, presupuesto, etc.), acción (creado/modificado/revocado/eliminado), fechas, texto y orden por fecha.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "entidad": {"type": "string", "description": "Entidad (ej. producto, cliente, egreso, usuario, venta, proveedor)."},
-                    "accion": {"type": "string", "description": "Acción: creado, modificado o eliminado."},
+                    "entidad": {"type": "string", "description": "Entidad (ej. producto, categoria, cliente, egreso, usuario, venta, proveedor, presupuesto)."},
+                    "accion": {"type": "string", "description": "Acción: creado, modificado, revocado (links de presupuestos) o eliminado."},
                     "fecha_inicio": {"type": "string", "description": "Fecha desde (YYYY-MM-DD)."},
                     "fecha_fin": {"type": "string", "description": "Fecha hasta (YYYY-MM-DD)."},
                     "search": {"type": "string", "description": "Texto a buscar en nombre/usuario/entidad."},

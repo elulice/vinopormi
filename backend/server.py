@@ -1152,6 +1152,7 @@ async def get_categorias(current_user: Usuario = Depends(get_current_user)):
 
 @api_router.post("/categorias", response_model=Categoria)
 async def create_categoria(
+    request: Request,
     input: CategoriaCreate,
     current_user: Usuario = Depends(get_current_user),
 ):
@@ -1171,11 +1172,23 @@ async def create_categoria(
     doc = categoria_obj.model_dump()
     doc["fecha_creacion"] = doc["fecha_creacion"].isoformat()
     await db.categorias.insert_one(doc)
+
+    await registrar_auditoria(
+        entidad='categoria',
+        entidad_id=categoria_obj.id,
+        entidad_nombre=nombre,
+        accion='creado',
+        valores_nuevos={'nombre': nombre},
+        usuario_id=current_user.id,
+        usuario_nombre=current_user.nombre,
+        ip_address=request.client.host if request.client else None
+    )
     return categoria_obj
 
 
 @api_router.put("/categorias/{categoria_id}", response_model=Categoria)
 async def update_categoria(
+    request: Request,
     categoria_id: str,
     input: CategoriaUpdate,
     current_user: Usuario = Depends(get_current_user),
@@ -1198,8 +1211,23 @@ async def update_categoria(
     if existing:
         raise HTTPException(status_code=400, detail=f"Ya existe la categoría '{existing.get('nombre', nombre)}'")
 
+    nombre_anterior = categoria.get('nombre')
     await db.categorias.update_one({"id": categoria_id}, {"$set": {"nombre": nombre}})
-    await db.productos.update_many({"categoria_id": categoria_id}, {"$set": {"categoria_nombre": nombre}})
+    productos_actualizados = await db.productos.update_many(
+        {"categoria_id": categoria_id}, {"$set": {"categoria_nombre": nombre}}
+    )
+
+    await registrar_auditoria(
+        entidad='categoria',
+        entidad_id=categoria_id,
+        entidad_nombre=nombre,
+        accion='modificado',
+        valores_anteriores={'nombre': nombre_anterior},
+        valores_nuevos={'nombre': nombre, 'productos_actualizados': productos_actualizados.modified_count},
+        usuario_id=current_user.id,
+        usuario_nombre=current_user.nombre,
+        ip_address=request.client.host if request.client else None
+    )
 
     categoria["nombre"] = nombre
     if isinstance(categoria.get("fecha_creacion"), str):
@@ -1214,6 +1242,7 @@ async def update_categoria(
 
 @api_router.delete("/categorias/{categoria_id}")
 async def delete_categoria(
+    request: Request,
     categoria_id: str,
     current_user: Usuario = Depends(get_current_user),
 ):
@@ -1229,6 +1258,17 @@ async def delete_categoria(
             detail=f"No se puede eliminar la categoría porque está asociada a {en_uso} producto(s). Reasignalos o quitá la categoría antes de eliminarla.",
         )
 
+    await registrar_auditoria(
+        entidad='categoria',
+        entidad_id=categoria_id,
+        entidad_nombre=categoria.get('nombre'),
+        accion='eliminado',
+        valores_anteriores=categoria,
+        valores_nuevos=None,
+        usuario_id=current_user.id,
+        usuario_nombre=current_user.nombre,
+        ip_address=request.client.host if request.client else None
+    )
     await db.categorias.delete_one({"id": categoria_id})
     return {"message": "Categoría eliminada"}
 
@@ -1438,6 +1478,7 @@ async def _build_items_presupuesto(items: List[PresupuestoItemIn]) -> List[dict]
 
 @api_router.post("/presupuestos", response_model=Presupuesto)
 async def create_presupuesto(
+    request: Request,
     input: PresupuestoCreate,
     current_user: Usuario = Depends(get_current_user)
 ):
@@ -1455,6 +1496,23 @@ async def create_presupuesto(
         'timestamp': datetime.now(timezone.utc).isoformat(),
     }
     await db.presupuestos.insert_one(doc)
+
+    # Registrar auditoría (el link público no pide sesión, pero su alta sí).
+    await registrar_auditoria(
+        entidad='presupuesto',
+        entidad_id=doc['id'],
+        entidad_nombre=doc['vinoteca_nombre'],
+        accion='creado',
+        valores_nuevos={
+            'vinoteca_nombre': doc['vinoteca_nombre'],
+            'observaciones': doc['observaciones'],
+            'descuento': doc['descuento'],
+            'items': doc['items'],
+        },
+        usuario_id=current_user.id,
+        usuario_nombre=current_user.nombre,
+        ip_address=request.client.host if request.client else None
+    )
     return _doc_a_presupuesto(doc)
 
 @api_router.get("/presupuestos", response_model=List[Presupuesto])
@@ -1491,6 +1549,7 @@ async def get_presupuesto(
 
 @api_router.put("/presupuestos/{presupuesto_id}", response_model=Presupuesto)
 async def update_presupuesto(
+    request: Request,
     presupuesto_id: str,
     input: PresupuestoUpdate,
     current_user: Usuario = Depends(get_current_user)
@@ -1498,6 +1557,10 @@ async def update_presupuesto(
     doc = await db.presupuestos.find_one({'id': presupuesto_id}, {'_id': 0})
     if not doc:
         raise HTTPException(status_code=404, detail="Presupuesto no encontrado")
+
+    campos_auditados = ('activo', 'vinoteca_nombre', 'observaciones', 'descuento', 'items')
+    valores_anteriores = {campo: doc.get(campo) for campo in campos_auditados}
+    estado_anterior = doc.get('activo')
 
     cambios = {}
     if input.items is not None:
@@ -1516,16 +1579,45 @@ async def update_presupuesto(
     if cambios:
         await db.presupuestos.update_one({'id': presupuesto_id}, {'$set': cambios})
         doc.update(cambios)
+
+        # Revocar el enlace público se registra como una acción propia.
+        accion = 'modificado'
+        if cambios.get('activo') is False and estado_anterior is not False:
+            accion = 'revocado'
+        valores_nuevos = {campo: doc.get(campo) for campo in campos_auditados if campo in cambios}
+        await registrar_auditoria(
+            entidad='presupuesto',
+            entidad_id=presupuesto_id,
+            entidad_nombre=doc.get('vinoteca_nombre'),
+            accion=accion,
+            valores_anteriores={campo: valores_anteriores[campo] for campo in valores_nuevos},
+            valores_nuevos=valores_nuevos,
+            usuario_id=current_user.id,
+            usuario_nombre=current_user.nombre,
+            ip_address=request.client.host if request.client else None
+        )
     return _doc_a_presupuesto(doc)
 
 @api_router.delete("/presupuestos/{presupuesto_id}")
 async def eliminar_presupuesto(
+    request: Request,
     presupuesto_id: str,
     current_user: Usuario = Depends(get_current_user)
 ):
     doc = await db.presupuestos.find_one({'id': presupuesto_id}, {'_id': 0})
     if not doc:
         raise HTTPException(status_code=404, detail="Presupuesto no encontrado")
+    await registrar_auditoria(
+        entidad='presupuesto',
+        entidad_id=presupuesto_id,
+        entidad_nombre=doc.get('vinoteca_nombre'),
+        accion='eliminado',
+        valores_anteriores=doc,
+        valores_nuevos=None,
+        usuario_id=current_user.id,
+        usuario_nombre=current_user.nombre,
+        ip_address=request.client.host if request.client else None
+    )
     await db.presupuestos.delete_one({'id': presupuesto_id})
     return {"success": True, "message": "Presupuesto eliminado"}
 
@@ -1540,14 +1632,14 @@ async def update_producto(
     if not producto:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     
-    # Guardar valores anteriores
-    valores_anteriores = {
-        'nombre': producto.get('nombre'),
-        'precio_unitario': producto.get('precio_unitario'),
-        'stock': producto.get('stock'),
-        'descuento_cantidad_minima': producto.get('descuento_cantidad_minima'),
-        'descuento_precio_unitario': producto.get('descuento_precio_unitario')
-    }
+    # Guardar valores anteriores de todos los campos auditables, no sólo los
+    # históricos, para que el modal pueda comparar antes/después de cada cambio.
+    campos_auditados = (
+        'nombre', 'precio_unitario', 'precio_costo', 'stock', 'tipo',
+        'descuento_cantidad_minima', 'descuento_precio_unitario',
+        'is_public', 'is_featured', 'categoria_id', 'categoria_nombre'
+    )
+    valores_anteriores = {campo: producto.get(campo) for campo in campos_auditados}
     
     # Obtener todos los datos del input excepto los que son None
     input_data = input.model_dump()

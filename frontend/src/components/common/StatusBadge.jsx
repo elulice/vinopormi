@@ -76,6 +76,16 @@ const STATUS_CONFIG = {
     text: 'text-red-800 dark:text-red-200',
     label: 'Egreso'
   },
+  presupuesto: {
+    bg: 'bg-indigo-100 dark:bg-indigo-500/20',
+    text: 'text-indigo-800 dark:text-indigo-200',
+    label: 'Presupuesto'
+  },
+  categoria: {
+    bg: 'bg-teal-100 dark:bg-teal-500/20',
+    text: 'text-teal-800 dark:text-teal-200',
+    label: 'Categoría'
+  },
   sticky_note: {
     bg: 'bg-yellow-100 dark:bg-yellow-500/20',
     text: 'text-yellow-800 dark:text-yellow-200',
@@ -110,6 +120,11 @@ const STATUS_CONFIG = {
     bg: 'bg-red-100 dark:bg-red-500/20',
     text: 'text-red-800 dark:text-red-200',
     label: 'Eliminado'
+  },
+  revocado: {
+    bg: 'bg-orange-100 dark:bg-orange-500/20',
+    text: 'text-orange-800 dark:text-orange-200',
+    label: 'Revocado'
   }
 };
 
