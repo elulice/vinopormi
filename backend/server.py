@@ -4150,7 +4150,8 @@ async def limpiar_login_registros_direct(request: Request):
         return {"error": f"Error al limpiar registros de login: {str(e)}"}
 
 # Healthcheck liviano para monitoreo / keep-alive (sin autenticación ni base de datos)
-@app.get("/api/health", tags=["sistema"])
+# La app corre con root_path="/api", así que la URL pública es /api/health.
+@app.get("/health", tags=["sistema"])
 async def health_check():
     return {"status": "ok"}
 
