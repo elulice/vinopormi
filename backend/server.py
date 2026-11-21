@@ -3816,15 +3816,19 @@ class ChatHistoryItem(BaseModel):
     role: str
     content: str
     fecha: Optional[datetime] = None
+    # Datos estructurados de la ultima tool (tablas), para reconstruirlos al recargar.
+    data: Optional[Dict[str, Any]] = None
 
 
-async def _save_chat_message(user_id: str, role: str, content: str):
+async def _save_chat_message(user_id: str, role: str, content: str, data: Optional[Dict[str, Any]] = None):
     doc = {
         "user_id": user_id,
         "role": role,
         "content": content,
         "fecha": datetime.now(timezone.utc).isoformat(),
     }
+    if data is not None:
+        doc["data"] = data
     await db.chat_mensajes.insert_one(doc)
 
 
@@ -3836,7 +3840,7 @@ async def get_chat_history(
     limit = max(1, min(int(limit or 200), 500))
     docs = await db.chat_mensajes.find(
         {"user_id": current_user.id},
-        {"_id": 0, "role": 1, "content": 1, "fecha": 1}
+        {"_id": 0, "role": 1, "content": 1, "fecha": 1, "data": 1}
     ).sort("fecha", 1).limit(limit).to_list(limit)
     items = []
     for d in docs:
@@ -3846,7 +3850,12 @@ async def get_chat_history(
                 fecha = datetime.fromisoformat(fecha)
             except Exception:
                 fecha = None
-        items.append(ChatHistoryItem(role=d.get("role", "assistant"), content=d.get("content", ""), fecha=fecha))
+        items.append(ChatHistoryItem(
+            role=d.get("role", "assistant"),
+            content=d.get("content", ""),
+            fecha=fecha,
+            data=d.get("data"),
+        ))
     return items
 
 
@@ -3885,7 +3894,7 @@ async def chat_ia(request: Request, body: ChatRequest, current_user: Usuario = D
     # Persistir intercambio
     try:
         await _save_chat_message(current_user.id, "user", user_text)
-        await _save_chat_message(current_user.id, "assistant", reply or "")
+        await _save_chat_message(current_user.id, "assistant", reply or "", collector.get("ultimo"))
     except Exception:
         pass
 
