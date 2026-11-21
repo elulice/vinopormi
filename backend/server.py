@@ -4149,6 +4149,11 @@ async def limpiar_login_registros_direct(request: Request):
     except Exception as e:
         return {"error": f"Error al limpiar registros de login: {str(e)}"}
 
+# Healthcheck liviano para monitoreo / keep-alive (sin autenticación ni base de datos)
+@app.get("/api/health", tags=["sistema"])
+async def health_check():
+    return {"status": "ok"}
+
 # Debug endpoint para verificar registro
 @app.get("/debug")
 async def debug_info():
