@@ -242,7 +242,7 @@ const ChatIA = () => {
         if (!initial && loadingRef.current) return;
         const history = Array.isArray(res?.data) ? res.data : [];
         if (history.length > 0) {
-          setMessages(history.map((m) => ({ role: m.role, content: m.content })));
+          setMessages(history.map((m) => ({ role: m.role, content: m.content, data: m.data || null })));
         } else {
           setMessages([GREETING]);
         }
