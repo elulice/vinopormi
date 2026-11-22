@@ -42,7 +42,10 @@ const PresupuestoPublico = () => {
   if (cargando) {
     return (
       <div className="presupuesto-publico" style={{ display: 'grid', placeItems: 'center' }}>
-        <p className="vpm-hint">Cargando presupuesto...</p>
+        <div style={{ width: 'min(100%, 480px)' }}>
+          <Skeleton variant="title" />
+          <SkeletonCard lines={5} />
+        </div>
       </div>
     );
   }

@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import '@/components/Dashboard.css';
 import { formatCurrency, formatNumber } from '@/lib/currency';
 import StickyNotesContainer from '@/components/StickyNotesContainer';
+import Skeleton, { SkeletonLines } from '@/components/Skeleton';
 import { API } from '@/lib/config';
 import { apiGet, apiPut } from '@/lib/api';
 import { format } from 'date-fns';
@@ -61,11 +62,6 @@ const horaVenta = (fecha) => {
     return '—';
   }
 };
-
-// Placeholder con shimmer: la card se dibuja de entrada y solo "late" el dato.
-const Skeleton = ({ className = '' }) => (
-  <span className={`vpm-skeleton ${className}`} aria-hidden="true" />
-);
 
 const Dashboard = () => {
   const { getAuthHeader, user } = useAuth();
@@ -228,12 +224,12 @@ const Dashboard = () => {
           </div>
           <p className="vpm-value vpm-num">
             {loading
-              ? <Skeleton className="vpm-skeleton--value" />
+              ? <Skeleton variant="value" />
               : <><small>$</small>{formatNumber(balance, showCents)}</>}
           </p>
           <div className="vpm-balance-meta">
             {loading ? (
-              <><Skeleton className="vpm-skeleton--sm" /><Skeleton className="vpm-skeleton--sm" /></>
+              <><Skeleton variant="sm" /><Skeleton variant="sm" /></>
             ) : (
               <>
                 <span className={`vpm-balance-delta ${deltaAyer === null ? '' : deltaAyer >= 0 ? 'is-pos' : 'is-neg'}`}>
@@ -260,7 +256,7 @@ const Dashboard = () => {
             </div>
             <div className="vpm-legend">
               {loading ? (
-                <><Skeleton className="vpm-skeleton--sm" /><Skeleton className="vpm-skeleton--sm" /></>
+                <><Skeleton variant="sm" /><Skeleton variant="sm" /></>
               ) : splitPartes.map((p) => (
                 <div key={p.key} className={p.key === 'egresos' ? 'vpm-out' : ''}>
                   <i className={p.cls} />
@@ -284,11 +280,11 @@ const Dashboard = () => {
           </div>
           <p className="vpm-value vpm-num">
             {loading
-              ? <Skeleton className="vpm-skeleton--value" />
+              ? <Skeleton variant="value" />
               : <><small>$</small>{formatNumber(stats.total_vendido_hoy, showCents)}</>}
           </p>
           <p className="vpm-hint">
-            {loading ? <Skeleton className="vpm-skeleton--sm" /> : `Ayer: ${formatCurrency(stats.total_vendido_ayer, showCents)}`}
+            {loading ? <Skeleton variant="sm" /> : `Ayer: ${formatCurrency(stats.total_vendido_ayer, showCents)}`}
           </p>
           <span className="vpm-go">Ver ventas <span className="vpm-dot"><ArrowRight /></span></span>
         </button>
@@ -305,7 +301,7 @@ const Dashboard = () => {
           </div>
           <p className="vpm-value vpm-num">
             {loading
-              ? <Skeleton className="vpm-skeleton--value" />
+              ? <Skeleton variant="value" />
               : <><small>$</small>{formatNumber(stats.total_egresos_hoy, showCents)}</>}
           </p>
           {!loading && !stats.total_egresos_hoy && <p className="vpm-hint">Sin egresos cargados</p>}
@@ -323,10 +319,10 @@ const Dashboard = () => {
             <span className="vpm-card-ico" aria-hidden="true"><IconCart /></span>
           </div>
           <p className="vpm-value vpm-num">
-            {loading ? <Skeleton className="vpm-skeleton--value" /> : formatNumber(stats.cantidad_ventas_hoy, false)}
+            {loading ? <Skeleton variant="value" /> : formatNumber(stats.cantidad_ventas_hoy, false)}
           </p>
           {loading ? (
-            <div className="vpm-skeleton-lines"><Skeleton /><Skeleton /><Skeleton /></div>
+            <SkeletonLines rows={3} />
           ) : ultimasVentas.length > 0 ? (
             <ul className="vpm-last-sales" aria-label="Últimas ventas de hoy">
               {ultimasVentas.map((venta) => (
@@ -351,11 +347,11 @@ const Dashboard = () => {
         >
           <div className="vpm-card-head">
             <h2 className="vpm-card-title">Ctas. Ctes.</h2>
-            <span className="vpm-debt-tag">{loading ? '…' : deudores.length}</span>
+            <span className="vpm-debt-tag">{loading ? <Skeleton variant="sm" width="2rem" /> : deudores.length}</span>
           </div>
           <p className="vpm-value vpm-num">
             {loading
-              ? <Skeleton className="vpm-skeleton--value" />
+              ? <Skeleton variant="value" />
               : <><small>$</small>{formatNumber(Math.abs(stats.total_saldo_cuenta_corriente || 0), showCents)}</>}
           </p>
           {!loading && deudores.length > 0 && (

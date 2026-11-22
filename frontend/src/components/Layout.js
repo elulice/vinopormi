@@ -43,7 +43,7 @@ const Layout = () => {
   const isCompact = sidebarWidth === 'compact';
   const location = useLocation();
   const navigate = useNavigate();
-  const [debtCount, setDebtCount] = useState(0);
+  const [debtCount, setDebtCount] = useState(null);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [configMenuOpen, setConfigMenuOpen] = useState(false);
@@ -64,7 +64,7 @@ const Layout = () => {
       .then((res) => {
         if (active) setDebtCount(res.data?.ultimos_clientes_cta_cte?.length || 0);
       })
-      .catch(() => {});
+      .catch(() => { if (active) setDebtCount(0); });
     return () => { active = false; };
   }, []);
 
@@ -288,10 +288,14 @@ const Layout = () => {
                     >
                       <Icon className="w-5 h-5 flex-shrink-0" />
                       <span>{item.label}</span>
-                      {item.path === '/clientes' && debtCount > 0 && (
-                        <span className="vpm-nav-badge" aria-label={`${debtCount} clientes en cuenta corriente`}>
-                          {debtCount}
-                        </span>
+                      {item.path === '/clientes' && (
+                        debtCount === null ? (
+                          <Skeleton variant="sm" width="1.5rem" className="vpm-nav-badge" />
+                        ) : debtCount > 0 ? (
+                          <span className="vpm-nav-badge" aria-label={`${debtCount} clientes en cuenta corriente`}>
+                            {debtCount}
+                          </span>
+                        ) : null
                       )}
                     </Link>
                   );

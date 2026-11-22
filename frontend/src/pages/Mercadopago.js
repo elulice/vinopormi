@@ -172,11 +172,7 @@ const Mercadopago = () => {
       <Card>
         <CardContent className="p-2">
           {loadingTransferencias ? (
-            <div className="animate-pulse space-y-1">
-              {[1,2,3].map(i => (
-                <div key={i} className="h-10 bg-muted rounded"></div>
-              ))}
-            </div>
+            <Skeleton variant="rect" count={3} height="2.5rem" gap={4} />
           ) : transferencias.length === 0 ? (
             <p className="text-center py-4 text-muted-foreground text-sm">
               Sin transferencias en el período
@@ -292,11 +288,7 @@ const Mercadopago = () => {
                   Ventas coincidentes
                 </h3>
                 {loadingCoincidencias ? (
-                  <div className="animate-pulse space-y-2">
-                    {[1,2].map(i => (
-                      <div key={i} className="h-16 bg-muted rounded"></div>
-                    ))}
-                  </div>
+                  <Skeleton variant="rect" count={2} height="4rem" gap={8} />
                 ) : ventasCoincidentes.length === 0 ? (
                   <div className="space-y-2">
                     <p className="text-sm text-muted-foreground text-center py-2">

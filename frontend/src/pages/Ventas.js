@@ -780,7 +780,7 @@ const clearFilters = () => {
   };
 
   if (loading) {
-    return <div className="text-center py-8">Cargando...</div>;
+    return <SkeletonTable rows={8} columns={7} />;
   }
 
   const downloadAsImage = async () => {
@@ -1230,9 +1230,10 @@ const clearFilters = () => {
             </p>
           </CardContent>
         </Card>
+      ) : loadingPage ? (
+        <SkeletonTable rows={5} columns={6} />
       ) : null}
 
-      {/* Loading overlay para cambios de página */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
           <DialogHeader className="flex-shrink-0">
