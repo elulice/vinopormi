@@ -62,6 +62,11 @@ const horaVenta = (fecha) => {
   }
 };
 
+// Placeholder con shimmer: la card se dibuja de entrada y solo "late" el dato.
+const Skeleton = ({ className = '' }) => (
+  <span className={`vpm-skeleton ${className}`} aria-hidden="true" />
+);
+
 const Dashboard = () => {
   const { getAuthHeader, user } = useAuth();
   const { showCents } = useConfig();
@@ -133,9 +138,8 @@ const Dashboard = () => {
     }
   };
 
-  if (loading) {
-    return <div className="vpm-dashboard py-12 text-center text-muted-foreground">Cargando...</div>;
-  }
+  // No cortamos el render mientras cargan las stats: asi las cards y las notas
+  // (que tienen su propia request) aparecen de inmediato con su esqueleto.
 
   // Los pagos en cuenta corriente ya están incluidos en ingresos_cta_cte_hoy;
   // se excluyen de los medios de pago para no contarlos dos veces en el pie.
@@ -232,16 +236,26 @@ const Dashboard = () => {
             <h2 className="vpm-card-title">Balance del día</h2>
             <span className="vpm-card-ico" aria-hidden="true"><IconDollar /></span>
           </div>
-          <p className="vpm-value vpm-num"><small>$</small>{formatNumber(balance, showCents)}</p>
+          <p className="vpm-value vpm-num">
+            {loading
+              ? <Skeleton className="vpm-skeleton--value" />
+              : <><small>$</small>{formatNumber(balance, showCents)}</>}
+          </p>
           <div className="vpm-balance-meta">
-            <span className={`vpm-balance-delta ${deltaAyer === null ? '' : deltaAyer >= 0 ? 'is-pos' : 'is-neg'}`}>
-              {deltaAyer === null
-                ? 'Sin ventas ayer'
-                : `${deltaAyer >= 0 ? '↗' : '↘'} ${Math.abs(deltaAyer).toFixed(0)}% vs. ayer`}
-            </span>
-            <span className="vpm-balance-ticket">Venta prom. <b className="vpm-num">{formatCurrency(ticketPromedio, showCents)}</b></span>
+            {loading ? (
+              <><Skeleton className="vpm-skeleton--sm" /><Skeleton className="vpm-skeleton--sm" /></>
+            ) : (
+              <>
+                <span className={`vpm-balance-delta ${deltaAyer === null ? '' : deltaAyer >= 0 ? 'is-pos' : 'is-neg'}`}>
+                  {deltaAyer === null
+                    ? 'Sin ventas ayer'
+                    : `${deltaAyer >= 0 ? '↗' : '↘'} ${Math.abs(deltaAyer).toFixed(0)}% vs. ayer`}
+                </span>
+                <span className="vpm-balance-ticket">Venta prom. <b className="vpm-num">{formatCurrency(ticketPromedio, showCents)}</b></span>
+              </>
+            )}
           </div>
-          {totalMedios === 0 && (
+          {!loading && totalMedios === 0 && (
             <p className="vpm-empty-line">Todavía no se registraron movimientos hoy.</p>
           )}
           <div className="vpm-legend-wrap">
@@ -255,7 +269,9 @@ const Dashboard = () => {
               )}
             </div>
             <div className="vpm-legend">
-              {splitPartes.map((p) => (
+              {loading ? (
+                <><Skeleton className="vpm-skeleton--sm" /><Skeleton className="vpm-skeleton--sm" /></>
+              ) : splitPartes.map((p) => (
                 <div key={p.key} className={p.key === 'egresos' ? 'vpm-out' : ''}>
                   <i className={p.cls} />
                   {p.key === 'cta_cte' ? 'Ctas. Ctes.' : p.key === 'egresos' ? 'Egresos' : medioLabel(p.key)}
@@ -276,8 +292,14 @@ const Dashboard = () => {
             <h2 className="vpm-card-title">Total vendido hoy</h2>
             <span className="vpm-card-ico" aria-hidden="true"><IconTrendingUp /></span>
           </div>
-          <p className="vpm-value vpm-num"><small>$</small>{formatNumber(stats.total_vendido_hoy, showCents)}</p>
-          <p className="vpm-hint">Ayer: {formatCurrency(stats.total_vendido_ayer, showCents)}</p>
+          <p className="vpm-value vpm-num">
+            {loading
+              ? <Skeleton className="vpm-skeleton--value" />
+              : <><small>$</small>{formatNumber(stats.total_vendido_hoy, showCents)}</>}
+          </p>
+          <p className="vpm-hint">
+            {loading ? <Skeleton className="vpm-skeleton--sm" /> : `Ayer: ${formatCurrency(stats.total_vendido_ayer, showCents)}`}
+          </p>
           <span className="vpm-go">Ver ventas <span className="vpm-dot"><ArrowRight /></span></span>
         </button>
 
@@ -291,8 +313,12 @@ const Dashboard = () => {
             <h2 className="vpm-card-title">Egresos hoy</h2>
             <span className="vpm-card-ico" aria-hidden="true"><IconTrendingDown /></span>
           </div>
-          <p className="vpm-value vpm-num"><small>$</small>{formatNumber(stats.total_egresos_hoy, showCents)}</p>
-          {!stats.total_egresos_hoy && <p className="vpm-hint">Sin egresos cargados</p>}
+          <p className="vpm-value vpm-num">
+            {loading
+              ? <Skeleton className="vpm-skeleton--value" />
+              : <><small>$</small>{formatNumber(stats.total_egresos_hoy, showCents)}</>}
+          </p>
+          {!loading && !stats.total_egresos_hoy && <p className="vpm-hint">Sin egresos cargados</p>}
           <span className="vpm-go">Ver listado <span className="vpm-dot"><ArrowRight /></span></span>
         </button>
 
@@ -306,8 +332,12 @@ const Dashboard = () => {
             <h2 className="vpm-card-title">Ventas realizadas</h2>
             <span className="vpm-card-ico" aria-hidden="true"><IconCart /></span>
           </div>
-          <p className="vpm-value vpm-num">{formatNumber(stats.cantidad_ventas_hoy, false)}</p>
-          {ultimasVentas.length > 0 ? (
+          <p className="vpm-value vpm-num">
+            {loading ? <Skeleton className="vpm-skeleton--value" /> : formatNumber(stats.cantidad_ventas_hoy, false)}
+          </p>
+          {loading ? (
+            <div className="vpm-skeleton-lines"><Skeleton /><Skeleton /><Skeleton /></div>
+          ) : ultimasVentas.length > 0 ? (
             <ul className="vpm-last-sales" aria-label="Últimas ventas de hoy">
               {ultimasVentas.map((venta) => (
                 <li key={venta.id || venta.fecha} className="vpm-last-sale">
@@ -331,10 +361,14 @@ const Dashboard = () => {
         >
           <div className="vpm-card-head">
             <h2 className="vpm-card-title">Ctas. Ctes.</h2>
-            <span className="vpm-debt-tag">{deudores.length}</span>
+            <span className="vpm-debt-tag">{loading ? '…' : deudores.length}</span>
           </div>
-          <p className="vpm-value vpm-num"><small>$</small>{formatNumber(Math.abs(stats.total_saldo_cuenta_corriente || 0), showCents)}</p>
-          {deudores.length > 0 && (
+          <p className="vpm-value vpm-num">
+            {loading
+              ? <Skeleton className="vpm-skeleton--value" />
+              : <><small>$</small>{formatNumber(Math.abs(stats.total_saldo_cuenta_corriente || 0), showCents)}</>}
+          </p>
+          {!loading && deudores.length > 0 && (
             <ul className="vpm-debtors">
               {deudores.map((cliente, idx) => (
                 <li key={idx}>

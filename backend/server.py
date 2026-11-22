@@ -44,6 +44,32 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
+# --- Cache en memoria para lecturas frecuentes ---
+# Render corre una sola instancia en el plan Free, alcanza con un dict global.
+# Se invalida automaticamente en cualquier POST/PUT/PATCH/DELETE (middleware
+# mas abajo) y ademas expira solo, como red de seguridad.
+import time as _time
+
+_READ_CACHE = {}
+_READ_CACHE_TTL = 20  # segundos
+
+
+def cache_get(key):
+    entry = _READ_CACHE.get(key)
+    if entry and entry[0] > _time.monotonic():
+        return entry[1]
+    return None
+
+
+def cache_set(key, value, ttl=_READ_CACHE_TTL):
+    _READ_CACHE[key] = (_time.monotonic() + ttl, value)
+    return value
+
+
+def cache_clear():
+    _READ_CACHE.clear()
+
+
 # Rate limiting setup
 limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(
@@ -55,6 +81,15 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(GZipMiddleware, minimum_size=1024)
+
+
+@app.middleware("http")
+async def cache_invalidation_middleware(request: Request, call_next):
+    # Cualquier escritura descarta el cache: la proxima lectura recalcula.
+    if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+        cache_clear()
+    return await call_next(request)
+
 
 api_router = APIRouter()
 security = HTTPBearer()
@@ -1348,6 +1383,14 @@ async def get_productos_paginated(
 ):
     """Endpoint optimizado con paginación, búsqueda y filtros"""
     try:
+        cache_key = (
+            f"productos:{current_user.id}:{page}:{limit}:{search}:{tipo}:"
+            f"{is_public}:{is_featured}:{has_discount}"
+        )
+        hit = cache_get(cache_key)
+        if hit is not None:
+            return hit
+
         skip = (page - 1) * limit
         filter_query = {}
         
@@ -1419,7 +1462,7 @@ async def get_productos_paginated(
         # Obtener total para metadatos de paginación
         total = await db.productos.count_documents(filter_query)
         
-        return {
+        return cache_set(cache_key, {
             "productos": productos,
             "pagination": {
                 "page": page,
@@ -1429,7 +1472,7 @@ async def get_productos_paginated(
                 "has_next": page * limit < total,
                 "has_prev": page > 1
             }
-        }
+        })
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener productos: {str(e)}")
 
@@ -2391,7 +2434,12 @@ async def get_venta(venta_id: str, current_user: Usuario = Depends(get_current_u
 async def get_dashboard_stats(current_user: Usuario = Depends(get_current_user)):
     # Verificar si el usuario quiere solo sus datos
     solo_mis_datos = current_user.preferencias.get('soloMisDatos', False) if current_user.preferencias else False
-    
+
+    cache_key = f"dashboard:{current_user.id}:{solo_mis_datos}"
+    hit = cache_get(cache_key)
+    if hit is not None:
+        return hit
+
     # Obtener fecha actual en UTC para coincidir con cómo se guardan los datos
     ahora_utc = datetime.now(timezone.utc)
     # Convertir a fecha local para obtener el día correcto en la zona horaria local
@@ -2522,7 +2570,9 @@ async def get_dashboard_stats(current_user: Usuario = Depends(get_current_user))
             c['ultima_fecha'] = c['ultima_fecha'].isoformat()
     
     # Verificar productos con bajo stock para notificaciones
-    productos = await db.productos.find({}, {'_id': 0}).to_list(1000)
+    productos = await db.productos.find(
+        {}, {'_id': 0, 'id': 1, 'nombre': 1, 'stock': 1}
+    ).to_list(1000)
     productos_bajo_stock = [p for p in productos if p.get('stock', 0) < 10]
     
     # Crear notificaciones si hay productos con bajo stock y no existen notificaciones no leídas
@@ -2545,7 +2595,7 @@ async def get_dashboard_stats(current_user: Usuario = Depends(get_current_user))
         ingresos_cta_cte_hoy
     )
     
-    return DashboardStats(
+    return cache_set(cache_key, DashboardStats(
         total_vendido_hoy=total_vendido,
         total_vendido_ayer=total_vendido_ayer,
         cantidad_ventas_hoy=cantidad_ventas,
@@ -2556,7 +2606,7 @@ async def get_dashboard_stats(current_user: Usuario = Depends(get_current_user))
         caja_real=caja_real,
         ultimos_clientes_cta_cte=ultimos_clientes,
         ultimas_ventas=ultimas_ventas
-    )
+    ))
 
 # ===== PROVEEDORES ROUTES =====
 

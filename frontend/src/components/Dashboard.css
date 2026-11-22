@@ -37,3 +37,49 @@
     font-size: 1rem !important; /* 16px */
   }
 }
+
+/* Esqueletos de carga: la card se dibuja de entrada y solo "late" el dato. */
+.vpm-skeleton {
+  display: inline-block;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.06) 25%,
+    rgba(255, 255, 255, 0.16) 50%,
+    rgba(255, 255, 255, 0.06) 75%
+  );
+  background-size: 200% 100%;
+  animation: vpm-shimmer 1.3s ease-in-out infinite;
+  vertical-align: middle;
+}
+
+.vpm-skeleton--value {
+  width: 62%;
+  max-width: 220px;
+  height: 0.9em;
+}
+
+.vpm-skeleton--sm {
+  width: 110px;
+  height: 0.7em;
+}
+
+.vpm-skeleton-lines {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.vpm-skeleton-lines .vpm-skeleton {
+  width: 100%;
+  height: 12px;
+}
+
+@keyframes vpm-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vpm-skeleton { animation: none; }
+}
