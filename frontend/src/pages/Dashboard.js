@@ -73,7 +73,9 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsRef = useRef(null);
-  const [soloMisDatos, setSoloMisDatos] = useState(false);
+  // /auth/me ya trae las preferencias (ProtectedRoute espera a que cargue el
+  // usuario), asi evitamos arrancar en false y refetch al montar.
+  const [soloMisDatos, setSoloMisDatos] = useState(() => user?.preferencias?.soloMisDatos ?? false);
   const [stats, setStats] = useState({
     total_vendido_hoy: 0,
     total_vendido_ayer: 0,
@@ -103,18 +105,6 @@ const Dashboard = () => {
   useEffect(() => {
     fetchStats();
   }, [fetchStats, soloMisDatos]);
-
-  useEffect(() => {
-    const loadPreferencias = async () => {
-      try {
-        const res = await apiGet(`${API}/auth/preferencias`);
-        setSoloMisDatos(res.data.soloMisDatos || false);
-      } catch (error) {
-        console.error('Error loading preferencias:', error);
-      }
-    };
-    loadPreferencias();
-  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
