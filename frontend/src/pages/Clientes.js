@@ -275,7 +275,7 @@ const Clientes = () => {
   );
 
   if (loading) {
-    return <div className="text-center py-8">Cargando...</div>;
+    return <SkeletonTable rows={6} columns={5} />;
   }
 
   return (
@@ -557,7 +557,7 @@ const Clientes = () => {
 
         <TabsContent value="movimientos">
           {loadingMovimientos ? (
-            <div className="text-center py-8">Cargando movimientos...</div>
+            <SkeletonTable rows={5} columns={4} />
           ) : filteredMovimientos.length === 0 ? (
             <Card className="py-6">
               <CardContent className="py-6 text-center">
@@ -639,7 +639,7 @@ const Clientes = () => {
           </DialogHeader>
           
           {loadingCuenta ? (
-            <div className="text-center py-8">Cargando cuenta corriente...</div>
+            <SkeletonCard lines={5} />
           ) : cuentaInfo ? (
             <div className="space-y-4">
               {/* Saldo Actual */}
@@ -817,7 +817,7 @@ const Clientes = () => {
           </DialogHeader>
           {loadingVenta ? (
             <div className="flex-1 flex items-center justify-center">
-              <div className="text-center py-8">Cargando detalles de la venta...</div>
+              <SkeletonCard lines={6} />
             </div>
           ) : selectedVenta ? (
             <DetalleVentaContent

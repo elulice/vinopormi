@@ -197,7 +197,7 @@ const Egresos = () => {
     .reduce((sum, e) => sum + e.monto, 0);
 
   if (loading) {
-    return <div className="text-center py-8">Cargando...</div>;
+    return <SkeletonTable rows={6} columns={5} />;
   }
 
   return (

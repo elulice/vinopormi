@@ -378,9 +378,7 @@ const MetricasPanel = () => {
             )}
 
             {loading && !data ? (
-              <div className="flex items-center justify-center py-12 text-muted-foreground gap-2">
-                <Loader2 className="w-4 h-4 animate-spin" /> Cargando métricas...
-              </div>
+              <SkeletonTable rows={5} columns={4} />
             ) : vista === 'tiempo' ? (
               (() => {
                 const filas = data?.usuarios || [];

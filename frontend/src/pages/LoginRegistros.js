@@ -61,7 +61,7 @@ const LoginRegistros = () => {
   };
 
   if (loading) {
-    return <div className="text-center py-8">Cargando registros de login...</div>;
+    return <SkeletonTable rows={8} columns={4} />;
   }
 
   return (

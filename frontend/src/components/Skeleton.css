@@ -1,0 +1,79 @@
+/* Esqueletos de carga globales v4: la estructura se dibuja de entrada y
+   solo "late" el dato. Reemplaza a los vpm-skeleton locales de Dashboard.css. */
+
+.vpm-skeleton {
+  display: inline-block;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.06) 25%,
+    rgba(255, 255, 255, 0.16) 50%,
+    rgba(255, 255, 255, 0.06) 75%
+  );
+  background-size: 200% 100%;
+  animation: vpm-shimmer 1.3s ease-in-out infinite;
+  vertical-align: middle;
+  max-width: 100%;
+}
+
+/* Tema claro (la app alterna la clase 'dark' en <html>). */
+:root:not(.dark) .vpm-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(15, 23, 42, 0.05) 25%,
+    rgba(15, 23, 42, 0.11) 50%,
+    rgba(15, 23, 42, 0.05) 75%
+  );
+}
+
+.vpm-skeleton--text   { width: 100%; height: 0.85em; }
+.vpm-skeleton--value  { width: 62%; max-width: 220px; height: 0.9em; }
+.vpm-skeleton--sm     { width: 110px; height: 0.7em; }
+.vpm-skeleton--title  { width: 45%; height: 1.15em; }
+.vpm-skeleton--rect   { display: block; width: 100%; height: 1em; }
+.vpm-skeleton--card   { display: block; width: 100%; height: 120px; border-radius: 12px; }
+.vpm-skeleton--circle { width: 2.5em; height: 2.5em; border-radius: 50%; flex-shrink: 0; }
+.vpm-skeleton--avatar { width: 2.5rem; height: 2.5rem; border-radius: 50%; flex-shrink: 0; }
+
+.vpm-skeleton-group {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+
+.vpm-skeleton-table {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+}
+
+.vpm-skeleton-table-head,
+.vpm-skeleton-table-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+  gap: 12px;
+  align-items: center;
+  padding: 6px 0;
+}
+
+.vpm-skeleton-table-head {
+  border-bottom: 1px solid var(--border, rgba(255,255,255,0.1));
+}
+
+.vpm-skeleton-card {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--border, rgba(255,255,255,0.1));
+  border-radius: 12px;
+  width: 100%;
+}
+
+@keyframes vpm-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vpm-skeleton { animation: none; }
+}

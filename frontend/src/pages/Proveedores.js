@@ -182,7 +182,7 @@ const Proveedores = () => {
   );
 
   if (loading) {
-    return <div className="text-center py-8">Cargando...</div>;
+    return <SkeletonTable rows={6} columns={5} />;
   }
 
   return (
@@ -447,7 +447,7 @@ const Proveedores = () => {
           </DialogHeader>
           
           {loadingCuenta ? (
-            <div className="text-center py-8">Cargando cuenta corriente...</div>
+            <SkeletonCard lines={5} />
           ) : cuentaInfo ? (
             <div className="space-y-4">
               {/* Saldo Actual */}

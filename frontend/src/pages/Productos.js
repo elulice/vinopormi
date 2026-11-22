@@ -625,7 +625,7 @@ const Productos = () => {
   };
 
   if (loading) {
-    return <div className="text-center py-8">Cargando...</div>;
+    return <SkeletonTable rows={8} columns={6} />;
   }
 
   return (
@@ -1513,7 +1513,7 @@ const Productos = () => {
       {loadingPage && (
         <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
           <div className="bg-white p-4 rounded-lg flex items-center gap-2">
-            <Loader2 className="w-4 h-4 animate-spin" />
+            <Skeleton variant="circle" size="1rem" />
             <span>Cargando...</span>
           </div>
         </div>

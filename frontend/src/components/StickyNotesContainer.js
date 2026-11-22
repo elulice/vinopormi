@@ -224,10 +224,7 @@ const StickyNotesContainer = () => {
 
         {/* Lista de sticky notes */}
         {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <RefreshCw className="w-6 h-6 animate-spin mr-2" />
-            Cargando notas...
-          </div>
+          <Skeleton variant="card" count={3} as="div" />
         ) : stickyNotes.length === 0 && !showCreateForm ? (
           <div className="text-center py-8 text-muted-foreground">
             <StickyNoteIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />

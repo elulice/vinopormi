@@ -214,7 +214,7 @@ const handleFloatingMenuToggle = () => {
           {loading && (
             <div className="border-t pt-2">
               <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
-                <Loader2 className="w-3 h-3 animate-spin text-blue-600" />
+                <Skeleton variant="circle" size="0.75rem" />
                 <span className="text-xs text-muted-foreground">Sincronizando...</span>
               </div>
             </div>

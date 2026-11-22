@@ -84,8 +84,8 @@ const Recomendaciones = () => {
       </div>
 
       {(loading || refreshing) && !data ? (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <div className="flex justify-center py-16">
+          <SkeletonCard lines={4} className="max-w-2xl" />
         </div>
       ) : !hasData ? (
         <Card className="py-8">

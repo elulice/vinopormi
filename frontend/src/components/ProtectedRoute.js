@@ -7,7 +7,7 @@ const ProtectedRoute = ({ children }) => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg text-muted-foreground">Cargando...</div>
+        <SkeletonCard lines={4} className="max-w-md" />
       </div>
     );
   }

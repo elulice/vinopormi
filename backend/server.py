@@ -44,30 +44,197 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-# --- Cache en memoria para lecturas frecuentes ---
-# Render corre una sola instancia en el plan Free, alcanza con un dict global.
-# Se invalida automaticamente en cualquier POST/PUT/PATCH/DELETE (middleware
-# mas abajo) y ademas expira solo, como red de seguridad.
+# --- Cache en memoria por dominios con invalidacion selectiva ---
+# Render Free corre una sola instancia: alcanza con un dict global.
+# Cada lectura se guarda con la "version" de los dominios que consume. Solo se
+# descarta cuando una escritura modifica REALMENTE uno de esos dominios.
+# El TTL es una red de seguridad, no el mecanismo de invalidacion.
 import time as _time
+import fnmatch
+from collections import defaultdict
+from functools import wraps
 
 _READ_CACHE = {}
-_READ_CACHE_TTL = 20  # segundos
+_READ_CACHE_TTL = 3600  # 1 hora; las escrituras invalidan mucho antes
+_DOMAIN_VERSION = defaultdict(int)
 
 
-def cache_get(key):
+def cache_get(key, domains=()):
     entry = _READ_CACHE.get(key)
-    if entry and entry[0] > _time.monotonic():
-        return entry[1]
-    return None
-
-
-def cache_set(key, value, ttl=_READ_CACHE_TTL):
-    _READ_CACHE[key] = (_time.monotonic() + ttl, value)
+    if entry is None:
+        return None
+    expires, value, versions = entry
+    if expires <= _time.monotonic():
+        _READ_CACHE.pop(key, None)
+        return None
+    for domain in domains:
+        if versions.get(domain, 0) != _DOMAIN_VERSION[domain]:
+            _READ_CACHE.pop(key, None)
+            return None
     return value
 
 
-def cache_clear():
-    _READ_CACHE.clear()
+def cache_set(key, value, domains=(), ttl=_READ_CACHE_TTL):
+    _READ_CACHE[key] = (
+        _time.monotonic() + ttl,
+        value,
+        {d: _DOMAIN_VERSION[d] for d in domains},
+    )
+    return value
+
+
+def invalidate(*domains):
+    """Sube la version de los dominios: sus cacheados quedan vagos al instante."""
+    for domain in domains:
+        _DOMAIN_VERSION[domain] += 1
+
+
+def patch_cache(patch_fn):
+    """Aplica patch_fn a cada valor cacheado vigente, sin invalidar nada."""
+    now = _time.monotonic()
+    changed = 0
+    for key, entry in list(_READ_CACHE.items()):
+        expires, value, versions = entry
+        if expires <= now:
+            _READ_CACHE.pop(key, None)
+            continue
+        if patch_fn(value):
+            changed += 1
+    return changed
+
+
+def _cget(obj, key):
+    return obj.get(key) if isinstance(obj, dict) else getattr(obj, key, None)
+
+
+def _cset(obj, key, value):
+    if isinstance(obj, dict):
+        obj[key] = value
+    else:
+        setattr(obj, key, value)
+
+
+def patch_cached_product_stock(stocks):
+    """Actualiza SOLO el stock de los productos modificados dentro de las
+    respuestas ya cacheadas. Asi una venta no obliga a recalcular Productos.
+    `stocks` = {producto_id: stock_nuevo}
+    """
+    if not stocks:
+        return 0
+
+    def patch(value):
+        if isinstance(value, list):
+            items = value
+        elif isinstance(value, dict) and isinstance(value.get('productos'), list):
+            items = value['productos']
+        elif isinstance(value, dict) and 'id' in value:
+            items = [value]
+        else:
+            return False
+
+        tocado = False
+        for p in items:
+            pid = _cget(p, 'id')
+            if pid in stocks and _cget(p, 'stock') != stocks[pid]:
+                _cset(p, 'stock', stocks[pid])
+                tocado = True
+
+        # Recalcular el stock de promos usando los productos ya parcheados.
+        por_id = {_cget(p, 'id'): p for p in items}
+        for p in items:
+            if _cget(p, 'tipo') != 'promo' or not _cget(p, 'productos_incluidos'):
+                continue
+            disponibles = []
+            for inc in _cget(p, 'productos_incluidos') or []:
+                incluido = por_id.get(_cget(inc, 'producto_id'))
+                if incluido is None or _cget(incluido, 'stock') is None:
+                    continue
+                cantidad = _cget(inc, 'cantidad') or 1
+                try:
+                    disponibles.append(_cget(incluido, 'stock') // cantidad)
+                except TypeError:
+                    pass
+            nuevo = min(disponibles) if disponibles else 0
+            if _cget(p, 'stock') != nuevo:
+                _cset(p, 'stock', nuevo)
+                tocado = True
+        return tocado
+
+    return patch_cache(patch)
+
+
+def cached(domains=(), prefix="cache", ttl=_READ_CACHE_TTL):
+    """Decorador para GETs: clave por usuario + parametros, ligada a la version
+    de los dominios indicados. Compatible con la firma que FastAPI inspecciona.
+    """
+    domains = tuple(domains)
+
+    def decorator(fn):
+        @wraps(fn)
+        async def wrapper(*args, **kwargs):
+            user = kwargs.get('current_user')
+            who = getattr(user, 'id', None) or 'anon'
+            parts = []
+            for name, value in sorted(kwargs.items()):
+                if name in ('current_user', 'request', 'response'):
+                    continue
+                parts.append(f"{name}={value}")
+            key = f"{prefix}:{who}:" + "&".join(parts)
+            hit = cache_get(key, domains)
+            if hit is not None:
+                return hit
+            value = await fn(*args, **kwargs)
+            return cache_set(key, value, domains, ttl=ttl)
+        return wrapper
+    return decorator
+
+
+# Mapa de escrituras -> dominios que cambian de verdad. Lo demas sigue en memoria.
+_WRITE_INVALIDATIONS = [
+    ("POST",   "/auth/register",                    ("usuarios",)),
+    ("POST",   "/auth/login",                       ("login_registros", "metricas")),
+    ("PUT",    "/auth/preferencias",                 ("preferencias", "dashboard")),
+    ("POST",   "/fix-admin-role",                    ("usuarios",)),
+    ("POST",   "/admin/usuarios",                    ("usuarios", "auditoria")),
+    ("PUT",    "/admin/usuarios/*",                  ("usuarios", "auditoria")),
+    ("DELETE", "/admin/usuarios/*",                  ("usuarios", "auditoria")),
+    ("POST",   "/categorias",                        ("categorias", "auditoria")),
+    ("PUT",    "/categorias/*",                      ("categorias", "productos", "auditoria")),
+    ("DELETE", "/categorias/*",                      ("categorias", "productos", "auditoria")),
+    ("POST",   "/productos",                         ("productos", "auditoria")),
+    ("PUT",    "/productos/*",                       ("productos", "auditoria")),
+    ("DELETE", "/productos/*",                       ("productos", "auditoria")),
+    ("POST",   "/presupuestos",                      ("presupuestos", "auditoria")),
+    ("PUT",    "/presupuestos/*",                    ("presupuestos", "auditoria")),
+    ("DELETE", "/presupuestos/*",                    ("presupuestos", "auditoria")),
+    ("POST",   "/clientes",                          ("clientes", "auditoria")),
+    ("PUT",    "/clientes/*",                        ("clientes", "auditoria")),
+    ("DELETE", "/clientes/*",                        ("clientes", "auditoria")),
+    # La venta no invalida Productos: el handler parchea el stock de esos ids.
+    ("POST",   "/ventas",                            ("ventas", "dashboard", "movimientos", "clientes", "recomendaciones", "metricas", "mp")),
+    ("POST",   "/proveedores",                       ("proveedores", "auditoria")),
+    ("PUT",    "/proveedores/*",                     ("proveedores", "auditoria")),
+    ("DELETE", "/proveedores/*",                     ("proveedores", "auditoria")),
+    ("POST",   "/clientes/*/movimientos",            ("movimientos", "clientes", "dashboard", "metricas")),
+    ("POST",   "/proveedores/*/movimientos",         ("movimientos", "proveedores", "metricas")),
+    ("POST",   "/egresos",                           ("egresos", "dashboard", "auditoria", "metricas")),
+    ("PUT",    "/egresos/*",                         ("egresos", "dashboard", "auditoria", "metricas")),
+    ("DELETE", "/egresos/*",                         ("egresos", "dashboard", "auditoria", "metricas")),
+    ("POST",   "/sticky-notes",                      ("sticky_notes", "auditoria")),
+    ("PUT",    "/sticky-notes/*",                    ("sticky_notes", "auditoria")),
+    ("DELETE", "/sticky-notes/*",                    ("sticky_notes", "auditoria")),
+    ("POST",   "/sticky-notes/*/comentarios",        ("sticky_notes",)),
+    # Cambiar el token de MP solo afecta a MercadoPago: NO toca el dashboard.
+    ("POST",   "/mercadopago/configuracion",         ("mp",)),
+    ("POST",   "/mercadopago/asociar-transferencia", ("mp", "ventas")),
+    ("PUT",    "/novedades",                         ("novedades",)),
+    ("DELETE", "/chat/history",                      ("chat",)),
+    ("POST",   "/chat",                              ("chat",)),
+    ("POST",   "/limpiar-base-datos-direct",         ("ventas", "dashboard", "movimientos", "clientes", "proveedores", "egresos", "productos", "recomendaciones", "metricas", "mp", "auditoria")),
+    ("POST",   "/limpiar-base-datos-test",           ("ventas", "dashboard", "movimientos", "clientes", "recomendaciones", "metricas", "mp")),
+    ("POST",   "/limpiar-auditoria-direct",          ("auditoria", "metricas")),
+    ("POST",   "/limpiar-login-registros-direct",    ("login_registros", "metricas")),
+]
 
 
 # Rate limiting setup
@@ -85,10 +252,23 @@ app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 @app.middleware("http")
 async def cache_invalidation_middleware(request: Request, call_next):
-    # Cualquier escritura descarta el cache: la proxima lectura recalcula.
-    if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
-        cache_clear()
-    return await call_next(request)
+    method = request.method.upper()
+    if method not in {"POST", "PUT", "PATCH", "DELETE"}:
+        return await call_next(request)
+
+    path = request.url.path
+    if path.startswith("/api"):
+        path = path[4:]
+
+    dominios = set()
+    for patron_metodo, pattern, affected in _WRITE_INVALIDATIONS:
+        if patron_metodo == method and fnmatch.fnmatch(path, pattern):
+            dominios.update(affected)
+
+    response = await call_next(request)
+    if dominios and response.status_code < 400:
+        invalidate(*dominios)
+    return response
 
 
 api_router = APIRouter()
@@ -558,6 +738,7 @@ def _doc_a_presupuesto(doc: dict) -> Presupuesto:
 public_router = APIRouter()
 
 @public_router.get("/public/destacados", response_model=List[ProductoPublico])
+@cached(domains=("productos",), prefix="public-destacados")
 async def get_productos_destacados():
     # Primero buscar productos destacados
     productos = await db.productos.find(
@@ -582,6 +763,7 @@ async def get_productos_destacados():
     return productos
 
 @public_router.get("/public/catalogo", response_model=List[ProductoCatalogo])
+@cached(domains=("productos",), prefix="public-catalogo")
 async def get_catalogo(
     search: str = None,
     min_price: float = None,
@@ -634,6 +816,7 @@ async def get_catalogo(
     return [ProductoCatalogo(**p) for p in productos]
 
 @public_router.get("/public/presupuesto/{token}", response_model=PresupuestoPublico)
+@cached(domains=("presupuestos", "productos",), prefix="public-presupuesto-token")
 async def get_presupuesto_publico(token: str):
     """Nota pública: recalcula precios vigentes con descuento por cantidad."""
     doc = await db.presupuestos.find_one(
@@ -701,6 +884,7 @@ async def get_presupuesto_publico(token: str):
     )
 
 @public_router.get("/public/cliente/{dni}", response_model=ClientePublico)
+@cached(domains=("clientes", "movimientos", "ventas",), prefix="public-cliente-dni")
 async def get_cliente_por_dni(dni: str):
     cliente = await db.clientes.find_one({'dni': dni}, {'_id': 0, 'id': 1, 'nombre': 1, 'apellido': 1, 'puntos': 1, 'dni': 1})
     if not cliente:
@@ -739,6 +923,7 @@ async def get_cliente_por_dni(dni: str):
     )
 
 @public_router.get("/public/cliente/{dni}/movimientos", response_model=List[MovimientoPublico])
+@cached(domains=("clientes", "movimientos", "ventas",), prefix="public-cliente-dni-movimientos")
 async def get_movimientos_por_dni(dni: str):
     cliente = await db.clientes.find_one({'dni': dni}, {'_id': 0, 'id': 1})
     if not cliente:
@@ -794,6 +979,7 @@ async def get_movimientos_por_dni(dni: str):
     return resultado[:20]  # Últimos 20
 
 @public_router.get("/public/cliente/{dni}/ventas", response_model=List[VentaPublica])
+@cached(domains=("clientes", "ventas",), prefix="public-cliente-dni-ventas")
 async def get_ventas_por_dni(dni: str):
     cliente = await db.clientes.find_one({'dni': dni}, {'_id': 0, 'id': 1})
     if not cliente:
@@ -990,6 +1176,7 @@ async def get_me(current_user: Usuario = Depends(get_current_user)):
     return current_user
 
 @api_router.get("/auth/preferencias")
+@cached(domains=("preferencias",), prefix="auth-preferencias")
 async def get_preferencias(current_user: Usuario = Depends(get_current_user)):
     """Obtener las preferencias del usuario actual"""
     return current_user.preferencias or {'showCents': True}
@@ -1036,6 +1223,7 @@ async def update_preferencias(
     return {"message": "Preferencias actualizadas exitosamente", "preferencias": preferencias_actuales}
 
 @api_router.get("/auth/login-registros")
+@cached(domains=("login_registros",), prefix="auth-login-registros")
 async def get_login_registros(
     current_user: Usuario = Depends(get_current_user),
     page: int = 1,
@@ -1064,6 +1252,7 @@ async def get_login_registros(
     }
 
 @api_router.get("/auditoria")
+@cached(domains=("auditoria",), prefix="auditoria")
 async def get_auditoria(
     request: Request,
     current_user: Usuario = Depends(get_current_user),
@@ -1179,6 +1368,7 @@ async def get_auditoria(
 # ===== CATEGORIAS ROUTES =====
 
 @api_router.get("/categorias", response_model=List[Categoria])
+@cached(domains=("categorias",), prefix="categorias")
 async def get_categorias(current_user: Usuario = Depends(get_current_user)):
     categorias = await db.categorias.find({}, {"_id": 0}).sort("nombre", 1).to_list(1000)
     for c in categorias:
@@ -1371,6 +1561,7 @@ async def get_productos(current_user: Usuario = Depends(get_current_user)):
     return await get_productos_paginated(current_user, page=1, limit=100)
 
 @api_router.get("/productos-paginados")
+@cached(domains=("productos",), prefix="productos-paginados")
 async def get_productos_paginated(
     current_user: Usuario = Depends(get_current_user),
     page: int = 1,
@@ -1383,14 +1574,6 @@ async def get_productos_paginated(
 ):
     """Endpoint optimizado con paginación, búsqueda y filtros"""
     try:
-        cache_key = (
-            f"productos:{current_user.id}:{page}:{limit}:{search}:{tipo}:"
-            f"{is_public}:{is_featured}:{has_discount}"
-        )
-        hit = cache_get(cache_key)
-        if hit is not None:
-            return hit
-
         skip = (page - 1) * limit
         filter_query = {}
         
@@ -1462,7 +1645,7 @@ async def get_productos_paginated(
         # Obtener total para metadatos de paginación
         total = await db.productos.count_documents(filter_query)
         
-        return cache_set(cache_key, {
+        return {
             "productos": productos,
             "pagination": {
                 "page": page,
@@ -1472,11 +1655,12 @@ async def get_productos_paginated(
                 "has_next": page * limit < total,
                 "has_prev": page > 1
             }
-        })
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener productos: {str(e)}")
 
 @api_router.get("/productos/{producto_id}", response_model=Producto)
+@cached(domains=("productos",), prefix="productos-producto_id")
 async def get_producto(producto_id: str, current_user: Usuario = Depends(get_current_user)):
     producto = await db.productos.find_one({'id': producto_id}, {'_id': 0})
     if not producto:
@@ -1564,6 +1748,7 @@ async def create_presupuesto(
     return _doc_a_presupuesto(doc)
 
 @api_router.get("/presupuestos", response_model=List[Presupuesto])
+@cached(domains=("presupuestos",), prefix="presupuestos")
 async def list_presupuestos(current_user: Usuario = Depends(get_current_user)):
     # Presupuestos es una sección compartida: cualquier usuario ve todos los guardados.
     docs = await db.presupuestos.find({}, {'_id': 0}).sort('timestamp', -1).to_list(200)
@@ -1586,6 +1771,7 @@ async def list_presupuestos(current_user: Usuario = Depends(get_current_user)):
     return [_doc_a_presupuesto(doc) for doc in docs]
 
 @api_router.get("/presupuestos/{presupuesto_id}", response_model=Presupuesto)
+@cached(domains=("presupuestos",), prefix="presupuestos-presupuesto_id")
 async def get_presupuesto(
     presupuesto_id: str,
     current_user: Usuario = Depends(get_current_user)
@@ -1768,6 +1954,7 @@ async def delete_producto(
     return {"message": "Producto eliminado"}
 
 @api_router.get("/productos-stock")
+@cached(domains=("productos",), prefix="productos-stock")
 async def get_productos_con_stock(current_user: Usuario = Depends(get_current_user)):
     """Obtiene todos los productos con stock calculado para promos"""
     productos = await db.productos.find({}, {'_id': 0}).to_list(1000)
@@ -1827,6 +2014,7 @@ async def create_cliente(
     return cliente_obj
 
 @api_router.get("/clientes", response_model=List[dict])
+@cached(domains=("clientes", "movimientos",), prefix="clientes")
 async def get_clientes(current_user: Usuario = Depends(get_current_user)):
     clientes = await db.clientes.find({}, {'_id': 0}).to_list(1000)
     
@@ -1842,6 +2030,7 @@ async def get_clientes(current_user: Usuario = Depends(get_current_user)):
     return clientes
 
 @api_router.get("/clientes/{cliente_id}", response_model=Cliente)
+@cached(domains=("clientes",), prefix="clientes-cliente_id")
 async def get_cliente(cliente_id: str, current_user: Usuario = Depends(get_current_user)):
     cliente = await db.clientes.find_one({'id': cliente_id}, {'_id': 0})
     if not cliente:
@@ -2042,6 +2231,9 @@ async def create_venta(input: VentaCreate, current_user: Usuario = Depends(get_c
     
     await db.ventas.insert_one(doc)
     
+    # Descuento de stock. Guardamos que productos cambiaron para parchear solo
+    # esos ids en el cache de Productos, en vez de invalidar toda esa seccion.
+    stocks_actualizados = {}
     for detalle in detalles_finales:
         producto = await db.productos.find_one({'id': detalle['producto_id']})
         if producto:
@@ -2054,12 +2246,17 @@ async def create_venta(input: VentaCreate, current_user: Usuario = Depends(get_c
                             {'id': incluido['producto_id']},
                             {'$set': {'stock': nuevo_stock}}
                         )
+                        stocks_actualizados[incluido['producto_id']] = nuevo_stock
             else:
                 nuevo_stock = producto.get('stock', 0) - detalle['cantidad']
                 await db.productos.update_one(
                     {'id': detalle['producto_id']},
                     {'$set': {'stock': nuevo_stock}}
                 )
+                stocks_actualizados[detalle['producto_id']] = nuevo_stock
+
+    if stocks_actualizados:
+        patch_cached_product_stock(stocks_actualizados)
     
     # Procesar pagos a cuenta corriente
     if input.pagos:
@@ -2125,6 +2322,7 @@ def _monto_medio_doc(venta, metodo_pago):
     return venta.get('total', 0) if venta.get('medio_pago') == metodo_pago else 0
 
 @api_router.get("/ventas")
+@cached(domains=("ventas",), prefix="ventas")
 async def get_ventas(
     page: int = Query(1, ge=1),
     limit: int = Query(100, ge=1, le=500),
@@ -2372,6 +2570,7 @@ async def get_ventas(
 # --- RECOMENDACIONES / INSIGHTS (modelos y lógica en recommendations.py) ---
 
 @api_router.get("/recomendaciones", response_model=Recomendaciones)
+@cached(domains=("recomendaciones", "productos",), prefix="recomendaciones")
 async def get_recomendaciones(current_user: Usuario = Depends(get_current_user)):
     """Recomendaciones de stock basadas en velocidad de venta (últimos 30 días).
 
@@ -2418,6 +2617,7 @@ async def get_recomendaciones(current_user: Usuario = Depends(get_current_user))
     )
 
 @api_router.get("/ventas/{venta_id}", response_model=Venta)
+@cached(domains=("ventas",), prefix="ventas-venta_id")
 async def get_venta(venta_id: str, current_user: Usuario = Depends(get_current_user)):
     venta = await db.ventas.find_one({'id': venta_id}, {'_id': 0})
     if not venta:
@@ -2431,14 +2631,10 @@ async def get_venta(venta_id: str, current_user: Usuario = Depends(get_current_u
 # ===== DASHBOARD ROUTES =====
 
 @api_router.get("/dashboard/stats", response_model=DashboardStats)
+@cached(domains=("dashboard",), prefix="dashboard-stats")
 async def get_dashboard_stats(current_user: Usuario = Depends(get_current_user)):
     # Verificar si el usuario quiere solo sus datos
     solo_mis_datos = current_user.preferencias.get('soloMisDatos', False) if current_user.preferencias else False
-
-    cache_key = f"dashboard:{current_user.id}:{solo_mis_datos}"
-    hit = cache_get(cache_key)
-    if hit is not None:
-        return hit
 
     # Obtener fecha actual en UTC para coincidir con cómo se guardan los datos
     ahora_utc = datetime.now(timezone.utc)
@@ -2595,7 +2791,7 @@ async def get_dashboard_stats(current_user: Usuario = Depends(get_current_user))
         ingresos_cta_cte_hoy
     )
     
-    return cache_set(cache_key, DashboardStats(
+    return DashboardStats(
         total_vendido_hoy=total_vendido,
         total_vendido_ayer=total_vendido_ayer,
         cantidad_ventas_hoy=cantidad_ventas,
@@ -2606,7 +2802,7 @@ async def get_dashboard_stats(current_user: Usuario = Depends(get_current_user))
         caja_real=caja_real,
         ultimos_clientes_cta_cte=ultimos_clientes,
         ultimas_ventas=ultimas_ventas
-    ))
+    )
 
 # ===== PROVEEDORES ROUTES =====
 
@@ -2645,6 +2841,7 @@ async def create_proveedor(
     return proveedor_obj
 
 @api_router.get("/proveedores", response_model=List[dict])
+@cached(domains=("proveedores", "movimientos",), prefix="proveedores")
 async def get_proveedores(current_user: Usuario = Depends(get_current_user)):
     proveedores = await db.proveedores.find({}, {'_id': 0}).to_list(1000)
     
@@ -2660,6 +2857,7 @@ async def get_proveedores(current_user: Usuario = Depends(get_current_user)):
     return proveedores
 
 @api_router.get("/proveedores/{proveedor_id}", response_model=Proveedor)
+@cached(domains=("proveedores",), prefix="proveedores-proveedor_id")
 async def get_proveedor(proveedor_id: str, current_user: Usuario = Depends(get_current_user)):
     proveedor = await db.proveedores.find_one({'id': proveedor_id}, {'_id': 0})
     if not proveedor:
@@ -2750,6 +2948,7 @@ async def delete_proveedor(
 # ===== CUENTA CORRIENTE ROUTES =====
 
 @api_router.get("/clientes/{cliente_id}/cuenta-corriente", response_model=CuentaCorrienteInfo)
+@cached(domains=("clientes", "movimientos",), prefix="clientes-cliente_id-cuenta-corriente")
 async def get_cuenta_corriente_cliente(cliente_id: str, current_user: Usuario = Depends(get_current_user)):
     cliente = await db.clientes.find_one({'id': cliente_id}, {'_id': 0})
     if not cliente:
@@ -2781,6 +2980,7 @@ async def get_cuenta_corriente_cliente(cliente_id: str, current_user: Usuario = 
     )
 
 @api_router.get("/movimientos-todos")
+@cached(domains=("clientes", "movimientos",), prefix="movimientos-todos")
 async def get_todos_movimientos_cta_cte(current_user: Usuario = Depends(get_current_user)):
     """Obtiene todos los movimientos de todas las cuentas corrientes"""
     
@@ -2814,6 +3014,7 @@ async def get_todos_movimientos_cta_cte(current_user: Usuario = Depends(get_curr
     return movimientosTodos[:500]
 
 @api_router.get("/proveedores/{proveedor_id}/cuenta-corriente", response_model=CuentaCorrienteInfo)
+@cached(domains=("proveedores", "movimientos",), prefix="proveedores-proveedor_id-cuenta-corriente")
 async def get_cuenta_corriente_proveedor(proveedor_id: str, current_user: Usuario = Depends(get_current_user)):
     proveedor = await db.proveedores.find_one({'id': proveedor_id}, {'_id': 0})
     if not proveedor:
@@ -2909,6 +3110,7 @@ async def create_egreso(
     return egreso_obj
 
 @api_router.get("/egresos", response_model=List[Egreso])
+@cached(domains=("egresos",), prefix="egresos")
 async def get_egresos(current_user: Usuario = Depends(get_current_user)):
     egresos = await db.egresos.find({}, {'_id': 0}).sort('fecha', -1).to_list(1000)
     
@@ -2919,6 +3121,7 @@ async def get_egresos(current_user: Usuario = Depends(get_current_user)):
     return egresos
 
 @api_router.get("/egresos/{egreso_id}", response_model=Egreso)
+@cached(domains=("egresos",), prefix="egresos-egreso_id")
 async def get_egreso(egreso_id: str, current_user: Usuario = Depends(get_current_user)):
     egreso = await db.egresos.find_one({'id': egreso_id}, {'_id': 0})
     if not egreso:
@@ -3036,6 +3239,7 @@ async def fix_admin_role():
 # ===== USUARIOS ROUTES =====
 
 @api_router.get("/usuarios", response_model=List[dict])
+@cached(domains=("usuarios",), prefix="usuarios")
 async def get_usuarios_basicos(current_user: Usuario = Depends(get_current_user)):
     """Retorna lista básica de usuarios (id, nombre) para filtros - accesible para todos los usuarios autenticados"""
     usuarios = await db.usuarios.find({}, {'_id': 0, 'password': 0, 'rol': 0, 'timestamp': 0}).to_list(1000)
@@ -3044,6 +3248,7 @@ async def get_usuarios_basicos(current_user: Usuario = Depends(get_current_user)
 # ===== ADMIN USUARIOS ROUTES =====
 
 @api_router.get("/admin/usuarios", response_model=List[Usuario])
+@cached(domains=("usuarios",), prefix="admin-usuarios")
 async def get_all_usuarios(current_user: Usuario = Depends(get_admin_user)):
     usuarios = await db.usuarios.find({}, {'_id': 0, 'password': 0}).to_list(1000)
     
@@ -3093,6 +3298,7 @@ async def admin_create_usuario(
     return usuario_obj
 
 @api_router.get("/admin/usuarios/{usuario_id}", response_model=Usuario)
+@cached(domains=("usuarios",), prefix="admin-usuarios-usuario_id")
 async def get_usuario(usuario_id: str, current_user: Usuario = Depends(get_admin_user)):
     usuario = await db.usuarios.find_one({'id': usuario_id}, {'_id': 0, 'password': 0})
     if not usuario:
@@ -3251,6 +3457,7 @@ async def crear_sticky_note(
         raise HTTPException(status_code=500, detail=f"Error al crear sticky note: {str(e)}")
 
 @api_router.get("/sticky-notes", response_model=List[dict])
+@cached(domains=("sticky_notes",), prefix="sticky-notes")
 async def obtener_sticky_notes(current_user: Usuario = Depends(get_current_user)):
     """Obtiene todas las sticky notes (visibles para todos)"""
     try:
@@ -3500,6 +3707,7 @@ async def agregar_comentario_sticky_note(
 # ===== MERCADOPAGO - TRANSFERENCIAS =====
 
 @api_router.get("/mercadopago/buscar-transferencias")
+@cached(domains=("mp",), prefix="mercadopago-buscar-transferencias", ttl=120)
 async def buscar_transferencias(
     minutos: int = 60,
     current_user: Usuario = Depends(get_current_user)
@@ -3578,6 +3786,7 @@ async def buscar_transferencias(
 
 
 @api_router.get("/mercadopago/buscar-ventas-coincidentes")
+@cached(domains=("mp", "ventas",), prefix="mercadopago-buscar-ventas-coincidentes")
 async def buscar_ventas_coincidentes(
     monto: float,
     fecha_inicio: str,
@@ -3674,6 +3883,7 @@ async def asociar_transferencia_venta(
 
 
 @api_router.get("/mercadopago/obtener-asociaciones")
+@cached(domains=("mp", "ventas",), prefix="mercadopago-obtener-asociaciones")
 async def obtener_asociaciones(
     current_user: Usuario = Depends(get_current_user)
 ):
@@ -3706,6 +3916,7 @@ async def obtener_asociaciones(
 # ===== CONFIGURACIÓN MERCADOPAGO =====
 
 @api_router.get("/mercadopago/configuracion")
+@cached(domains=("mp",), prefix="mercadopago-configuracion")
 async def get_configuracion_mercadopago(
     current_user: Usuario = Depends(get_admin_user)
 ):
@@ -3801,6 +4012,7 @@ class NovedadesConfig(BaseModel):
 
 
 @api_router.get("/novedades/version")
+@cached(domains=("novedades",), prefix="novedades-version")
 async def get_novedades_version():
     """Endpoint liviano para polling: devuelve solo la versión activa."""
     try:
@@ -3812,6 +4024,7 @@ async def get_novedades_version():
 
 
 @api_router.get("/novedades")
+@cached(domains=("novedades",), prefix="novedades")
 async def get_novedades(current_user: Usuario = Depends(get_current_user)):
     """Obtiene novedades completas (versión + features)."""
     try:
@@ -3881,6 +4094,7 @@ async def _save_chat_message(user_id: str, role: str, content: str, data: Option
 
 
 @api_router.get("/chat/history", response_model=List[ChatHistoryItem])
+@cached(domains=("chat",), prefix="chat-history")
 async def get_chat_history(
     limit: int = 200,
     current_user: Usuario = Depends(get_current_user)
@@ -3950,6 +4164,7 @@ async def chat_ia(request: Request, body: ChatRequest, current_user: Usuario = D
 
 
 @api_router.get("/ia/metricas/tiempo-trabajado")
+@cached(domains=("metricas",), prefix="ia-metricas-tiempo-trabajado")
 async def ia_tiempo_trabajado(
     usuario_id: Optional[str] = Query(None),
     desde: Optional[str] = Query(None),
@@ -3966,6 +4181,7 @@ async def ia_tiempo_trabajado(
 
 
 @api_router.get("/ia/metricas/ranking")
+@cached(domains=("metricas",), prefix="ia-metricas-ranking")
 async def ia_ranking(
     desde: Optional[str] = Query(None),
     hasta: Optional[str] = Query(None),

@@ -16,7 +16,12 @@ const AdminRoute = ({ children }) => {
   }, []);
 
   if (isChecking) {
-    return <div className="text-center py-8">Verificando permisos...</div>;
+    return (
+      <div className="max-w-md mx-auto py-8 space-y-3">
+        <Skeleton variant="title" />
+        <SkeletonLines rows={3} />
+      </div>
+    );
   }
 
   if (!user) {

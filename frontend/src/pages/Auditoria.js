@@ -308,7 +308,7 @@ const Auditoria = () => {
   };
 
   if (loading) {
-    return <div className="text-center py-8">Cargando registros de auditoría...</div>;
+    return <SkeletonTable rows={8} columns={4} />;
   }
 
   return (

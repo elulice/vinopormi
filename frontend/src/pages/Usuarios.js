@@ -144,7 +144,7 @@ const Usuarios = () => {
   );
 
   if (loading) {
-    return <div className="text-center py-8">Cargando...</div>;
+    return <SkeletonTable rows={6} columns={4} />;
   }
 
   return (

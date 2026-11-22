@@ -74,8 +74,10 @@ const LandingPage = () => {
           </p>
 
           {loading && (
-            <div className="flex justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+              {Array.from({ length: 8 }, (_, i) => (
+                <Skeleton key={i} variant="card" as="div" />
+              ))}
             </div>
           )}
 
