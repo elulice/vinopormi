@@ -23,6 +23,7 @@ import { formatCurrency } from '@/lib/currency';
 import { capitalizeWords } from '@/lib/utils';
 import Pagination from '@/components/Pagination';
 import { Loader2 } from 'lucide-react';
+import Skeleton, { SkeletonTable } from '@/components/Skeleton';
 import { API } from '@/lib/config';
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
 import SearchInput from '@/components/common/SearchInput';

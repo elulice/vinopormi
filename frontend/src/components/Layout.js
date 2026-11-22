@@ -2,6 +2,7 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useConfig } from '@/context/ConfigContext';
 import FloatingMenu from '@/components/FloatingMenu';
+import Skeleton from '@/components/Skeleton';
 import { 
   LayoutDashboard, 
   Plus, 

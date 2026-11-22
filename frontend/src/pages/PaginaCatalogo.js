@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import NavbarPublico from "@/components/NavbarPublico";
 import { apiGetPublic } from "@/lib/api";
 import { API } from "@/lib/config";
+import Skeleton from "@/components/Skeleton";
 
 const ITEMS_PER_PAGE = 32;
 

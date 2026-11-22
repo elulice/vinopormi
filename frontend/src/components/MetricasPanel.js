@@ -1,6 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Info, Loader2, RefreshCw, Trophy } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { SkeletonTable } from '@/components/Skeleton';
 import { apiGet } from '@/lib/api';
 import { API } from '@/lib/config';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';

@@ -8,6 +8,7 @@ import { es } from 'date-fns/locale';
 import ResponsiveTable from '@/components/ResponsiveTable';
 import { API } from '@/lib/config';
 import { apiGet } from '@/lib/api';
+import { SkeletonTable } from '@/components/Skeleton';
 
 const LoginRegistros = () => {
   const [registros, setRegistros] = useState([]);

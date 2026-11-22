@@ -6,6 +6,7 @@ import { apiGetPublic } from '@/lib/api';
 import { API } from '@/lib/config';
 import { downloadElementAsPDF } from '@/lib/downloadUtils';
 import PresupuestoNota from '@/components/PresupuestoNota';
+import Skeleton, { SkeletonCard } from '@/components/Skeleton';
 import './Presupuestos.css';
 
 const PresupuestoPublico = () => {

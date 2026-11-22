@@ -4,6 +4,7 @@ import { CloudOff, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { API } from '@/lib/config';
 import { apiGet, apiPost } from '@/lib/api';
+import Skeleton from '@/components/Skeleton';
 import {
   obtenerVentasPendientes,
   marcarVentaComoSincronizada,

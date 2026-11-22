@@ -12,6 +12,7 @@ import MercadopagoIcon from '@/components/MercadopagoIcon';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import Skeleton from '@/components/Skeleton';
 import { API } from '@/lib/config';
 import StatusBadge from '@/components/common/StatusBadge';
 import { apiGet, apiPost } from '@/lib/api';

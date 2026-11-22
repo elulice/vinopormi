@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Pencil, Trash2, Users, CreditCard, TrendingUp, TrendingDown, ShoppingCart, List, Download, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { formatCurrency, formatNumber } from '@/lib/currency';
+import { SkeletonCard, SkeletonTable } from '@/components/Skeleton';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';

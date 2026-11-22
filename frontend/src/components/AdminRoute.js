@@ -1,6 +1,7 @@
 import { useAuth } from '@/context/AuthContext';
 import { Navigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
+import Skeleton, { SkeletonLines } from '@/components/Skeleton';
 
 const AdminRoute = ({ children }) => {
   const { user } = useAuth();
