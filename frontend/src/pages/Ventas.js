@@ -14,6 +14,7 @@ import { es } from 'date-fns/locale';
 import { formatCurrency, formatNumber } from '@/lib/currency';
 import ResponsiveTable from '@/components/ResponsiveTable';
 import MobileCard from '@/components/MobileCard';
+import { SkeletonTable } from '@/components/Skeleton';
 import { API } from '@/lib/config';
 import { apiGet } from '@/lib/api';
 import { downloadVentaAsImage, downloadVentaAsPDF } from '@/lib/downloadUtils';

@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { MetricasResumen } from '@/components/MetricasPanel';
+import { SkeletonLines } from '@/components/Skeleton';
 
 const canRecordAudio = () =>
   typeof window !== 'undefined' &&

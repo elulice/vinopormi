@@ -10,6 +10,7 @@ import { formatCurrency, formatNumber } from '@/lib/currency';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { SkeletonCard, SkeletonTable } from '@/components/Skeleton';
 import { capitalizeWords } from '@/lib/utils';
 import ResponsiveTable from '@/components/ResponsiveTable';
 import { API } from '@/lib/config';

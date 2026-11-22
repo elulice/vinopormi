@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/currency';
 import { API } from '@/lib/config';
 import { apiGet, apiPost } from '@/lib/api';
+import Skeleton from '@/components/Skeleton';
 
 const Configuracion = () => {
   const { showCents, toggleShowCents, floatingMenu, setFloatingMenu, autoLogout, setAutoLogout, loading, error, calcularVuelto, setCalcularVuelto, totalFlotante, setTotalFlotante, hiddenSidebarItems, setHiddenSidebarItems, hiddenFloatingMenuActions, setHiddenFloatingMenuActions } = useConfig();

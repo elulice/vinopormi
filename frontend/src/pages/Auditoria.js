@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Pagination from '@/components/Pagination';
+import { SkeletonTable } from '@/components/Skeleton';
 import { 
   History, 
   Filter, 
