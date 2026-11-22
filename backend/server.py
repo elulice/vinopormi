@@ -18,6 +18,7 @@ from typing import Any, Dict, List, Optional, Union
 import uuid
 import secrets
 from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 import math
 import bcrypt
 import jwt
@@ -31,6 +32,10 @@ from recommendations import (
 )
 from ai_chat import run_chat, warmup_chat_model, transcribe_audio
 from ia_metricas import ranking as calcular_ranking, tiempo_trabajado as calcular_tiempo_trabajado
+
+# Zona horaria fija de la app. No usar la TZ del servidor: Render corre en UTC
+# y eso desplazaba los rangos de "hoy"/"ayer" 3 horas respecto de Argentina.
+TZ_ARGENTINA = ZoneInfo("America/Argentina/Buenos_Aires")
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -1062,7 +1067,7 @@ async def get_auditoria(
     if fechaDesde or fechaHasta:
         from datetime import timezone
         ahora_utc = datetime.now(timezone.utc)
-        ahora_local = ahora_utc.astimezone()
+        ahora_local = ahora_utc.astimezone(TZ_ARGENTINA)
         
         if fechaDesde:
             # Convertir YYYY-MM-DD a datetime con timezone
@@ -2390,7 +2395,7 @@ async def get_dashboard_stats(current_user: Usuario = Depends(get_current_user))
     # Obtener fecha actual en UTC para coincidir con cómo se guardan los datos
     ahora_utc = datetime.now(timezone.utc)
     # Convertir a fecha local para obtener el día correcto en la zona horaria local
-    ahora_local = ahora_utc.astimezone()
+    ahora_local = ahora_utc.astimezone(TZ_ARGENTINA)
     
     # Crear rangos del día en UTC para comparación con base de datos
     hoy_inicio_utc = ahora_local.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
@@ -2460,14 +2465,21 @@ async def get_dashboard_stats(current_user: Usuario = Depends(get_current_user))
             medio = venta['medio_pago']
             ventas_por_medio[medio] = ventas_por_medio.get(medio, 0) + venta['total']
     
-    # Obtener saldo total de cuenta corriente
-    clientes = await db.clientes.find({}, {'_id': 0}).to_list(1000)
-    total_saldo_cuenta_corriente = 0
-    
-    for cliente in clientes:
-        movimientos = await db.movimientos.find({'cliente_id': cliente['id']}, {'_id': 0}).to_list(1000)
-        saldo_cliente = sum(m['monto'] for m in movimientos)
-        total_saldo_cuenta_corriente += saldo_cliente
+    # Saldo de cuenta corriente y ultimo movimiento por cliente en UNA sola
+    # agregacion. Antes se hacia una query por cliente (y otra para su ultimo
+    # movimiento): ~57 viajes secuenciales a Atlas = ~12s de espera.
+    clientes = await db.clientes.find({}, {'_id': 0, 'id': 1, 'nombre': 1}).to_list(1000)
+    ids_clientes = [c['id'] for c in clientes if c.get('id')]
+    movimientos_agg = await db.movimientos.aggregate([
+        {'$match': {'cliente_id': {'$in': ids_clientes}}},
+        {'$group': {
+            '_id': '$cliente_id',
+            'saldo': {'$sum': '$monto'},
+            'ultima_fecha': {'$max': '$fecha'},
+        }},
+    ]).to_list(1000)
+    resumen_clientes = {m['_id']: m for m in movimientos_agg}
+    total_saldo_cuenta_corriente = sum(m['saldo'] for m in movimientos_agg)
     
 # Obtener egresos del día (mismo criterio que ventas)
     if solo_mis_datos:
@@ -2485,32 +2497,18 @@ async def get_dashboard_stats(current_user: Usuario = Depends(get_current_user))
     }, {'_id': 0}).to_list(1000)
     ingresos_cta_cte_hoy = sum(m['monto'] for m in movimientos_cta_cte_hoy)
     
-    # Obtener clientes con saldo (todos los que tienen movimientos)
-    clientes = await db.clientes.find({}, {'_id': 0, 'id': 1, 'nombre': 1}).to_list(1000)
+    # Clientes con movimientos, reutilizando la agregacion de arriba.
     ultimos_clientes = []
     for cliente in clientes:
-        # Obtener el último movimiento de cada cliente usando find con sort y limit
-        ultimo_mov_cursor = await db.movimientos.find(
-            {'cliente_id': cliente['id']},
-            {'_id': 0, 'fecha': 1}
-        ).sort('fecha', -1).limit(1).to_list(1)
-        
-        if ultimo_mov_cursor:
-            ultimo_mov = ultimo_mov_cursor[0]
-            # Calcular saldo del cliente
-            movimientos = await db.movimientos.find(
-                {'cliente_id': cliente['id']},
-                {'_id': 0, 'monto': 1}
-            ).to_list(1000)
-            saldo = sum(m['monto'] for m in movimientos)
-            
-            # Incluir todos los clientes con movimientos
-            ultimos_clientes.append({
-                'cliente_nombre': cliente['nombre'],
-                'cliente_id': cliente['id'],
-                'ultima_fecha': ultimo_mov.get('fecha'),
-                'saldo': saldo
-            })
+        resumen = resumen_clientes.get(cliente['id'])
+        if not resumen:
+            continue
+        ultimos_clientes.append({
+            'cliente_nombre': cliente['nombre'],
+            'cliente_id': cliente['id'],
+            'ultima_fecha': resumen.get('ultima_fecha'),
+            'saldo': resumen['saldo'],
+        })
     
     # Ordenar por saldo (menor a mayor: los que más deben primero)
     ultimos_clientes = sorted(
