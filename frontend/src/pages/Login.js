@@ -72,12 +72,12 @@ const Login = () => {
           </header>
 
           <div className="form-body">
-            <div className="logo">
-              <img src={loginLogoImage} alt="Vino por Mí Bebidas" />
-            </div>
             <p className="eyebrow">Acceso</p>
             <h1>
-              Vino <em>Por Mi</em>
+              <span className="logo">
+                <img src={loginLogoImage} alt="Vino por Mí Bebidas" />
+              </span>
+              <span className="h1-text">Vino <em>Por Mi</em></span>
             </h1>
 
             <form onSubmit={handleSubmit}>
