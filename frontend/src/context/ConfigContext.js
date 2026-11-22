@@ -86,18 +86,32 @@ const writeMirror = (key, value) => {
 
 export const ConfigProvider = ({ children, forceDark = false }) => {
   const { user, getAuthHeader, updateAutoLogoutSetting } = useAuth();
-  const [showCents, setShowCentsState] = useState(() => readMirror(MIRROR_KEYS.showCents, MIRROR_DEFAULTS.showCents));
+
+  // /auth/me ya trae las preferencias del usuario. Usarlas como valor inicial
+  // evita el flash de "default -> real" al montar (y un request extra).
+  const pref = (key, fallback) => {
+    const valor = user?.preferencias?.[key];
+    return valor !== undefined && valor !== null ? valor : fallback;
+  };
+
+  const [showCents, setShowCentsState] = useState(() => pref('showCents', readMirror(MIRROR_KEYS.showCents, MIRROR_DEFAULTS.showCents)));
   const [sidebarWidth, setSidebarWidthState] = useState(() => {
-    const guardado = readMirror(MIRROR_KEYS.sidebarWidth, MIRROR_DEFAULTS.sidebarWidth);
+    const guardado = pref('sidebarWidth', readMirror(MIRROR_KEYS.sidebarWidth, MIRROR_DEFAULTS.sidebarWidth));
     return guardado === 'compact' ? 'compact' : 'expanded';
   });
-  const [floatingMenu, setFloatingMenuState] = useState(() => readMirror(MIRROR_KEYS.floatingMenu, MIRROR_DEFAULTS.floatingMenu));
-  const [autoLogout, setAutoLogoutState] = useState(() => readMirror(MIRROR_KEYS.autoLogout, MIRROR_DEFAULTS.autoLogout));
-  const [calcularVuelto, setCalcularVueltoState] = useState(() => readMirror(MIRROR_KEYS.calcularVuelto, MIRROR_DEFAULTS.calcularVuelto));
-  const [darkMode, setDarkModeState] = useState(() => forceDark ? true : readMirror(MIRROR_KEYS.darkMode, MIRROR_DEFAULTS.darkMode));
-  const [totalFlotante, setTotalFlotanteState] = useState(() => readMirror(MIRROR_KEYS.totalFlotante, MIRROR_DEFAULTS.totalFlotante));
-  const [hiddenSidebarItems, setHiddenSidebarItemsState] = useState(() => readMirror(MIRROR_KEYS.hiddenSidebarItems, MIRROR_DEFAULTS.hiddenSidebarItems));
-  const [hiddenFloatingMenuActions, setHiddenFloatingMenuActionsState] = useState(() => readMirror(MIRROR_KEYS.hiddenFloatingMenuActions, MIRROR_DEFAULTS.hiddenFloatingMenuActions));
+  const [floatingMenu, setFloatingMenuState] = useState(() => pref('floatingMenu', readMirror(MIRROR_KEYS.floatingMenu, MIRROR_DEFAULTS.floatingMenu)));
+  const [autoLogout, setAutoLogoutState] = useState(() => pref('autoLogout', readMirror(MIRROR_KEYS.autoLogout, MIRROR_DEFAULTS.autoLogout)));
+  const [calcularVuelto, setCalcularVueltoState] = useState(() => pref('calcularVuelto', readMirror(MIRROR_KEYS.calcularVuelto, MIRROR_DEFAULTS.calcularVuelto)));
+  const [darkMode, setDarkModeState] = useState(() => forceDark ? true : pref('darkMode', readMirror(MIRROR_KEYS.darkMode, MIRROR_DEFAULTS.darkMode)));
+  const [totalFlotante, setTotalFlotanteState] = useState(() => pref('totalFlotante', readMirror(MIRROR_KEYS.totalFlotante, MIRROR_DEFAULTS.totalFlotante)));
+  const [hiddenSidebarItems, setHiddenSidebarItemsState] = useState(() => {
+    const valor = pref('hiddenSidebarItems', readMirror(MIRROR_KEYS.hiddenSidebarItems, MIRROR_DEFAULTS.hiddenSidebarItems));
+    return Array.isArray(valor) ? valor : MIRROR_DEFAULTS.hiddenSidebarItems;
+  });
+  const [hiddenFloatingMenuActions, setHiddenFloatingMenuActionsState] = useState(() => {
+    const valor = pref('hiddenFloatingMenuActions', readMirror(MIRROR_KEYS.hiddenFloatingMenuActions, MIRROR_DEFAULTS.hiddenFloatingMenuActions));
+    return Array.isArray(valor) ? valor : MIRROR_DEFAULTS.hiddenFloatingMenuActions;
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
