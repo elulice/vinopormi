@@ -59,44 +59,45 @@ export const formatNumber = (amount, showCents = true) => {
 const agruparMiles = (enteros) =>
   enteros.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 
-/** Convierte lo que escribe el usuario a valor crudo con punto decimal. */
-export const parseNumericInput = (texto, { allowNegative = true, showCents = true } = {}) => {
-  if (texto === null || texto === undefined) return '';
-  let s = String(texto).replace(/[\s$]/g, '');
-  const negativo = allowNegative && /^-/.test(s);
-  s = s.replace(/[^\d.,]/g, '');
-  if (!s) return negativo ? '-' : '';
+/**
+ * Interpreta el texto es-AR de un input. Reglas:
+ * - la coma es siempre separador decimal (1.234,56)
+ * - el punto es de miles, salvo que cierre el número con 1 o 2 dígitos
+ *   (así "1234.56", que se pega desde una planilla, sigue siendo 1234.56)
+ * Esto última evita que el punto insertado por el agrupamiento se confunda
+ * con un decimal al seguir escribiendo: "2.000" + "0" => "20.000", no "2,0000".
+ */
+const separarNumero = (texto, showCents) => {
+  const s = String(texto).replace(/[\s$]/g, '');
+  const negativo = /^-/.test(s);
+  const limpio = s.replace(/[^\d.,]/g, '');
+  const partes = limpio.split(',');
+  const comaFinal = partes.length > 1 && partes[partes.length - 1] === '';
 
-  let enteros = s;
-  let decimales = '';
-
-  const ultimoPunto = s.lastIndexOf('.');
-  const ultimaComa = s.lastIndexOf(',');
-
-  if (!showCents) {
-    // Sin centavos, todos los puntos son de miles y la coma (si hay) inicia
-    // la parte decimal, que se descarta.
-    const corte = ultimaComa >= 0 ? ultimaComa : s.length;
-    enteros = s.slice(0, corte).replace(/[^\d]/g, '');
-  } else {
-    const separador = Math.max(ultimoPunto, ultimaComa);
-    if (separador >= 0) {
-      enteros = s.slice(0, separador).replace(/[.,]/g, '');
-      decimales = s.slice(separador + 1).replace(/[.,]/g, '');
-      const puntos = (s.match(/\./g) || []).length;
-      // Sin coma decimal, varios puntos (o "1.234") son agrupamiento es-AR.
-      // Con coma, los puntos son miles y la coma manda los centavos.
-      if (ultimaComa === -1 && (puntos > 1 || (/^\d{3}$/.test(decimales) && enteros.length <= 3))) {
-        enteros = s.replace(/\./g, '');
-        decimales = '';
-      }
+  let parteEntera = partes[0];
+  let decimales = partes.slice(1).join('');
+  if (partes.length === 1) {
+    const puntoDecimal = parteEntera.match(/^(.*)\.(\d{1,2})$/);
+    if (puntoDecimal) {
+      parteEntera = puntoDecimal[1];
+      decimales = puntoDecimal[2];
     }
   }
 
+  if (!showCents) decimales = '';
+  decimales = decimales.replace(/\D/g, '').slice(0, 2);
   if (/^0*$/.test(decimales)) decimales = '';
-  enteros = enteros.replace(/^0+(?=\d)/, '') || '0';
+  const enteros = parteEntera.replace(/\D/g, '').replace(/^0+(?=\d)/, '') || '0';
+  return { negativo, enteros, decimales, comaFinal, sinDigitos: !/\d/.test(limpio) };
+};
+
+/** Convierte lo que escribe el usuario a valor crudo con punto decimal. */
+export const parseNumericInput = (texto, { allowNegative = true, showCents = true } = {}) => {
+  if (texto === null || texto === undefined) return '';
+  const { negativo, enteros, decimales, sinDigitos } = separarNumero(texto, showCents);
+  if (sinDigitos) return negativo && allowNegative ? '-' : '';
   const crudo = decimales ? `${enteros}.${decimales}` : enteros;
-  return negativo && crudo !== '0' ? `-${crudo}` : crudo;
+  return negativo && allowNegative && crudo !== '0' ? `-${crudo}` : crudo;
 };
 
 /** Valor crudo -> texto es-AR listo para mostrar (con $ y agrupado). */
@@ -130,20 +131,15 @@ export const formatNumericInput = (crudo, { currency = true, showCents = true } 
  */
 export const groupNumericInput = (texto, { currency = true, showCents = true } = {}) => {
   if (texto === null || texto === undefined) return '';
-  const negativo = /^-/.test(texto) ? '-' : '';
+  const { negativo, enteros, decimales, comaFinal, sinDigitos } = separarNumero(texto, showCents);
+  if (sinDigitos) return negativo ? '-' : '';
+
   const prefijo = `${negativo ? '-' : ''}${currency ? '$ ' : ''}`;
-  const s = texto.replace(/[^\d.,]/g, '');
-
-  if (!showCents) {
-    const enteros = agruparMiles(s.replace(/[.,]/g, ''));
-    return `${prefijo}${enteros}`;
-  }
-
-  const separador = Math.max(s.lastIndexOf('.'), s.lastIndexOf(','));
-  const enteros = agruparMiles((separador >= 0 ? s.slice(0, separador) : s).replace(/[^\d]/g, ''));
-  let resto = separador >= 0 ? s.slice(separador) : '';
-  // Si escriben "1234.56", mostramos la coma decimal de es-AR.
-  if (resto.startsWith('.') && /\d/.test(resto.slice(1))) resto = `,${resto.slice(1)}`;
-
-  return `${prefijo}${enteros}${resto}`;
+  const base = `${prefijo}${agruparMiles(enteros)}`;
+  if (!showCents) return base;
+  if (comaFinal) return `${base},`;
+  if (decimales) return `${base},${decimales}`;
+  // Mientras se escribe no completamos los centavos: "$ 20.000" sigue siendo
+  // escribible y al perder el foco pasa a "$ 20.000,00".
+  return base;
 };
