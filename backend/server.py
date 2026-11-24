@@ -208,7 +208,9 @@ def cached(domains=(), prefix="cache", ttl=_READ_CACHE_TTL):
 _WRITE_INVALIDATIONS = [
     ("POST",   "/auth/register",                    ("usuarios",)),
     ("POST",   "/auth/login",                       ("login_registros", "metricas")),
-    ("PUT",    "/auth/preferencias",                 ("preferencias", "dashboard")),
+    # El handler elige dominios finos segun las claves enviadas (ui/tema/auth/
+    # dashboard). Este tuple es el fallback y declara los dominios publicados.
+    ("PUT",    "/auth/preferencias",                 ("preferencias", "ui", "tema", "auth", "dashboard")),
     ("POST",   "/fix-admin-role",                    ("usuarios",)),
     ("POST",   "/admin/usuarios",                    ("usuarios", "auditoria")),
     ("PUT",    "/admin/usuarios/*",                  ("usuarios", "auditoria")),
@@ -281,6 +283,12 @@ async def cache_invalidation_middleware(request: Request, call_next):
             dominios.update(affected)
 
     response = await call_next(request)
+
+    # Los handlers pueden afinar los dominios segun el payload (ej. preferencias).
+    dominios_override = getattr(request.state, 'data_domains', None)
+    if dominios_override:
+        dominios = set(dominios_override)
+
     if dominios and response.status_code < 400:
         invalidate(*dominios)
 
@@ -310,6 +318,12 @@ async def cache_invalidation_middleware(request: Request, call_next):
 
 api_router = APIRouter()
 security = HTTPBearer()
+
+
+@api_router.get("/ping")
+async def ping():
+    """Heartbeat público: no toca lastActivity ni necesita token."""
+    return {"ok": True}
 
 JWT_SECRET = os.environ.get('JWT_SECRET', 'vinoteca-secret-key-2024')
 JWT_ALGORITHM = 'HS256'
@@ -367,7 +381,7 @@ class Usuario(BaseModel):
     username: str
     nombre: str
     rol: str = "comun"  # "admin" o "comun"
-    preferencias: dict = Field(default_factory=lambda: {"showCents": True, "sidebarWidth": "normal", "floatingMenu": False, "autoLogout": True, "soloMisDatos": False, "calcularVuelto": True, "darkMode": True, "totalFlotante": False})  # Preferencias del usuario
+    preferencias: dict = Field(default_factory=lambda: {"showCents": True, "sidebarWidth": "expanded", "floatingMenu": False, "autoLogout": True, "soloMisDatos": False, "calcularVuelto": True, "darkMode": True, "totalFlotante": False})  # Preferencias del usuario
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     lastActivity: Optional[datetime] = None  # Última actividad del usuario
 
@@ -1131,7 +1145,8 @@ async def update_last_activity(username: str):
 
 async def check_auto_logout(user_data: dict) -> bool:
     """Verifica si el usuario debe ser desconectado por inactividad"""
-    if not user_data.get('preferencias', {}).get('autoLogout', True):
+    preferencias = user_data.get('preferencias') or {}
+    if not preferencias.get('autoLogout', True):
         return False
     
     last_activity = user_data.get('lastActivity')
@@ -1175,6 +1190,8 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         
         if isinstance(user.get('timestamp'), str):
             user['timestamp'] = datetime.fromisoformat(user['timestamp'])
+        # Un preferencias=None en DB no debe romper la validación del modelo.
+        user['preferencias'] = user.get('preferencias') or {"showCents": True}
         
         return Usuario(**user)
     except jwt.ExpiredSignatureError:
@@ -1230,7 +1247,10 @@ async def login(request: Request, input: LoginRequest):
         username=user['username'],
         nombre=user['nombre'],
         rol=user.get('rol', 'comun'),  # Incluir el rol, con valor por defecto
-        timestamp=user['timestamp']
+        timestamp=user['timestamp'],
+        # Sin esto el front arranca con preferencias por defecto aunque el
+        # usuario tenga guardado autoLogout=false u otra preferencia.
+        preferencias=user.get('preferencias') or {"showCents": True}
     )
     
     # Actualizar última actividad al login
@@ -1265,10 +1285,27 @@ async def get_preferencias(current_user: Usuario = Depends(get_current_user)):
 
 @api_router.put("/auth/preferencias")
 async def update_preferencias(
+    request: Request,
     preferencias: PreferenciasUpdate, 
     current_user: Usuario = Depends(get_current_user)
 ):
     """Actualizar preferencias del usuario actual"""
+    # Avisar solo a los dominios que realmente cambiaron.
+    cambios = preferencias.model_dump(exclude_unset=True)
+    dominios = {'preferencias'}
+    if any(clave in cambios for clave in (
+        'showCents', 'sidebarWidth', 'floatingMenu', 'calcularVuelto',
+        'totalFlotante', 'hiddenSidebarItems', 'hiddenFloatingMenuActions'
+    )):
+        dominios.add('ui')
+    if 'darkMode' in cambios:
+        dominios.add('tema')
+    if 'autoLogout' in cambios:
+        dominios.add('auth')
+    if 'soloMisDatos' in cambios:
+        dominios.add('dashboard')
+    request.state.data_domains = dominios
+
     # Obtener preferencias actuales
     preferencias_actuales = current_user.preferencias or {'showCents': True}
     
@@ -2417,6 +2454,7 @@ async def get_ventas(
     usuario_id: str = Query(None),
     cliente_id: str = Query(None),
     agrupar_por_dia: bool = Query(False),
+    fecha_grupo: str = Query(None, description="Día YYYY-MM-DD del que se quieren las ventas al expandir un grupo"),
     current_user: Usuario = Depends(get_current_user)
 ):
     solo_mis_datos = False
@@ -2459,25 +2497,41 @@ async def get_ventas(
     # Monto a sumar en las estadísticas: si hay filtro de medio, solo la porción de ese medio
     monto_expr = _monto_medio_expr(metodo_pago)
 
+    # Un único día para agrupar, contar y expandir: el front pide `fecha_grupo`
+    # con la misma fecha que muestra la fila, así el detalle coincide con el
+    # total del grupo aunque la hora sea distinta según la zona horaria.
+    fecha_str_stage = {
+        "$addFields": {
+            "fecha_str": {
+                "$cond": {
+                    "if": {"$eq": [{"$type": "$fecha"}, "string"]},
+                    "then": "$fecha",
+                    "else": {"$dateToString": {"format": "%Y-%m-%dT%H:%M:%S", "date": "$fecha"}}
+                }
+            }
+        }
+    }
+    grupo_stages = []
+    if fecha_grupo:
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", fecha_grupo):
+            raise HTTPException(status_code=400, detail="fecha_grupo debe tener formato YYYY-MM-DD")
+        grupo_stages.append({
+            "$match": {
+                "$expr": {"$eq": [{"$substr": ["$fecha_str", 0, 10]}, fecha_grupo]}
+            }
+        })
+
     if agrupar_por_dia:
+        # Antes se hacía $push de $$ROOT por día: eso materializaba TODAS las
+        # ventas de cada grupo aunque el front solo mostrara los totales.
+        # Ahora el group solo acumula números; las ventas se piden al expandir.
         pipeline = [
             {"$match": match_stage},
-            {
-                "$addFields": {
-                    "fecha_str": {
-                        "$cond": {
-                            "if": {"$eq": [{"$type": "$fecha"}, "string"]},
-                            "then": "$fecha",
-                            "else": {"$dateToString": {"format": "%Y-%m-%dT%H:%M:%S", "date": "$fecha"}}
-                        }
-                    }
-                }
-            },
-            {"$project": {"_id": 0}},
+            fecha_str_stage,
+            *grupo_stages,
             {
                 "$group": {
                     "_id": {"$substr": ["$fecha_str", 0, 10]},
-                    "ventas": {"$push": "$$ROOT"},
                     "total_bruto": {"$sum": monto_expr},
                     "total_neto": {"$sum": {"$ifNull": ["$ganancia_neta", 0]}},
                     "cantidad_ventas": {"$sum": 1}
@@ -2493,22 +2547,9 @@ async def get_ventas(
         
         count_pipeline = [
             {"$match": match_stage},
-            {
-                "$addFields": {
-                    "fecha_str": {
-                        "$cond": {
-                            "if": {"$eq": [{"$type": "$fecha"}, "string"]},
-                            "then": "$fecha",
-                            "else": {"$dateToString": {"format": "%Y-%m-%dT%H:%M:%S", "date": "$fecha"}}
-                        }
-                    }
-                }
-            },
-            {
-                "$group": {
-                    "_id": {"$substr": ["$fecha_str", 0, 10]}
-                }
-            },
+            fecha_str_stage,
+            *grupo_stages,
+            {"$group": {"_id": {"$substr": ["$fecha_str", 0, 10]}}},
             {"$count": "total_dias"}
         ]
         count_cursor = db.ventas.aggregate(count_pipeline)
@@ -2517,22 +2558,14 @@ async def get_ventas(
         
         stats_pipeline = [
             {"$match": match_stage},
-            {
-                "$addFields": {
-                    "fecha_str": {
-                        "$cond": {
-                            "if": {"$eq": [{"$type": "$fecha"}, "string"]},
-                            "then": "$fecha",
-                            "else": {"$dateToString": {"format": "%Y-%m-%dT%H:%M:%S", "date": "$fecha"}}
-                        }
-                    }
-                }
-            },
+            fecha_str_stage,
+            *grupo_stages,
             {
                 "$group": {
                     "_id": None,
                     "total_bruto": {"$sum": monto_expr},
                     "total_neto": {"$sum": {"$ifNull": ["$ganancia_neta", 0]}},
+                    "cantidad_ventas": {"$sum": 1},
                     "dias_unicos": {"$addToSet": {"$substr": ["$fecha_str", 0, 10]}}
                 }
             }
@@ -2544,26 +2577,31 @@ async def get_ventas(
             stats_data = stats_result[0]
             total_bruto = stats_data.get('total_bruto', 0)
             total_neto = stats_data.get('total_neto', 0)
+            total_ventas = stats_data.get('cantidad_ventas', 0)
             dias_unicos = len(stats_data.get('dias_unicos', []))
             promedio_diario = total_bruto / dias_unicos if dias_unicos > 0 else 0
         else:
             total_bruto = 0
             total_neto = 0
+            total_ventas = 0
             dias_unicos = 0
             promedio_diario = 0
         
-        ventas_result = []
-        for grupo in resultados:
-            fecha_iso = datetime.fromisoformat(grupo['_id'])
-            for v in grupo.get('ventas', []):
-                if isinstance(v.get('fecha'), str):
-                    v['fecha'] = datetime.fromisoformat(v['fecha'])
-                if metodo_pago:
-                    v['monto_filtrado'] = _monto_medio_doc(v, metodo_pago)
-            ventas_result.extend(grupo.get('ventas', []))
+        # Solo totales por día. El front trae las ventas de un día cuando el
+        # usuario lo expande (misma query, con fecha_grupo y agrupar_por_dia=false).
+        grupos_result = [
+            {
+                'date': grupo['_id'],
+                'total': grupo.get('total_bruto', 0),
+                'ganancia_neta': grupo.get('total_neto', 0),
+                'count': grupo.get('cantidad_ventas', 0),
+            }
+            for grupo in resultados
+        ]
         
         return {
-            "ventas": ventas_result,
+            "ventas": grupos_result,
+            "grupos": grupos_result,
             "pagination": {
                 "total": total_dias,
                 "pages": math.ceil(total_dias / limit) if total_dias > 0 else 0,
@@ -2575,13 +2613,17 @@ async def get_ventas(
                 "cantidad": dias_unicos,
                 "promedio": round(promedio_diario, 2),
                 "promedio_neto": round(total_neto / dias_unicos, 2) if dias_unicos > 0 else 0,
-                "cantidad_ventas": sum(g.get('cantidad_ventas', 0) for g in resultados)
+                "cantidad_ventas": total_ventas
             }
         }
     else:
+        # En el listado normal no hace falta calcular fecha_str; solo se
+        # agrega (y se quita del resultado) cuando pedimos un día concreto.
+        proyecto_ventas = {"_id": 0, "fecha_str": 0} if fecha_grupo else {"_id": 0}
         pipeline = [
             {"$match": match_stage},
-            {"$project": {"_id": 0}},
+            *([fecha_str_stage, *grupo_stages] if fecha_grupo else []),
+            {"$project": proyecto_ventas},
             {"$sort": {"fecha": -1}},
             {"$skip": (page - 1) * limit},
             {"$limit": limit}
@@ -2590,21 +2632,22 @@ async def get_ventas(
         cursor = db.ventas.aggregate(pipeline)
         ventas_paginadas = await cursor.to_list(limit)
         
-        total_count = await db.ventas.count_documents(match_stage)
+        if fecha_grupo:
+            count_grupo_pipeline = [
+                {"$match": match_stage},
+                fecha_str_stage,
+                *grupo_stages,
+                {"$count": "total"}
+            ]
+            count_grupo_result = await db.ventas.aggregate(count_grupo_pipeline).to_list(1)
+            total_count = count_grupo_result[0]['total'] if count_grupo_result else 0
+        else:
+            total_count = await db.ventas.count_documents(match_stage)
         
         stats_pipeline = [
             {"$match": match_stage},
-            {
-                "$addFields": {
-                    "fecha_str": {
-                        "$cond": {
-                            "if": {"$eq": [{"$type": "$fecha"}, "string"]},
-                            "then": "$fecha",
-                            "else": {"$dateToString": {"format": "%Y-%m-%dT%H:%M:%S", "date": "$fecha"}}
-                        }
-                    }
-                }
-            },
+            fecha_str_stage,
+            *grupo_stages,
             {
                 "$group": {
                     "_id": None,
@@ -3792,7 +3835,6 @@ async def agregar_comentario_sticky_note(
 # ===== MERCADOPAGO - TRANSFERENCIAS =====
 
 @api_router.get("/mercadopago/buscar-transferencias")
-@cached(domains=("mp",), prefix="mercadopago-buscar-transferencias", ttl=120)
 async def buscar_transferencias(
     minutos: int = 60,
     current_user: Usuario = Depends(get_current_user)
@@ -3817,7 +3859,9 @@ async def buscar_transferencias(
         headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
         params = {"sort": "date_created", "criteria": "desc", "limit": 100}
         
-        async with httpx.AsyncClient() as client:
+        # Las transferencias viven en la API de MP: cachearlas congelaba la
+        # ventana de fechas. Sin cache, el timeout evita colgar el modal.
+        async with httpx.AsyncClient(timeout=20.0) as client:
             response = await client.get(url, headers=headers, params=params)
             if response.status_code != 200:
                 raise HTTPException(status_code=response.status_code, detail=f"Error de Mercadopago")
@@ -4110,8 +4154,8 @@ async def get_novedades_version():
 
 @api_router.get("/novedades")
 @cached(domains=("novedades",), prefix="novedades")
-async def get_novedades(current_user: Usuario = Depends(get_current_user)):
-    """Obtiene novedades completas (versión + features)."""
+async def get_novedades():
+    """Obtiene novedades completas. Público: el polling no renueva la sesión."""
     try:
         config = await db["configuracion"].find_one({"tipo": "novedades"}, {"_id": 0})
         if not config:
@@ -4375,8 +4419,8 @@ async def listar_colecciones_directo():
         return {"error": str(e)}
 
 @app.post("/limpiar-base-datos-direct")
-async def limpiar_base_de_datos_direct():
-    """Endpoint directo en app para limpieza"""
+async def limpiar_base_de_datos_direct(current_user: Usuario = Depends(get_admin_user)):
+    """Endpoint directo en app para limpieza (solo admin)"""
     try:
         # Colecciones a limpiar (manteniendo productos y usuarios)
         colecciones = [
@@ -4412,8 +4456,8 @@ async def limpiar_base_de_datos_direct():
         return {"error": str(e)}
 
 @app.post("/limpiar-base-datos-test")
-async def limpiar_test_sin_auth():
-    """Endpoint de prueba sin autenticación"""
+async def limpiar_test_sin_auth(current_user: Usuario = Depends(get_admin_user)):
+    """Endpoint de prueba: también requiere admin"""
     try:
         colecciones = ['clientes', 'ventas']
         resultados = {}
@@ -4431,29 +4475,9 @@ async def limpiar_test_sin_auth():
         return {"error": str(e)}
 
 @app.post("/limpiar-auditoria-direct")
-async def limpiar_auditoria_direct(request: Request):
-    """Endpoint directo para limpiar auditoría (requiere auth en headers)"""
+async def limpiar_auditoria_direct(request: Request, current_user: Usuario = Depends(get_admin_user)):
+    """Endpoint directo para limpiar auditoría (solo admin)"""
     try:
-        # Extraer token del header
-        auth_header = request.headers.get('authorization')
-        if not auth_header or not auth_header.startswith('Bearer '):
-            return {"error": "Se requiere autenticación"}
-        
-        token = auth_header.split(' ')[1]
-        
-        # Verificar token y obtener usuario
-        try:
-            payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-            username = payload.get('sub')
-            if not username:
-                return {"error": "Token inválido"}
-            
-            user = await db.usuarios.find_one({'username': username}, {'_id': 0, 'password': 0})
-            if not user or user.get('rol') != 'admin':
-                return {"error": "Se requiere rol de administrador"}
-        except:
-            return {"error": "Token inválido o expirado"}
-        
         # Obtener entidades a eliminar del body
         body = await request.json()
         entidades = body.get('entidades', [])
@@ -4475,29 +4499,9 @@ async def limpiar_auditoria_direct(request: Request):
         return {"error": f"Error al limpiar auditoría: {str(e)}"}
 
 @app.post("/limpiar-login-registros-direct")
-async def limpiar_login_registros_direct(request: Request):
-    """Endpoint directo para limpiar registros de login (requiere auth en headers)"""
+async def limpiar_login_registros_direct(request: Request, current_user: Usuario = Depends(get_admin_user)):
+    """Endpoint directo para limpiar registros de login (solo admin)"""
     try:
-        # Extraer token del header
-        auth_header = request.headers.get('authorization')
-        if not auth_header or not auth_header.startswith('Bearer '):
-            return {"error": "Se requiere autenticación"}
-        
-        token = auth_header.split(' ')[1]
-        
-        # Verificar token y obtener usuario
-        try:
-            payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-            username = payload.get('sub')
-            if not username:
-                return {"error": "Token inválido"}
-            
-            user = await db.usuarios.find_one({'username': username}, {'_id': 0, 'password': 0})
-            if not user or user.get('rol') != 'admin':
-                return {"error": "Se requiere rol de administrador"}
-        except:
-            return {"error": "Token inválido o expirado"}
-        
         # Limpiar registros de login
         resultado = await db.login_registros.delete_many({})
         return {
