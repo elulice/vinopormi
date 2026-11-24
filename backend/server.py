@@ -1136,12 +1136,26 @@ async def registrar_auditoria(
 
 # ===== AUTH HELPERS =====
 
+# get_current_user() corre en CADA request autenticado. Escribir lastActivity
+# cada vez son 2 viajes a Atlas por request (find_one + update_one), incluso en
+# cache hits. Con 1 minuto alcanza para el auto logout (1 hora) y reduce muy
+# sensiblemente la carga y la latencia. Solo se registra el write exitoso.
+_LAST_ACTIVITY_WRITES = {}
+_LAST_ACTIVITY_THROTTLE = max(0, int(os.environ.get('LAST_ACTIVITY_THROTTLE_SECONDS', '60')))
+
+
 async def update_last_activity(username: str):
-    """Actualiza la última actividad del usuario"""
+    """Actualiza la última actividad del usuario, como máximo 1 vez por minuto."""
+    ahora = _time.monotonic()
+    ultimo = _LAST_ACTIVITY_WRITES.get(username)
+    if ultimo is not None and ahora - ultimo < _LAST_ACTIVITY_THROTTLE:
+        return
+
     await db.usuarios.update_one(
         {'username': username},
         {'$set': {'lastActivity': datetime.now(timezone.utc).isoformat()}}
     )
+    _LAST_ACTIVITY_WRITES[username] = _time.monotonic()
 
 async def check_auto_logout(user_data: dict) -> bool:
     """Verifica si el usuario debe ser desconectado por inactividad"""
@@ -4558,127 +4572,95 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         return response
 
 # ===== CREAR ÍNDICES AL INICIAR =====
+# create_index es idempotente, pero cada llamada es un viaje a Atlas: con ~30
+# índices el cold start de Render se encarecia. Guardamos la versión aplicada
+# en una colección chica y en arranques sucesivos no consultamos nada.
+INDEX_SCHEMA_VERSION = 2
+
+
+def _index_specs():
+    specs = [
+        ('productos', [('nombre', 'text'), ('categoria', 'text')], {'name': 'busqueda_global_text'}),
+        ('productos', [('categoria', 1), ('nombre', 1)], {}),
+        ('productos', [('is_public', 1)], {}),
+        ('productos', [('is_featured', 1)], {}),
+        ('ventas', [('fecha', -1)], {}),
+        ('ventas', [('cliente_id', 1)], {}),
+        ('ventas', [('fecha', -1), ('total', 1)], {}),
+        ('ventas', [('usuario_id', 1), ('fecha', -1)], {}),
+        ('movimientos', [('cliente_id', 1)], {}),
+        ('movimientos', [('fecha', 1)], {}),
+        ('movimientos', [('cliente_id', 1), ('fecha', -1)], {}),
+        ('movimientos', [('proveedor_id', 1), ('fecha', -1)], {}),
+        ('egresos', [('fecha', 1)], {}),
+        ('egresos', [('categoria', 1)], {}),
+        ('auditoria', [('fecha', 1)], {'name': 'fecha_ttl_index', 'expireAfterSeconds': 2592000}),
+        ('usuarios', [('username', 1)], {'unique': True}),
+        ('clientes', [('dni', 1)], {'unique': True, 'sparse': True}),
+        ('chat_mensajes', [('user_id', 1), ('fecha', 1)], {}),
+        ('configuracion', [('tipo', 1)], {}),
+        ('login_registros', [('fecha', -1)], {}),
+        ('notificaciones', [('leida', 1)], {}),
+    ]
+    # Estos campos `id` (string generado en la app) se usan en casi todos los
+    # filtros y antes no tenían índice. No los marcamos como únicos porque en
+    # datos viejos podría haber duplicados.
+    for collection in (
+        'productos', 'clientes', 'ventas', 'usuarios', 'proveedores',
+        'egresos', 'presupuestos', 'configuracion', 'sticky_notes',
+    ):
+        specs.append((collection, [('id', 1)], {}))
+    return specs
+
+
 async def create_indexes():
-    """Crear índices para optimizar rendimiento"""
-    
-    # Productos: eliminar índice conflictivo
+    """Aplica los índices una sola vez por base (o los omite con SKIP_INDEX_CREATION)."""
+    if os.environ.get('SKIP_INDEX_CREATION', 'false').lower() == 'true':
+        print('Índices: omitidos (SKIP_INDEX_CREATION)')
+        return
+
+    marker = None
     try:
-        await db.productos.drop_index("nombre_text")
-        print("Índice nombre_text eliminado de productos")
-    except Exception:
-        pass
-    
-    try:
-        await db.productos.drop_index("nombre_text_categoria_text")
-        print("Índice nombre_text_categoria_text eliminado de productos")
-    except Exception:
-        pass
-    
-    # Verificar estado de índices
-    try:
-        auditoria_indexes = await db.auditoria.index_information()
-        print(f"Índices actuales de auditoria: {list(auditoria_indexes.keys())}")
+        marker = await db.schema_meta.find_one({'_id': 'indexes'})
     except Exception as e:
-        print(f"Error verificando índices: {e}")
-    
-    # PRODUCTOS
+        print(f'No se pudo leer la versión de índices, continuando: {e}')
+
+    if marker and marker.get('version', 0) >= INDEX_SCHEMA_VERSION:
+        print(f'Índices ya aplicados (v{INDEX_SCHEMA_VERSION})')
+        return
+
+    # Limpieza única de los text-index viejos: MongoDB permite solo uno por
+    # colección y antes se hacía en cada arranque.
+    for legacy in ('nombre_text', 'nombre_text_categoria_text'):
+        try:
+            await db.productos.drop_index(legacy)
+            print(f'Índice legacy {legacy} eliminado')
+        except Exception:
+            pass
+
+    creados = 0
+    errores = 0
+    for collection, keys, kwargs in _index_specs():
+        try:
+            await db[collection].create_index(keys, **kwargs)
+            creados += 1
+        except Exception as e:
+            errores += 1
+            print(f'Error creando índice en {collection} {keys}: {e}')
+
     try:
-        await db.productos.create_index(
-            [("nombre", "text"), ("categoria", "text")],
-            name="busqueda_global_text"
-        )
-        print("Índice busqueda_global_text creado en productos")
-    except Exception as e:
-        print(f"Error creando índice de texto en productos: {e}")
-    
-    try:
-        await db.productos.create_index([("categoria", 1), ("nombre", 1)])
-    except Exception as e:
-        print(f"Error creando índice compuesto en productos: {e}")
-    
-    # VENTAS
-    try:
-        await db.ventas.create_index([("fecha", -1)])
-    except Exception as e:
-        print(f"Error creando índice en ventas.fecha: {e}")
-    
-    try:
-        await db.ventas.create_index("cliente_id")
-    except Exception as e:
-        print(f"Error creando índice en ventas.cliente_id: {e}")
-    
-    try:
-        await db.ventas.create_index([("fecha", -1), ("total", 1)])
-    except Exception as e:
-        print(f"Error creando índice compuesto en ventas: {e}")
-    
-    # MOVIMIENTOS
-    try:
-        await db.movimientos.create_index("cliente_id")
-    except Exception as e:
-        print(f"Error creando índice en movimientos.cliente_id: {e}")
-    
-    try:
-        await db.movimientos.create_index("fecha")
-    except Exception as e:
-        print(f"Error creando índice en movimientos.fecha: {e}")
-    
-    try:
-        await db.movimientos.create_index([("cliente_id", 1), ("fecha", -1)])
-    except Exception as e:
-        print(f"Error creando índice compuesto en movimientos: {e}")
-    
-    # EGRESOS
-    try:
-        await db.egresos.create_index("fecha")
-    except Exception as e:
-        print(f"Error creando índice en egresos.fecha: {e}")
-    
-    try:
-        await db.egresos.create_index("categoria")
-    except Exception as e:
-        print(f"Error creando índice en egresos.categoria: {e}")
-    
-    # AUDITORIA - Recrear con nombre único para evitar conflictos
-    try:
-        await db.auditoria.create_index(
-            [("fecha", 1)],
-            name="fecha_ttl_index",
-            expireAfterSeconds=2592000
+        await db.schema_meta.update_one(
+            {'_id': 'indexes'},
+            {'$set': {
+                'version': INDEX_SCHEMA_VERSION,
+                'updated_at': datetime.now(timezone.utc).isoformat(),
+            }},
+            upsert=True,
         )
     except Exception as e:
-        print(f"Error creando índice TTL en auditoria: {e}")
-    
-    # USUARIOS
-    try:
-        await db.usuarios.create_index("username", unique=True)
-    except Exception as e:
-        print(f"Error creando índice único en usuarios.username: {e}")
-    
-    # CLIENTES - Índice único para DNI
-    try:
-        await db.clientes.create_index("dni", unique=True, sparse=True)
-    except Exception as e:
-        print(f"Error creando índice único en clientes.dni: {e}")
-    
+        print(f'No se pudo guardar la versión de índices: {e}')
 
-    # CHAT - historial por usuario
-    try:
-        await db.chat_mensajes.create_index([("user_id", 1), ("fecha", 1)])
-    except Exception as e:
-        print(f"Error creando índice en chat_mensajes: {e}")
-
-    # Confirmación de creación de índices
-    print("=" * 50)
-    print("ÍNDICES CREADOS:")
-    print("  ✓ Ventas (fecha, cliente_id, compuesto)")
-    print("  ✓ Movimientos (cliente_id, fecha, compuesto)")
-    print("  ✓ Egresos (fecha, categoria)")
-    print("  ✓ Auditoría (TTL)")
-    print("  ✓ Usuarios (username único)")
-    print("  ✓ Productos (texto, compuesto)")
-    print("  ✓ Clientes (dni único)")
-    print("=" * 50)
+    print(f'Índices v{INDEX_SCHEMA_VERSION}: {creados} creados/verificados, {errores} errores')
 
 @app.on_event("startup")
 async def startup_event():

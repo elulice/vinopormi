@@ -1,0 +1,104 @@
+name: Backup MongoDB (diario)
+
+# M0 de Atlas no tiene backups administrados. Este workflow hace mongodump
+# cifrado y lo sube a storage S3-compatible (S3, R2, B2, etc.).
+on:
+  schedule:
+    - cron: '0 3 * * *'   # 03:00 UTC = 00:00 ART
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  MONGODB_TOOLS_VERSION: '100.9.4'
+
+jobs:
+  backup:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - name: Instalar MongoDB Database Tools y AWS CLI
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/mongodb-tools.tgz \
+            "https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2204-x86_64-${MONGODB_TOOLS_VERSION}.tgz"
+          tar -xzf /tmp/mongodb-tools.tgz -C /tmp
+          echo "/tmp/mongodb-database-tools-ubuntu2204-x86_64-${MONGODB_TOOLS_VERSION}/bin" >> "$GITHUB_PATH"
+          if ! aws --version >/dev/null 2>&1; then pip install --quiet awscli; fi
+          mongodump --version
+
+      - name: Validar configuracion
+        env:
+          MONGO_URL: ${{ secrets.MONGO_URL }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.BACKUP_S3_REGION }}
+          S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
+        run: |
+          for var in MONGO_URL DB_NAME BACKUP_PASSPHRASE AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY S3_BUCKET; do
+            if [ -z "${!var:-}" ]; then echo "Falta configurar el secret/variable: $var"; exit 1; fi
+          done
+
+      - name: Dump, cifrado y checksum
+        env:
+          MONGO_URL: ${{ secrets.MONGO_URL }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+          RETENTION_DAYS: ${{ vars.BACKUP_RETENTION_DAYS || '14' }}
+        run: |
+          set -euo pipefail
+          FECHA=$(date -u +%Y%m%dT%H%M%SZ)
+          ARCHIVE="backup-${DB_NAME}-${FECHA}.archive.gz"
+          mongodump --uri "$MONGO_URL" --db "$DB_NAME" --gzip --archive="$ARCHIVE"
+          test -s "$ARCHIVE"
+          openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt \
+            -in "$ARCHIVE" -out "${ARCHIVE}.enc" -pass env:BACKUP_PASSPHRASE
+          rm -f "$ARCHIVE"
+          sha256sum "${ARCHIVE}.enc" > "${ARCHIVE}.enc.sha256"
+          echo "ARCHIVE=${ARCHIVE}.enc" >> "$GITHUB_ENV"
+          echo "PREFIX=vinopormi/${DB_NAME}" >> "$GITHUB_ENV"
+          echo "FECHA=${FECHA}" >> "$GITHUB_ENV"
+          echo "CORTE=$(date -u -d "-${RETENTION_DAYS} days" +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+          ls -lh "${ARCHIVE}.enc"
+
+      - name: Subir a storage y aplicar retencion
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.BACKUP_S3_REGION }}
+          S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
+          S3_ENDPOINT: ${{ secrets.BACKUP_S3_ENDPOINT }}
+        run: |
+          set -euo pipefail
+          AWS_ARGS=()
+          if [ -n "${S3_ENDPOINT:-}" ]; then AWS_ARGS+=(--endpoint-url "$S3_ENDPOINT"); fi
+
+          aws s3 cp "$ARCHIVE" "s3://${S3_BUCKET}/${PREFIX}/${ARCHIVE}" "${AWS_ARGS[@]}"
+          aws s3 cp "${ARCHIVE}.sha256" "s3://${S3_BUCKET}/${PREFIX}/${ARCHIVE}.sha256" "${AWS_ARGS[@]}"
+          aws s3 ls "s3://${S3_BUCKET}/${PREFIX}/${ARCHIVE}" "${AWS_ARGS[@]}"
+
+          # Borramos solo backups viejos de este comercio, nunca de otros.
+          aws s3api list-objects-v2 \
+            --bucket "$S3_BUCKET" --prefix "${PREFIX}/" --max-items 1000 \
+            --query 'Contents[].[Key,LastModified]' --output tsv "${AWS_ARGS[@]}" |
+          while IFS=$'\t' read -r key fecha; do
+            [ -z "$key" ] && continue
+            if [[ "$fecha" < "$CORTE" ]]; then
+              echo "Eliminando backup vencido: $key"
+              aws s3api delete-object --bucket "$S3_BUCKET" --key "$key" "${AWS_ARGS[@]}"
+            fi
+          done
+
+      - name: Aviso de fallo (opcional)
+        if: failure()
+        env:
+          WEBHOOK: ${{ secrets.BACKUP_ALERT_WEBHOOK }}
+        run: |
+          if [ -n "${WEBHOOK:-}" ]; then
+            curl -fsS -X POST -H 'Content-Type: application/json' \
+              -d "{\"text\":\"Backup VPM fallo: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}\"}" \
+              "$WEBHOOK" || true
+          fi
