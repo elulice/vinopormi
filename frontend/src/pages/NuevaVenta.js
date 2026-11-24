@@ -3,19 +3,58 @@ import { useConfig } from '@/context/ConfigContext';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import CurrencyInput from '@/components/CurrencyInput';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, ShoppingCart, RefreshCw, X, Split } from 'lucide-react';
+import { Plus, Trash2, ShoppingCart, X, Split } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency, formatNumber } from '@/lib/currency';
 import { capitalizeWords } from '@/lib/utils';
 import { API } from '@/lib/config';
 import ProductSearch from '@/components/ProductSearch';
 import { apiGet, apiPost } from '@/lib/api';
+import { useDataRefresh } from '@/lib/dataEvents';
 import { actualizarCacheProductos, actualizarCacheClientes, obtenerTodosProductos, obtenerTodosClientes, guardarVentaOffline } from '@/db/offlineDB';
 
 const DRAFT_KEY = 'nuevaVentaDraft';
+
+// Precio de lista y precio final con descuento por cantidad. Se usan tanto al
+// elegir/cambiar un producto como cuando el bus avisa que cambió su precio.
+const precioLista = (producto) => Number(producto?.precio_unitario) || 0;
+
+const precioAplicado = (producto, cantidad) => {
+  if (
+    producto?.descuento_cantidad_minima &&
+    producto?.descuento_precio_unitario &&
+    Number(cantidad) >= Number(producto.descuento_cantidad_minima)
+  ) {
+    return Number(producto.descuento_precio_unitario);
+  }
+  return precioLista(producto);
+};
+
+const recalcularDetalles = (detalles, listaProductos) => detalles.map((detalle) => {
+  if (!detalle.producto_id) return detalle;
+  const producto = listaProductos.find((p) => p.id === detalle.producto_id);
+  if (!producto) return detalle;
+
+  const precioUnitario = precioLista(producto);
+  const subtotal = precioAplicado(producto, detalle.cantidad) * detalle.cantidad;
+  if (
+    detalle.precio_unitario === precioUnitario &&
+    detalle.subtotal === subtotal &&
+    detalle.producto_nombre === producto.nombre
+  ) {
+    return detalle;
+  }
+  return {
+    ...detalle,
+    producto_nombre: producto.nombre,
+    precio_unitario: precioUnitario,
+    subtotal
+  };
+});
 
 const getEmptyDetalle = () => ({
   producto_id: '',
@@ -63,7 +102,6 @@ const NuevaVenta = () => {
     return [getEmptyDetalle()];
   });
   const [loading, setLoading] = useState(false);
-  const [refreshingProductos, setRefreshingProductos] = useState(false);
 
   // Estado para múltiples pagos
   const [pagos, setPagos] = useState(() => {
@@ -112,10 +150,17 @@ const NuevaVenta = () => {
     return () => clearTimeout(timer);
   }, [productos]);
 
+  // Cuando llega un producto nuevo (precio, nombre o descuento), se refleja
+  // también en los renglones que ya estaban cargados en la venta.
+  const aplicarPreciosProductos = useCallback((listaProductos) => {
+    setDetalles((prev) => recalcularDetalles(prev, listaProductos));
+  }, []);
+
   const fetchProductos = useCallback(async () => {
     try {
       const res = await apiGet(`${API}/productos-paginados?limit=1000`);
       setProductos(res.data.productos);
+      aplicarPreciosProductos(res.data.productos);
       try {
         await actualizarCacheProductos(res.data.productos);
       } catch (cacheError) {
@@ -125,6 +170,7 @@ const NuevaVenta = () => {
       const cachedProductos = await obtenerTodosProductos();
       if (cachedProductos.length > 0) {
         setProductos(cachedProductos);
+        aplicarPreciosProductos(cachedProductos);
         toast.warning('Modo Offline: Mostrando precios en caché');
       } else {
         toast.error('Error al cargar productos');
@@ -132,21 +178,7 @@ const NuevaVenta = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  const refreshProductos = async () => {
-    setRefreshingProductos(true);
-    try {
-      const res = await apiGet(`${API}/productos-paginados?limit=1000`);
-      setProductos(res.data.productos);
-      await actualizarCacheProductos(res.data.productos);
-      toast.success('Lista de productos actualizada');
-    } catch (error) {
-      toast.error('Error al actualizar productos');
-    } finally {
-      setRefreshingProductos(false);
-    }
-  };
+  }, [aplicarPreciosProductos]);
 
   const fetchClientes = useCallback(async () => {
     try {
@@ -167,6 +199,11 @@ const NuevaVenta = () => {
     fetchProductos();
     fetchClientes();
   }, [fetchClientes, fetchProductos]);
+
+  // El bus avisa cuando cambian precios/stock de productos o los clientes.
+  // Ya no hace falta el botón "Actualizar": todo se refresca solo.
+  useDataRefresh(['productos'], fetchProductos);
+  useDataRefresh(['clientes'], fetchClientes);
 
   // Calcular total de la venta
   const calcularTotal = useCallback(() => {
@@ -441,34 +478,21 @@ const NuevaVenta = () => {
       
       const producto = productos.find(p => p.id === value);
       if (producto) {
+        const cantidad = nuevosDetalles[index].cantidad;
         nuevosDetalles[index].producto_id = producto.id;
         nuevosDetalles[index].producto_nombre = producto.nombre;
-        nuevosDetalles[index].precio_unitario = producto.precio_unitario;
-        
-        // Aplicar descuento por cantidad si corresponde
-        let precioUnitario = producto.precio_unitario;
-        if (producto.descuento_cantidad_minima && producto.descuento_precio_unitario) {
-          if (nuevosDetalles[index].cantidad >= producto.descuento_cantidad_minima) {
-            precioUnitario = producto.descuento_precio_unitario;
-          }
-        }
-        
-        nuevosDetalles[index].subtotal = precioUnitario * nuevosDetalles[index].cantidad;
+        nuevosDetalles[index].precio_unitario = precioLista(producto);
+        nuevosDetalles[index].subtotal = precioAplicado(producto, cantidad) * cantidad;
       }
     } else if (field === 'cantidad') {
       const cantidad = Math.max(1, parseInt(value) || 1);
       nuevosDetalles[index].cantidad = cantidad;
-      
-      // Aplicar descuento por cantidad si corresponde
+
       const producto = productos.find(p => p.id === nuevosDetalles[index].producto_id);
-      let precioUnitario = nuevosDetalles[index].precio_unitario;
-      
-      if (producto && producto.descuento_cantidad_minima && producto.descuento_precio_unitario) {
-        if (cantidad >= producto.descuento_cantidad_minima) {
-          precioUnitario = producto.descuento_precio_unitario;
-        }
-      }
-      
+      const precioUnitario = producto
+        ? precioAplicado(producto, cantidad)
+        : nuevosDetalles[index].precio_unitario;
+
       nuevosDetalles[index].subtotal = precioUnitario * cantidad;
     }
     
@@ -521,20 +545,16 @@ const NuevaVenta = () => {
       cliente_id: tieneCuentaCorriente ? clienteId : null,
       detalles: productosValidos.map(d => {
         const producto = productos.find(p => p.id === d.producto_id);
-        let precioUnitarioAplicado = d.precio_unitario;
-        
-        if (producto && producto.descuento_cantidad_minima && producto.descuento_precio_unitario) {
-          if (d.cantidad >= producto.descuento_cantidad_minima) {
-            precioUnitarioAplicado = producto.descuento_precio_unitario;
-          }
-        }
-        
+        const precioUnitarioAplicado = producto
+          ? precioAplicado(producto, d.cantidad)
+          : d.precio_unitario;
+
         return {
           producto_id: d.producto_id,
           producto_nombre: d.producto_nombre,
           cantidad: d.cantidad,
           precio_unitario: precioUnitarioAplicado,
-          subtotal: d.subtotal
+          subtotal: precioUnitarioAplicado * d.cantidad
         };
       }),
       ajuste_monto: ajusteMonto === '' || ajusteMonto === null ? 0 : parseFloat(ajusteMonto),
@@ -620,23 +640,13 @@ const NuevaVenta = () => {
                       </SelectContent>
                     </Select>
                       <div className="relative flex-1">
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">$</span>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          placeholder="0"
+                        <CurrencyInput
+                          allowNegative={false}
+                          placeholder="$ 0,00"
                           value={pagos[0].monto}
-                          onChange={(e) => actualizarPagoMonto(0, e.target.value)}
-                          onKeyDown={(e) => {
-                            // Permitir: teclas de control, números, punto decimal
-                            const permitidas = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'];
-                            if (permitidas.includes(e.key)) return;
-                            if (/^[0-9.]$/.test(e.key)) return;
-                            e.preventDefault();
-                          }}
+                          onChange={(valor) => actualizarPagoMonto(0, valor)}
                           readOnly={!multiplesPagos}
-                          className={`h-8 pl-5 pr-7 text-xs [-moz-appearance:_textfield] [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none ${!multiplesPagos ? 'bg-muted/30' : 'bg-background border-input'}`}
+                          className={`h-8 pr-7 text-xs ${!multiplesPagos ? 'bg-muted/30' : 'bg-background border-input'}`}
                         />
                         {multiplesPagos && (pagos[0].monto || pagos[0].monto === 0) && pagos[0].monto !== '' && (
                           <button
@@ -671,22 +681,12 @@ const NuevaVenta = () => {
                         </SelectContent>
                       </Select>
                       <div className="relative flex-1">
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">$</span>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          placeholder="0"
+                        <CurrencyInput
+                          allowNegative={false}
+                          placeholder="$ 0,00"
                           value={pagos[1].monto}
-                          onChange={(e) => actualizarPagoMonto(1, e.target.value)}
-                          onKeyDown={(e) => {
-                            // Permitir: teclas de control, números, punto decimal
-                            const permitidas = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'];
-                            if (permitidas.includes(e.key)) return;
-                            if (/^[0-9.]$/.test(e.key)) return;
-                            e.preventDefault();
-                          }}
-                          className="h-8 pl-5 pr-7 text-xs [-moz-appearance:_textfield] [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none"
+                          onChange={(valor) => actualizarPagoMonto(1, valor)}
+                          className="h-8 pr-7 text-xs"
                         />
                         {(pagos[1].monto || pagos[1].monto === 0) && pagos[1].monto !== '' && (
                           <button
@@ -740,17 +740,6 @@ const NuevaVenta = () => {
             <div className="flex justify-between items-center">
               <CardTitle className="text-base">Productos</CardTitle>
               <div className="flex gap-2">
-                <Button 
-                  type="button" 
-                  onClick={refreshProductos} 
-                  size="sm" 
-                  variant="outline"
-                  className="h-7 text-xs"
-                  disabled={refreshingProductos}
-                >
-                  <RefreshCw className={`w-3 h-3 mr-1 ${refreshingProductos ? 'animate-spin' : ''}`} />
-                  {refreshingProductos ? 'Actualizando...' : 'Actualizar'}
-                </Button>
                 <Button type="button" onClick={agregarDetalle} size="sm" className="h-7 text-xs" data-testid="add-detalle-button">
                   <Plus className="w-3 h-3 mr-1" />
                   Agregar
@@ -825,12 +814,13 @@ const NuevaVenta = () => {
                           </div>
                         </div>
                         <div className="w-16">
-                          <Input
+                          <CurrencyInput
                             ref={el => cantidadRefs.current[index] = el}
-                            type="number"
-                            min="1"
+                            currency={false}
+                            showCents={false}
+                            allowNegative={false}
                             value={detalle.cantidad}
-                            onChange={(e) => actualizarDetalle(index, 'cantidad', e.target.value)}
+                            onChange={(valor) => actualizarDetalle(index, 'cantidad', valor)}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') {
                                 e.preventDefault();
@@ -872,15 +862,12 @@ const NuevaVenta = () => {
                     Descuento/Recargo
                   </Label>
                   <div className="relative">
-                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">$</span>
-                    <Input
+                    <CurrencyInput
                       id="ajuste-monto"
-                      type="number"
-                      step="0.01"
-                      placeholder="0"
+                      placeholder="$ 0,00"
                       value={ajusteMonto}
-                      onChange={(e) => setAjusteMonto(e.target.value)}
-                      className={`h-7 pl-5 pr-6 text-xs [-moz-appearance:_textfield] [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none ${
+                      onChange={setAjusteMonto}
+                      className={`h-7 pr-6 text-xs ${
                         ajusteMonto && parseFloat(ajusteMonto) < 0 ? 'border-green-500 text-green-600' : 
                         ajusteMonto && parseFloat(ajusteMonto) > 0 ? 'border-red-500 text-red-600' : ''
                       }`}
@@ -930,15 +917,12 @@ const NuevaVenta = () => {
                 <div className="flex-1 w-full">
                   <Label className="text-xs text-blue-700 dark:text-blue-300 mb-1 block">Paga con</Label>
                   <div className="relative">
-                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-blue-600 dark:text-blue-400 font-semibold text-xs">$</span>
-                    <Input
-                      type="number"
-                      step="100"
-                      min="0"
-                      placeholder="0"
+                    <CurrencyInput
+                      allowNegative={false}
+                      placeholder="$ 0,00"
                       value={pagaCon}
-                      onChange={(e) => setPagaCon(e.target.value)}
-                      className="h-7 pl-5 pr-6 text-sm font-semibold border-blue-300 focus:border-blue-500 bg-white dark:bg-background dark:border-blue-500/60 [-moz-appearance:_textfield] [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none"
+                      onChange={setPagaCon}
+                      className="h-7 pr-6 text-sm font-semibold border-blue-300 focus:border-blue-500 bg-white dark:bg-background dark:border-blue-500/60"
                     />
                   </div>
                 </div>

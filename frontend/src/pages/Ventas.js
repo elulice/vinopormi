@@ -12,7 +12,6 @@ import { toast } from 'sonner';
 import { format, isWithinInterval, parseISO, startOfDay, endOfDay, isToday, isYesterday } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { formatCurrency, formatNumber } from '@/lib/currency';
-import ResponsiveTable from '@/components/ResponsiveTable';
 import MobileCard from '@/components/MobileCard';
 import { SkeletonTable } from '@/components/Skeleton';
 import { API } from '@/lib/config';
@@ -20,6 +19,34 @@ import { apiGet } from '@/lib/api';
 import { useDataRefresh } from '@/lib/dataEvents';
 import { downloadVentaAsImage, downloadVentaAsPDF } from '@/lib/downloadUtils';
 import DetalleVentaContent from '@/components/DetalleVentaCard';
+
+// La vista agrupada muestra días, no ventas: conviene pedir pocos por página.
+// Las ventas de un día se cargan solo cuando ese día se expande.
+const LIMIT_POR_MODO = { individual: 100, grouped: 20 };
+const GROUP_DETAIL_LIMIT = 50;
+const getModeLimit = (modo) => LIMIT_POR_MODO[modo] ?? LIMIT_POR_MODO.individual;
+
+const buildVentasParams = ({ page, limit, modo, filtros, fechaGrupo = null }) => {
+  const params = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+    // Con fecha_grupo pedimos las ventas del día, no los grupos.
+    agrupar_por_dia: fechaGrupo ? 'false' : (modo === 'grouped' ? 'true' : 'false')
+  });
+  if (fechaGrupo) params.append('fecha_grupo', fechaGrupo);
+
+  if (filtros.dateType === 'specific' && filtros.specificDate) {
+    params.append('fecha_inicio', filtros.specificDate);
+    params.append('fecha_fin', filtros.specificDate);
+  } else if (filtros.dateType === 'range' && filtros.startDate && filtros.endDate) {
+    params.append('fecha_inicio', filtros.startDate);
+    params.append('fecha_fin', filtros.endDate);
+  }
+  if (filtros.medioPago !== 'all') params.append('metodo_pago', filtros.medioPago);
+  if (filtros.usuario !== 'all') params.append('usuario_id', filtros.usuario);
+
+  return params;
+};
 
 // Componente de virtual scrolling manual
 const VirtualTable = ({ items, itemHeight, containerHeight, renderItem, headers }) => {
@@ -44,7 +71,7 @@ const VirtualTable = ({ items, itemHeight, containerHeight, renderItem, headers 
     <div className="border rounded-md overflow-hidden">
       {/* Header fijo */}
       <div className="bg-muted sticky top-0 z-10">
-        <div className="grid grid-cols-7 gap-2 p-2 text-xs font-semibold">
+        <div className="grid grid-cols-6 gap-2 p-2 text-xs font-semibold">
           {headers.map((header, index) => (
             <div key={index} className={`${header.width}`}>
               {header.title}
@@ -80,6 +107,95 @@ const VirtualTable = ({ items, itemHeight, containerHeight, renderItem, headers 
   );
 };
 
+// Componente de paginación (fuera del componente para no remontarlo en cada render)
+const PaginationComponent = ({ currentPage, totalPages, onPageChange, itemsPerPage, onItemsPerPageChange, totalItems, pageSizeOptions = [100, 250, 500] }) => {
+  if (totalPages <= 1) return null;
+
+  const getVisiblePages = () => {
+    const delta = 2;
+    const range = [];
+    const rangeWithDots = [];
+    let l;
+
+    for (let i = 1; i <= totalPages; i++) {
+      if (i === 1 || i === totalPages || (i >= currentPage - delta && i <= currentPage + delta)) {
+        range.push(i);
+      }
+    }
+
+    range.forEach((i) => {
+      if (l) {
+        if (i - l === 2) {
+          rangeWithDots.push(l + 1);
+        } else if (i - l !== 1) {
+          rangeWithDots.push('...');
+        }
+      }
+      rangeWithDots.push(i);
+      l = i;
+    });
+
+    return rangeWithDots;
+  };
+
+  return (
+    <Card className="py-2">
+      <CardContent className="p-0">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-2 sm:px-4 py-3 sm:py-4">
+          <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground order-2 sm:order-1">
+            <span>{(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, totalItems)} de {totalItems}</span>
+            <Select
+              value={itemsPerPage.toString()}
+              onValueChange={(value) => onItemsPerPageChange(Number(value))}
+            >
+              <SelectTrigger className="w-16 h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {pageSizeOptions.map((size) => (
+                  <SelectItem key={size} value={String(size)}>{size}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center justify-center space-x-1 sm:space-x-2 order-1 sm:order-2">
+            <Button variant="outline" size="icon" onClick={() => onPageChange(1)} disabled={currentPage === 1} className="h-8 w-8">
+              <ChevronsLeft className="w-4 h-4" />
+            </Button>
+            <Button variant="outline" size="icon" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1} className="h-8 w-8">
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <div className="flex items-center space-x-1">
+              {getVisiblePages().map((page, index) => (
+                page === '...' ? (
+                  <span key={`dots-${index}`} className="px-1 text-muted-foreground">...</span>
+                ) : (
+                  <Button
+                    key={page}
+                    variant={currentPage === page ? 'default' : 'outline'}
+                    size="icon"
+                    onClick={() => onPageChange(page)}
+                    className="h-8 w-8"
+                  >
+                    {page}
+                  </Button>
+                )
+              ))}
+            </div>
+            <Button variant="outline" size="icon" onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages} className="h-8 w-8">
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+            <Button variant="outline" size="icon" onClick={() => onPageChange(totalPages)} disabled={currentPage === totalPages} className="h-8 w-8">
+              <ChevronsRight className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 const Ventas = () => {
   const { showCents } = useConfig();
   const [searchParams] = useSearchParams();
@@ -96,7 +212,7 @@ const Ventas = () => {
   
   const [pagination, setPagination] = useState({
     page: 1,
-    limit: 100,
+    limit: getModeLimit('individual'),
     total: 0,
     pages: 0
   });
@@ -150,11 +266,15 @@ const Ventas = () => {
   viewModeRef.current = viewMode;
   // Resetear página cuando cambian los filtros o el modo de vista
   useEffect(() => {
-    setPagination(prev => ({ ...prev, page: 1, limit: viewMode === 'grouped' ? 500 : 100 }));
+    const limite = getModeLimit(viewMode);
+    setPagination(prev => ({ ...prev, page: 1, limit: limite }));
     setExpandedGroups(new Set());
+    expandedGroupsRef.current = new Set();
+    setGroupDetails({});
+    groupDetailsRef.current = {};
     setLoadingPage(true);
     const timer = setTimeout(() => {
-      fetchVentasRef.current?.(1, filters);
+      fetchVentasRef.current?.(1, { ...filters, limit: limite });
     }, 50);
     
     return () => clearTimeout(timer);
@@ -166,10 +286,27 @@ const Ventas = () => {
   });
 
   const [expandedGroups, setExpandedGroups] = useState(new Set());
+  const expandedGroupsRef = useRef(expandedGroups);
+  expandedGroupsRef.current = expandedGroups;
+  // Detalle ya pedido por día. Se conserva al colapsar para reabrir sin refetch.
+  const [groupDetails, setGroupDetails] = useState({});
+  const groupDetailsRef = useRef(groupDetails);
+  groupDetailsRef.current = groupDetails;
+  const limitRef = useRef(pagination.limit);
+  limitRef.current = pagination.limit;
+  const filtersRef = useRef(filters);
+  filtersRef.current = filters;
 
   const fetchVentasRef = useRef();
+  const paginationRef = useRef(pagination.page);
+  paginationRef.current = pagination.page;
+  // Modo al que pertenecen los datos de `ventas`. Evita que el render del
+  // toggle procese ventas individuales como grupos (y viceversa) mientras
+  // llega la respuesta del modo nuevo.
+  const datosModoRef = useRef(viewMode);
 
   const fetchVentas = useCallback(async (page = 1, currentFilters = null) => {
+    const modo = viewModeRef.current;
     try {
       // Solo usar el loading de pantalla completa en la primera carga vacía
       if (page === 1 && ventas.length === 0) {
@@ -179,32 +316,16 @@ const Ventas = () => {
       }
 
       const filtros = currentFilters || filters;
-      const currentLimit = filtros.limit || (viewModeRef.current === 'grouped' ? 500 : 100);
-      
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: currentLimit.toString(),
-        agrupar_por_dia: viewModeRef.current === 'grouped' ? 'true' : 'false'
-      });
-      
-      if (filtros.dateType === 'specific' && filtros.specificDate) {
-        params.append('fecha_inicio', filtros.specificDate);
-        params.append('fecha_fin', filtros.specificDate);
-      } else if (filtros.dateType === 'range' && filtros.startDate && filtros.endDate) {
-        params.append('fecha_inicio', filtros.startDate);
-        params.append('fecha_fin', filtros.endDate);
-      }
-      
-      if (filtros.medioPago !== 'all') {
-        params.append('metodo_pago', filtros.medioPago);
-      }
-      
-      if (filtros.usuario !== 'all') {
-        params.append('usuario_id', filtros.usuario);
-      }
+      const currentLimit = filtros.limit || limitRef.current || getModeLimit(modo);
+      const params = buildVentasParams({ page, limit: currentLimit, modo, filtros });
 
       const res = await apiGet(`${API}/ventas?${params}`);
-      
+
+      // Si el usuario cambió de vista mientras respondía, esta respuesta ya
+      // no sirve: el efecto del toggle disparó el fetch del modo nuevo.
+      if (viewModeRef.current !== modo) return;
+
+      datosModoRef.current = modo;
       setVentas(res.data.ventas);
       setPagination(prev => ({
         ...prev,
@@ -226,6 +347,64 @@ const Ventas = () => {
 
   fetchVentasRef.current = fetchVentas;
 
+  // Una sola request por día, recién cuando el usuario lo expande. El detalle
+  // queda en memoria: al cerrar y volver a abrir no se vuelve a pedir.
+  const fetchGroupDetail = useCallback(async (dateKey, page = 1, append = false) => {
+    if (viewModeRef.current !== 'grouped' || !dateKey) return;
+    const filtrosUsados = filtersRef.current;
+    const actual = groupDetailsRef.current[dateKey];
+    if (!append && actual?.status === 'loaded' && actual.page >= 1) return;
+    if (append && actual?.loadingMore) return;
+
+    const actualizar = (parcial) => {
+      setGroupDetails((prev) => {
+        const base = prev[dateKey] || { ventas: [], page: 0, pages: 1, total: 0 };
+        const next = { ...prev, [dateKey]: { ...base, ...parcial } };
+        groupDetailsRef.current = next;
+        return next;
+      });
+    };
+
+    actualizar({ status: append ? 'loaded' : 'loading', loadingMore: append });
+
+    try {
+      const params = buildVentasParams({
+        page,
+        limit: GROUP_DETAIL_LIMIT,
+        modo: 'grouped',
+        filtros: filtrosUsados,
+        fechaGrupo: dateKey
+      });
+      const res = await apiGet(`${API}/ventas?${params}`);
+
+      // Si cambiaron los filtros o el modo mientras respondía, descartamos.
+      if (viewModeRef.current !== 'grouped' || filtersRef.current !== filtrosUsados) return;
+      const nuevasVentas = res.data.ventas || [];
+
+      setGroupDetails((prev) => {
+        const base = prev[dateKey] || { ventas: [], page: 0, pages: 1, total: 0 };
+        const next = {
+          ...prev,
+          [dateKey]: {
+            status: 'loaded',
+            loadingMore: false,
+            ventas: append ? [...(base.ventas || []), ...nuevasVentas] : nuevasVentas,
+            page: res.data.pagination?.page ?? page,
+            pages: res.data.pagination?.pages ?? 1,
+            total: res.data.pagination?.total ?? nuevasVentas.length
+          }
+        };
+        groupDetailsRef.current = next;
+        return next;
+      });
+    } catch (error) {
+      if (viewModeRef.current !== 'grouped' || filtersRef.current !== filtrosUsados) return;
+      console.error('Error al cargar ventas del grupo:', error);
+      toast.error('Error al cargar las ventas del día');
+      actualizar({ status: 'error', loadingMore: false });
+    }
+  }, []);
+
   const fetchUsuarios = useCallback(async () => {
     try {
       const response = await apiGet(`${API}/usuarios`);
@@ -241,8 +420,17 @@ const Ventas = () => {
   }, []);
 
   useDataRefresh(
-    ['ventas', 'dashboard', 'clientes'],
-    () => fetchVentasRef.current?.(1)
+    ['ventas'],
+    () => {
+      fetchVentasRef.current?.(paginationRef.current);
+      if (viewModeRef.current !== 'grouped') return;
+      // El bus avisó que cambiaron ventas: los detalles abiertos ya no sirven.
+      setGroupDetails({});
+      groupDetailsRef.current = {};
+      Array.from(expandedGroupsRef.current || []).forEach((fecha) => {
+        fetchGroupDetail(fecha, 1);
+      });
+    }
   );
 
   // Función segura para parsear fechas
@@ -260,8 +448,9 @@ const Ventas = () => {
     return ventas;
   }, [ventas]);
 
-  // Aplicar ordenamiento
+  // Aplicar ordenamiento solo en la vista individual
   const sortedVentas = useMemo(() => {
+    if (viewMode !== 'individual' || datosModoRef.current !== 'individual') return [];
     const sorted = [...filteredVentas];
     
     sorted.sort((a, b) => {
@@ -283,7 +472,7 @@ const Ventas = () => {
     });
     
     return sorted;
-  }, [filteredVentas, sortConfig]);
+  }, [filteredVentas, sortConfig, viewMode]);
 
   // Monto a mostrar/sumar: si hay filtro de medio activo, el backend manda
   // `monto_filtrado` (solo la porción cobrada con ese medio en ventas combinadas).
@@ -305,51 +494,44 @@ const Ventas = () => {
     }
   }, [safeParseDate]);
 
-  // Función para agrupar ventas por día
-  const groupVentasByDay = useCallback((ventasList) => {
-    const groups = {};
-    
-    ventasList.forEach(venta => {
-      const date = safeParseDate(venta.fecha);
-      const dateKey = format(date, 'yyyy-MM-dd');
-      
-      if (!groups[dateKey]) {
-        groups[dateKey] = {
-          date: dateKey,
-          dateLabel: getDateLabel(date),
-          fullDate: date,
-          ventas: [],
-          total: 0,
-          ganancia_neta: 0,
-          count: 0
-        };
-      }
-      
-      groups[dateKey].ventas.push(venta);
-      groups[dateKey].total += getMonto(venta);
-      groups[dateKey].ganancia_neta += venta.ganancia_neta || 0;
-      groups[dateKey].count += 1;
-    });
-    
-    // Ordenar grupos por fecha descendente
-    const sortedGroups = Object.values(groups).sort((a, b) => {
-      return b.fullDate - a.fullDate;
-    });
-    
-    // Ordenar ventas dentro de cada grupo por hora descendente
-    sortedGroups.forEach(group => {
-      group.ventas.sort((a, b) => {
-        return safeParseDate(b.fecha) - safeParseDate(a.fecha);
-      });
-    });
-    
-    return sortedGroups;
-  }, [getDateLabel, safeParseDate, getMonto]);
-
-  // Datos agrupados para vista agrupada
+  // El backend ya agrupa y totaliza por día: acá solo preparamos la etiqueta.
+  // Si por una respuesta en vuelo o un caché viejo llegan ventas individuales,
+  // se agrupan acá como red de seguridad (nunca parseISO con undefined).
   const groupedVentas = useMemo(() => {
-    return groupVentasByDay(ventas);
-  }, [groupVentasByDay, ventas]);
+    if (viewMode !== 'grouped' || datosModoRef.current !== 'grouped') return [];
+
+    let grupos = ventas;
+    const sonGrupos = ventas.every((v) => v && v.date !== undefined);
+
+    if (!sonGrupos) {
+      const porDia = {};
+      ventas.forEach((venta) => {
+        if (!venta?.fecha) return;
+        const fecha = safeParseDate(venta.fecha);
+        const date = format(fecha, 'yyyy-MM-dd');
+        if (!porDia[date]) {
+          porDia[date] = { date, total: 0, ganancia_neta: 0, count: 0, ventas: [] };
+        }
+        porDia[date].total += getMonto(venta) || 0;
+        porDia[date].ganancia_neta += venta.ganancia_neta || 0;
+        porDia[date].count += 1;
+        porDia[date].ventas.push(venta);
+      });
+      grupos = Object.values(porDia).sort((a, b) => b.date.localeCompare(a.date));
+      grupos.forEach((grupo) => {
+        grupo.ventas.sort((a, b) => safeParseDate(b.fecha) - safeParseDate(a.fecha));
+      });
+    }
+
+    return grupos.map((grupo) => {
+      const fullDate = safeParseDate(grupo.date);
+      return {
+        ...grupo,
+        fullDate,
+        dateLabel: getDateLabel(fullDate)
+      };
+    });
+  }, [ventas, viewMode, getDateLabel, safeParseDate, getMonto]);
 
   // Datos a mostrar según modo de vista
   const displayData = useMemo(() => {
@@ -371,127 +553,9 @@ const Ventas = () => {
     fetchVentasRef.current?.(1, { ...filters, limit: newLimit });
   };
 
-  // Componente de paginación
-  const PaginationComponent = ({ currentPage, totalPages, onPageChange, itemsPerPage, onItemsPerPageChange, totalItems }) => {
-    if (totalPages <= 1) return null;
-
-    const getVisiblePages = () => {
-      const delta = 2;
-      const range = [];
-      const rangeWithDots = [];
-      let l;
-
-      for (let i = 1; i <= totalPages; i++) {
-        if (i === 1 || i === totalPages || (i >= currentPage - delta && i <= currentPage + delta)) {
-          range.push(i);
-        }
-      }
-
-      range.forEach((i) => {
-        if (l) {
-          if (i - l === 2) {
-            rangeWithDots.push(l + 1);
-          } else if (i - l !== 1) {
-            rangeWithDots.push('...');
-          }
-        }
-        rangeWithDots.push(i);
-        l = i;
-      });
-
-      return rangeWithDots;
-    };
-
-    return (
-      <Card className="py-2">
-        <CardContent className="p-0">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-2 sm:px-4 py-3 sm:py-4">
-            <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground order-2 sm:order-1">
-              <span>{(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, totalItems)} de {totalItems}</span>
-              <Select
-                value={itemsPerPage.toString()}
-                onValueChange={(value) => onItemsPerPageChange(parseInt(value))}
-              >
-                <SelectTrigger className="w-16 h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="100">100</SelectItem>
-                  <SelectItem value="250">250</SelectItem>
-                  <SelectItem value="500">500</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          
-          <div className="flex items-center justify-center space-x-1 sm:space-x-2 order-1 sm:order-2">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => onPageChange(1)}
-              disabled={currentPage === 1}
-              className="h-8 w-8"
-            >
-              <ChevronsLeft className="w-4 h-4" />
-            </Button>
-            
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => onPageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="h-8 w-8"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            
-            <div className="flex items-center space-x-1">
-              {getVisiblePages().map((page, index) => (
-                page === '...' ? (
-                  <span key={`dots-${index}`} className="px-1 text-muted-foreground">
-                    ...
-                  </span>
-                ) : (
-                  <Button
-                    key={page}
-                    variant={currentPage === page ? "default" : "outline"}
-                    size="icon"
-                    onClick={() => onPageChange(page)}
-                    className="h-8 w-8"
-                  >
-                    {page}
-                  </Button>
-                )
-              ))}
-            </div>
-            
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => onPageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className="h-8 w-8"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-            
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => onPageChange(totalPages)}
-              disabled={currentPage === totalPages}
-              className="h-8 w-8"
-            >
-              <ChevronsRight className="w-4 h-4" />
-            </Button>
-          </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  };
-
   // Toggle expand/collapse de grupo
   const toggleGroup = (dateKey) => {
+    const seExpandira = !expandedGroupsRef.current.has(dateKey);
     setExpandedGroups(prev => {
       const newSet = new Set(prev);
       if (newSet.has(dateKey)) {
@@ -499,8 +563,12 @@ const Ventas = () => {
       } else {
         newSet.add(dateKey);
       }
+      expandedGroupsRef.current = newSet;
       return newSet;
     });
+    if (seExpandira && !groupDetailsRef.current[dateKey]) {
+      fetchGroupDetail(dateKey, 1);
+    }
   };
 
   const handleViewDetails = (venta) => {
@@ -563,14 +631,13 @@ const clearFilters = () => {
     },
     { title: 'Ganancia', width: 'col-span-1' },
     { title: 'Usuario', width: 'col-span-1' },
-    { title: 'Medio Pago', width: 'col-span-1' },
-    { title: 'Acciones', width: 'col-span-1' }
+    { title: 'Medio Pago', width: 'col-span-1' }
   ];
 
   // Renderizado de filas individuales
   const renderRow = (venta, index) => (
     <div
-      className={`grid grid-cols-7 gap-2 px-2 py-1 cursor-pointer hover:bg-muted/50 transition-colors border-b text-sm items-center ${
+      className={`grid grid-cols-6 gap-2 px-2 py-1 cursor-pointer hover:bg-muted/50 transition-colors border-b text-sm items-center ${
         index % 2 === 0 ? 'bg-background' : 'bg-muted/20'
       }`}
       onClick={() => handleViewDetails(venta)}
@@ -627,22 +694,146 @@ const clearFilters = () => {
           </div>
         )}
       </div>
-      <div className="col-span-1 flex items-center">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-6 text-xs"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleViewDetails(venta);
-          }}
-          data-testid={`view-details-${venta.id}`}
-        >
-          Ver
-        </Button>
-      </div>
     </div>
   );
+
+  // Detalle de un día: se muestra recién después de expandir. Comparte estado
+  // entre la fila desktop y la card mobile.
+  const renderDetalleGrupo = (group, { movil = false } = {}) => {
+    const detalle = groupDetails[group.date];
+
+    if (!detalle || detalle.status === 'loading') {
+      return (
+        <div className="bg-muted/30 border-t p-3 text-xs text-muted-foreground flex items-center gap-2">
+          <Loader2 className="w-3 h-3 animate-spin" />
+          Cargando ventas del día...
+        </div>
+      );
+    }
+
+    if (detalle.status === 'error') {
+      return (
+        <div className="bg-muted/30 border-t p-3 text-xs flex items-center justify-between gap-2">
+          <span className="text-destructive">No se pudieron cargar las ventas del día.</span>
+          <Button variant="outline" size="sm" className="h-6 text-xs" onClick={() => fetchGroupDetail(group.date, 1)}>
+            Reintentar
+          </Button>
+        </div>
+      );
+    }
+
+    const ventas = detalle.ventas || [];
+    if (ventas.length === 0) {
+      return (
+        <div className="bg-muted/30 border-t p-3 text-xs text-muted-foreground">
+          No hay ventas en este día.
+        </div>
+      );
+    }
+
+    return (
+      <div className="bg-muted/30 border-t">
+        {ventas.map((venta) => movil ? (
+          <div
+            key={venta.id}
+            className="p-2 border-b border-border/50 last:border-b-0 cursor-pointer hover:bg-muted/50 transition-colors"
+            onClick={() => handleViewDetails(venta)}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-1">
+                <div className="w-5 h-5 bg-primary/5 rounded flex items-center justify-center">
+                  <ShoppingCart className="w-2 h-2 text-primary" />
+                </div>
+                <span className="font-medium text-xs">#{venta.id.slice(0, 8)}</span>
+                <span className="text-xs text-muted-foreground">
+                  {format(safeParseDate(venta.fecha), 'HH:mm')}
+                </span>
+              </div>
+              <div className="text-right">
+                <span className="font-semibold text-primary text-xs">
+                  {formatCurrency(getMonto(venta), showCents)}
+                </span>
+                <span className={`ml-2 text-xs ${(venta.ganancia_neta || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCurrency(venta.ganancia_neta || 0, showCents)}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>{venta.usuario_nombre || 'User'}</span>
+              <span className="capitalize">{venta.medio_pago?.replace('_', ' ')}</span>
+            </div>
+          </div>
+        ) : (
+          <div
+            key={venta.id}
+            className="grid grid-cols-6 gap-2 p-2 cursor-pointer hover:bg-muted/50 transition-colors border-b border-border/50"
+            onClick={() => handleViewDetails(venta)}
+            style={{ paddingLeft: '1.5rem' }}
+          >
+            <div className="col-span-2">
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 bg-primary/5 rounded flex items-center justify-center">
+                  <ShoppingCart className="w-2 h-2 text-primary" />
+                </div>
+                <div>
+                  <div className="font-medium text-xs">#{venta.id.slice(0, 8)}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {format(safeParseDate(venta.fecha), 'HH:mm')}
+                  </div>
+                  {venta.cliente_nombre && (
+                    <div className="text-xs text-muted-foreground">{venta.cliente_nombre}</div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="col-span-1 flex items-center">
+              <div className="font-semibold text-primary text-xs">
+                {formatCurrency(getMonto(venta), showCents)}
+              </div>
+            </div>
+            <div className="col-span-1 flex items-center">
+              <div className={`font-semibold text-xs ${(venta.ganancia_neta || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {formatCurrency(venta.ganancia_neta || 0, showCents)}
+              </div>
+            </div>
+            <div className="col-span-1 text-xs text-muted-foreground flex items-center">
+              {venta.usuario_nombre || 'Usuario desconocido'}
+            </div>
+            <div className="col-span-1 flex items-center">
+              {venta.pagos && venta.pagos.length > 0 ? (
+                <div className="text-xs">
+                  {venta.pagos.map((pago, idx) => (
+                    <div key={idx} className="capitalize">
+                      {pago.medio_pago?.replace('_', ' ')}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-xs capitalize">{venta.medio_pago?.replace('_', ' ')}</span>
+              )}
+            </div>
+          </div>
+        ))}
+        {detalle.page < detalle.pages && (
+          <div className="p-2 flex justify-center border-t border-border/50">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs"
+              disabled={detalle.loadingMore}
+              onClick={() => fetchGroupDetail(group.date, detalle.page + 1, true)}
+            >
+              {detalle.loadingMore ? (
+                <><Loader2 className="w-3 h-3 mr-1 animate-spin" />Cargando...</>
+              ) : (
+                `Cargar más (${Math.max(0, detalle.total - ventas.length)} restantes)`
+              )}
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Renderizado de grupos para vista agrupada
   const renderGroupRow = (group, index) => {
@@ -652,7 +843,7 @@ const clearFilters = () => {
       <div key={group.date} className="border-b">
         {/* Fila del grupo */}
         <div
-          className={`grid grid-cols-7 gap-2 px-2 py-1 cursor-pointer hover:bg-muted/50 transition-colors text-sm items-center ${
+          className={`grid grid-cols-6 gap-2 px-2 py-1 cursor-pointer hover:bg-muted/50 transition-colors text-sm items-center ${
             index % 2 === 0 ? 'bg-background' : 'bg-muted/20'
           }`}
           onClick={() => toggleGroup(group.date)}
@@ -699,95 +890,16 @@ const clearFilters = () => {
               {formatCurrency(group.count > 0 ? group.total / group.count : 0, showCents)}
             </div>
           </div>
-          <div className="col-span-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 text-xs"
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleGroup(group.date);
-              }}
-            >
-              {isExpanded ? 'Ocultar' : 'Ver'}
-            </Button>
-          </div>
         </div>
         
-        {/* Ventas expandidas del grupo */}
-        {isExpanded && (
-          <div className="bg-muted/30 border-t">
-            {group.ventas.map((venta, ventaIndex) => (
-              <div
-                key={venta.id}
-                className="grid grid-cols-7 gap-2 p-2 cursor-pointer hover:bg-muted/50 transition-colors border-b border-border/50"
-                onClick={() => handleViewDetails(venta)}
-                style={{ paddingLeft: '1.5rem' }}
-              >
-                <div className="col-span-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-5 h-5 bg-primary/5 rounded flex items-center justify-center">
-                      <ShoppingCart className="w-2 h-2 text-primary" />
-                    </div>
-                    <div>
-                      <div className="font-medium text-xs">#{venta.id.slice(0, 8)}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {format(safeParseDate(venta.fecha), 'HH:mm')}
-                      </div>
-                      {venta.cliente_nombre && (
-                        <div className="text-xs text-muted-foreground">{venta.cliente_nombre}</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className="col-span-1 flex items-center">
-                  <div className="font-semibold text-primary text-xs">
-                    {formatCurrency(getMonto(venta), showCents)}
-                  </div>
-                </div>
-                <div className="col-span-1 flex items-center">
-                  <div className={`font-semibold text-xs ${(venta.ganancia_neta || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {formatCurrency(venta.ganancia_neta || 0, showCents)}
-                  </div>
-                </div>
-                <div className="col-span-1 text-xs text-muted-foreground flex items-center">
-                  {venta.usuario_nombre || 'Usuario desconocido'}
-                </div>
-                <div className="col-span-1 flex items-center">
-                  {venta.pagos && venta.pagos.length > 0 ? (
-                    <div className="text-xs">
-                      {venta.pagos.map((pago, idx) => (
-                        <div key={idx} className="capitalize">
-                          {pago.medio_pago?.replace('_', ' ')}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <span className="text-xs capitalize">{venta.medio_pago.replace('_', ' ')}</span>
-                  )}
-                </div>
-                <div className="col-span-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleViewDetails(venta);
-                    }}
-                  >
-                    Ver
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        {/* Ventas expandidas del grupo (se piden al abrir) */}
+        {isExpanded && renderDetalleGrupo(group)}
       </div>
     );
   };
 
   if (loading) {
-    return <SkeletonTable rows={8} columns={7} />;
+    return <SkeletonTable rows={8} columns={6} />;
   }
 
   const downloadAsImage = async () => {
@@ -823,24 +935,30 @@ const clearFilters = () => {
             </CardTitle>
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">Vista:</span>
-              <div className="flex bg-muted rounded-md p-0.5">
+              <div className="flex bg-muted rounded-md p-0.5" role="group" aria-label="Modo de vista de ventas">
                 <Button
+                  type="button"
                   variant={viewMode === 'individual' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setViewMode('individual')}
-                  className="h-6 text-xs px-2"
-                  title="Vista Individual"
+                  className="h-7 text-xs px-2 gap-1"
+                  aria-pressed={viewMode === 'individual'}
+                  title="Ver cada venta por separado"
                 >
-                  <List className="w-3 h-3" />
+                  <List className="w-3.5 h-3.5" />
+                  <span>Individual</span>
                 </Button>
                 <Button
+                  type="button"
                   variant={viewMode === 'grouped' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setViewMode('grouped')}
-                  className="h-6 text-xs px-2"
-                  title="Vista Agrupada"
+                  className="h-7 text-xs px-2 gap-1"
+                  aria-pressed={viewMode === 'grouped'}
+                  title="Agrupar ventas por día"
                 >
-                  <Layers className="w-3 h-3" />
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>Agrupada</span>
                 </Button>
               </div>
             </div>
@@ -1023,7 +1141,7 @@ const clearFilters = () => {
                 : filters.dateType === 'specific'
                   ? `Ventas del ${filters.specificDate ? format(parseISO(filters.specificDate), 'PPP', { locale: es }) : 'fecha seleccionada'}${totalPages > 1 ? ` (página ${pagination.page} de ${totalPages})` : ''}`
                   : `Ventas desde ${filters.startDate ? format(parseISO(filters.startDate), 'PPP', { locale: es }) : 'fecha inicio'} hasta ${filters.endDate ? format(parseISO(filters.endDate), 'PPP', { locale: es }) : 'fecha fin'}${totalPages > 1 ? ` (página ${pagination.page} de ${totalPages})` : ''}`)
-              : `Ventas agrupadas por día (${groupedVentas.length} día${groupedVentas.length !== 1 ? 's' : ''})${totalPages > 1 ? ` - página ${pagination.page} de ${totalPages}` : ''}`
+              : `Ventas agrupadas por día (${displayData.length} día${displayData.length !== 1 ? 's' : ''})${totalPages > 1 ? ` - página ${pagination.page} de ${totalPages}` : ''}`
             }
           </div>
           
@@ -1098,13 +1216,12 @@ const clearFilters = () => {
               <div className="hidden lg:block border rounded-md">
                 {/* Header fijo para vista agrupada */}
                 <div className="bg-muted sticky top-0 z-10">
-                  <div className="grid grid-cols-7 gap-2 p-2 text-xs font-semibold">
+                  <div className="grid grid-cols-6 gap-2 p-2 text-xs font-semibold">
                     <div className="col-span-2">Fecha</div>
                     <div className="col-span-1">Total Bruto</div>
                     <div className="col-span-1">Ganancia</div>
                     <div className="col-span-1">Cant.</div>
                     <div className="col-span-1">Promedio</div>
-                    <div className="col-span-1">Acción</div>
                   </div>
                 </div>
                 
@@ -1149,61 +1266,15 @@ const clearFilters = () => {
                           </div>
                         </div>
                         
-                        <div className="flex items-center justify-between text-xs">
+                        <div className="text-xs">
                           <span className="text-muted-foreground">
                             Prom: {formatCurrency(group.count > 0 ? group.total / group.count : 0, showCents)}
                           </span>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-6 text-xs px-2"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleGroup(group.date);
-                            }}
-                          >
-                            {isExpanded ? 'Ocultar' : 'Ver'}
-                          </Button>
                         </div>
                       </div>
                       
-                      {/* Ventas expandidas */}
-                      {isExpanded && (
-                        <div className="border-t bg-muted/20">
-                          {group.ventas.map((venta) => (
-                            <div
-                              key={venta.id}
-                              className="p-2 border-b border-border/50 last:border-b-0 cursor-pointer hover:bg-muted/50 transition-colors"
-                              onClick={() => handleViewDetails(venta)}
-                            >
-                              <div className="flex items-center justify-between mb-1">
-                                <div className="flex items-center gap-1">
-                                  <div className="w-5 h-5 bg-primary/5 rounded flex items-center justify-center">
-                                    <ShoppingCart className="w-2 h-2 text-primary" />
-                                  </div>
-                                  <span className="font-medium text-xs">#{venta.id.slice(0, 8)}</span>
-                                  <span className="text-xs text-muted-foreground">
-                                    {format(safeParseDate(venta.fecha), 'HH:mm')}
-                                  </span>
-                                </div>
-                                <div className="text-right">
-                                  <span className="font-semibold text-primary text-xs">
-                                    {formatCurrency(getMonto(venta), showCents)}
-                                  </span>
-                                  <span className={`ml-2 text-xs ${(venta.ganancia_neta || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                    {formatCurrency(venta.ganancia_neta || 0, showCents)}
-                                  </span>
-                                </div>
-                              </div>
-                              
-                              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                <span>{venta.usuario_nombre || 'User'}</span>
-                                <span className="capitalize">{venta.medio_pago.replace('_', ' ')}</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                      {/* Ventas expandidas (se piden al abrir) */}
+                      {isExpanded && renderDetalleGrupo(group, { movil: true })}
                     </div>
                   );
                 })}
@@ -1219,6 +1290,7 @@ const clearFilters = () => {
             itemsPerPage={pagination.limit}
             onItemsPerPageChange={handleItemsPerPageChange}
             totalItems={pagination.total}
+            pageSizeOptions={viewMode === 'grouped' ? [10, 20, 50] : [100, 250, 500]}
           />
         </div>
       ) : !loadingPage && ventas.length === 0 ? (
