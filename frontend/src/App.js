@@ -29,6 +29,7 @@ import AutoUpdater from "@/components/AutoUpdater";
 import { AuthProvider } from "@/context/AuthContext";
 import { ConfigProvider } from "@/context/ConfigContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import { FEATURES } from "@/lib/config";
 
 window.addEventListener("wheel", () => {
   if (document.activeElement && document.activeElement.type === "number") {
@@ -94,9 +95,13 @@ function App() {
             </AdminRoute>
           } />
           <Route path="/herramientas" element={
-            <AdminRoute>
-              <Herramientas />
-            </AdminRoute>
+            FEATURES.herramientas ? (
+              <AdminRoute>
+                <Herramientas />
+              </AdminRoute>
+            ) : (
+              <Navigate to="/configuracion" replace />
+            )
           } />
           <Route path="/mercadopago" element={
             <Mercadopago />

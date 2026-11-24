@@ -6,6 +6,9 @@ const AuthContext = createContext(null);
 
 import { API } from '@/lib/config';
 import { handleUnauthorized } from '@/lib/api';
+import { useDataRefresh } from '@/lib/dataEvents';
+
+const INACTIVITY_MS = 60 * 60 * 1000;
 
 // Mismo handler que la instancia de lib/api.js: cubre las llamadas que usan
 // axios directo (login, /auth/me, activity check, reauth silencioso).
@@ -18,8 +21,9 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
-  const [activityTimer, setActivityTimer] = useState(null);
   const [autoLogoutEnabled, setAutoLogoutEnabled] = useState(true);
+  const inactivityTimerRef = useRef(null);
+  const resetInactivityTimerRef = useRef(() => {});
 
   const clearAuthState = useCallback(() => {
     localStorage.removeItem('token');
@@ -28,41 +32,30 @@ export const AuthProvider = ({ children }) => {
     setToken(null);
     setUser(null);
     setAutoLogoutEnabled(false);
-    setActivityTimer(prevTimer => {
-      if (prevTimer) {
-        clearTimeout(prevTimer);
-      }
-      return null;
-    });
+    if (inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current);
+      inactivityTimerRef.current = null;
+    }
   }, []);
 
-  const updateActivityRef = useRef(() => {});
-  
-  useEffect(() => {
-    updateActivityRef.current = () => {
-      if (autoLogoutEnabled && token) {
-        setActivityTimer(prevTimer => {
-          if (prevTimer) {
-            clearTimeout(prevTimer);
-          }
-          
-          const timer = setTimeout(async () => {
-            try {
-              await axios.get(`${API}/auth/me`, {
-                headers: { Authorization: `Bearer ${token}` }
-              });
-            } catch (error) {
-              if (error.response?.status === 401) {
-                clearAuthState();
-              }
-            }
-          }, 30 * 1000);
-          
-          return timer;
-        });
-      }
-    };
+  // Cierre local por inactividad: NO hace requests, así los heartbeats no
+  // renuevan lastActivity. El servidor sigue siendo la autoridad al validar
+  // cada request autenticada.
+  const resetInactivityTimer = useCallback(() => {
+    if (inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current);
+      inactivityTimerRef.current = null;
+    }
+    if (!autoLogoutEnabled || !token) return;
+
+    inactivityTimerRef.current = setTimeout(() => {
+      toast.error('Tu sesión ha expirado por inactividad. Inicia sesión nuevamente.');
+      clearAuthState();
+      window.location.href = '/login';
+    }, INACTIVITY_MS);
   }, [autoLogoutEnabled, token, clearAuthState]);
+
+  resetInactivityTimerRef.current = resetInactivityTimer;
 
   useEffect(() => {
     const verifyToken = async () => {
@@ -102,44 +95,29 @@ export const AuthProvider = ({ children }) => {
   }, [clearAuthState]);
 
   useEffect(() => {
-    if (!autoLogoutEnabled) return;
+    if (!autoLogoutEnabled || !token) return;
 
-    let debounceTimer = null;
-
-    const handleActivity = () => {
-      if (debounceTimer) {
-        clearTimeout(debounceTimer);
-      }
-      
-      debounceTimer = setTimeout(() => {
-        updateActivityRef.current();
-      }, 1000);
-    };
-
+    const handleActivity = () => resetInactivityTimerRef.current();
     const events = [
-      'mousedown', 'mousemove', 'keypress', 'scroll', 
+      'mousedown', 'mousemove', 'keypress', 'scroll',
       'touchstart', 'click', 'keydown', 'keyup'
     ];
 
     events.forEach(event => {
       document.addEventListener(event, handleActivity, { passive: true });
     });
+    resetInactivityTimer();
 
     return () => {
       events.forEach(event => {
         document.removeEventListener(event, handleActivity);
       });
-      if (debounceTimer) {
-        clearTimeout(debounceTimer);
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+        inactivityTimerRef.current = null;
       }
-      setActivityTimer(prevTimer => {
-        if (prevTimer) {
-          clearTimeout(prevTimer);
-        }
-        return null;
-      });
     };
-  }, [autoLogoutEnabled]);
+  }, [autoLogoutEnabled, token, resetInactivityTimer]);
 
   // remember=false evita guardar las credenciales usadas por el re-login silencioso.
   // El default es true para no cambiar el comportamiento de otros callers.
@@ -174,6 +152,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('user', JSON.stringify(userData));
       setToken(newToken);
       setUser(userData);
+      setAutoLogoutEnabled(userData.preferencias?.autoLogout !== false);
       toast.success('Sesión reestablecida automáticamente', { duration: 2000 });
       return true;
     } catch (error) {
@@ -190,6 +169,25 @@ export const AuthProvider = ({ children }) => {
     return token ? { Authorization: `Bearer ${token}` } : {};
   }, [token]);
 
+  // Un cambio de preferencias o de usuario en otro tab llega por el bus y
+  // actualiza el usuario actual (rol, autoLogout, etc.) sin recargar la página.
+  const refreshUser = useCallback(async () => {
+    const storedToken = localStorage.getItem('token');
+    if (!storedToken) return;
+    try {
+      const response = await axios.get(`${API}/auth/me`, {
+        headers: { Authorization: `Bearer ${storedToken}` }
+      });
+      setUser(response.data);
+      localStorage.setItem('user', JSON.stringify(response.data));
+      setAutoLogoutEnabled(response.data.preferencias?.autoLogout !== false);
+    } catch (_) {
+      // El 401 ya lo maneja el interceptor global.
+    }
+  }, []);
+
+  useDataRefresh(['auth', 'usuarios'], refreshUser);
+
   return (
     <AuthContext.Provider value={{ 
       user, 
@@ -199,19 +197,8 @@ export const AuthProvider = ({ children }) => {
       logout: clearAuthState,
       loading, 
       getAuthHeader, 
-      updateAutoLogoutSetting: (enabled) => {
-        setAutoLogoutEnabled(enabled);
-        if (enabled) {
-          updateActivityRef.current();
-        } else {
-          setActivityTimer(prevTimer => {
-            if (prevTimer) {
-              clearTimeout(prevTimer);
-            }
-            return null;
-          });
-        }
-      },
+      // El efecto de actividad arma/desarma el timer según este flag.
+      updateAutoLogoutSetting: setAutoLogoutEnabled,
       autoLogoutEnabled,
       silentReauth
     }}>

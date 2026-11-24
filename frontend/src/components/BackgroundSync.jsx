@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { CloudOff, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { API } from '@/lib/config';
-import { apiGet, apiPost } from '@/lib/api';
+import { apiGetPublic, apiPost } from '@/lib/api';
 import Skeleton from '@/components/Skeleton';
 import {
   obtenerVentasPendientes,
@@ -50,7 +50,8 @@ const BackgroundSync = () => {
   // Así se puede incluir en los arrays de dependencias sin re-ejecutar los effects.
   const checkServer = useCallback(async () => {
     try {
-      await apiGet(`${API}/productos-paginados?limit=1`, { timeout: 5000 });
+      // /ping es público: sondear el servidor no renueva lastActivity.
+      await apiGetPublic(`${API}/ping`, { timeout: 5000 });
       if (prevServerAvailable.current === false) {
         setServerAvailable(true);
         prevServerAvailable.current = true;

@@ -11,7 +11,7 @@ import { formatCurrency, formatNumber } from '@/lib/currency';
 import StickyNotesContainer from '@/components/StickyNotesContainer';
 import Skeleton, { SkeletonLines } from '@/components/Skeleton';
 import { API } from '@/lib/config';
-import { apiGet, apiPut } from '@/lib/api';
+import { apiGet } from '@/lib/api';
 import { useDataRefresh } from '@/lib/dataEvents';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -65,14 +65,11 @@ const horaVenta = (fecha) => {
 };
 
 const Dashboard = () => {
-  const { getAuthHeader, user } = useAuth();
-  const { showCents } = useConfig();
+  const { user } = useAuth();
+  const { showCents, soloMisDatos, setSoloMisDatos: guardarSoloMisDatos } = useConfig();
   const navigate = useNavigate();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsRef = useRef(null);
-  // /auth/me ya trae las preferencias (ProtectedRoute espera a que cargue el
-  // usuario), asi evitamos arrancar en false y refetch al montar.
-  const [soloMisDatos, setSoloMisDatos] = useState(() => user?.preferencias?.soloMisDatos ?? false);
   const [stats, setStats] = useState({
     total_vendido_hoy: 0,
     total_vendido_ayer: 0,
@@ -120,10 +117,7 @@ const Dashboard = () => {
 
   const handleSoloMisDatosChange = async (checked) => {
     try {
-      await apiPut(`${API}/auth/preferencias`, 
-        { soloMisDatos: checked }
-      );
-      setSoloMisDatos(checked);
+      await guardarSoloMisDatos(checked);
       fetchStats();
     } catch (error) {
       toast.error('Error al guardar preferencia');

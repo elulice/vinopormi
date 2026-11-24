@@ -130,11 +130,11 @@ cd backend
 cp .env.example .env   # en Windows: copy .env.example .env
 # Editar .env: MONGO_URL, DB_NAME, JWT_SECRET, CORS_ORIGINS, GROQ_API_KEY
 pip install -r requirements.txt
-uvicorn server:app --reload --host 127.0.0.1 --port 8001
+uvicorn server:app --reload --host 0.0.0.0 --port 8001
 ```
 
 Configurá `JWT_SECRET` con un valor propio: `python -c "import secrets; print(secrets.token_urlsafe(48))"`.
-El frontend de desarrollo usa `REACT_APP_BACKEND_URL=http://localhost:8001` en `frontend/.env.development`.
+El frontend de desarrollo usa `REACT_APP_BACKEND_URL=http://localhost:8001` en `frontend/.env.development`, pero si se abre desde otro dispositivo de la misma red (por ejemplo `http://192.168.1.10:3000`), `src/lib/config.js` cambia automáticamente el hostname del backend al de la página (`http://192.168.1.10:8001`). Para que eso funcione, el backend debe escuchar en `0.0.0.0` y el firewall de Windows debe permitir los puertos 3000 y 8001 en la red privada. `CORS_ORIGINS` debe incluir el origen `http://192.168.1.10:3000` (o dejarse `*`).
 
 ### Frontend
 ```bash
