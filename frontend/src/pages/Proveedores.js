@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useConfig } from '@/context/ConfigContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import CurrencyInput from '@/components/CurrencyInput';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
@@ -484,12 +485,10 @@ const Proveedores = () => {
                           </div>
                           <div>
                             <Label htmlFor="monto" className="text-xs">Monto (positivo para pago, negativo si le debemos al proveedor)</Label>
-                            <Input
+                            <CurrencyInput
                               id="monto"
-                              type="number"
-                              step="0.01"
                               value={movimientoData.monto}
-                              onChange={(e) => setMovimientoData({ ...movimientoData, monto: e.target.value })}
+                              onChange={(valor) => setMovimientoData({ ...movimientoData, monto: valor })}
                               required
                               className="h-8"
                             />

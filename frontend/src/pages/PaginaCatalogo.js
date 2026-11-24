@@ -5,6 +5,7 @@ import { apiGetPublic } from "@/lib/api";
 import { useDataRefresh } from "@/lib/dataEvents";
 import { API } from "@/lib/config";
 import Skeleton from "@/components/Skeleton";
+import CurrencyInput from "@/components/CurrencyInput";
 
 const ITEMS_PER_PAGE = 32;
 
@@ -126,21 +127,19 @@ const PaginaCatalogo = () => {
                 />
               </div>
               <div>
-                <input
-                  type="number"
-                  placeholder="Precio mínimo"
+                <CurrencyInput
+                  placeholder="$ 0,00"
                   value={minPrice}
-                  onChange={(e) => setMinPrice(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  onChange={setMinPrice}
+                  className="w-full px-4 py-2 h-auto border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                 />
               </div>
               <div>
-                <input
-                  type="number"
-                  placeholder="Precio máximo"
+                <CurrencyInput
+                  placeholder="$ 0,00"
                   value={maxPrice}
-                  onChange={(e) => setMaxPrice(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  onChange={setMaxPrice}
+                  className="w-full px-4 py-2 h-auto border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                 />
               </div>
             </div>

@@ -3,6 +3,7 @@ import { Ban, Check, Copy, Download, ExternalLink, Eye, FilePlus2, FileText, Pen
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import CurrencyInput from '@/components/CurrencyInput';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import Pagination from '@/components/Pagination';
@@ -426,12 +427,13 @@ const Presupuestos = () => {
                     <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13 }}>
                       {item.nombre}
                     </span>
-                    <Input
+                    <CurrencyInput
                       aria-label="Cantidad"
-                      type="number"
-                      min="1"
+                      currency={false}
+                      showCents={false}
+                      allowNegative={false}
                       value={item.cantidad}
-                      onChange={(e) => cambiarCantidad(index, e.target.value)}
+                      onChange={(valor) => cambiarCantidad(index, valor)}
                       style={{ width: 60, height: 32, padding: '4px 6px' }}
                     />
                     <span className="vpm-num" style={{ minWidth: 92, textAlign: 'right', fontSize: 13 }}>

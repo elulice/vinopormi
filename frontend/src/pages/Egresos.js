@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useConfig } from '@/context/ConfigContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import CurrencyInput from '@/components/CurrencyInput';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -362,23 +363,18 @@ const Egresos = () => {
 
               <div className="space-y-1.5">
                 <Label className="text-sm font-medium">Monto</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={formData.monto}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        monto: e.target.value,
-                      })
-                    }
-                    required
-                    placeholder="0.00"
-                    className="h-8 pl-6"
-                  />
-                </div>
+                <CurrencyInput
+                  value={formData.monto}
+                  onChange={(valor) =>
+                    setFormData({
+                      ...formData,
+                      monto: valor,
+                    })
+                  }
+                  required
+                  placeholder="$ 0,00"
+                  className="h-8"
+                />
               </div>
 
               <div className="flex gap-2 pt-1">

@@ -3,6 +3,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useConfig } from '@/context/ConfigContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import CurrencyInput from '@/components/CurrencyInput';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -1001,11 +1002,12 @@ const Productos = () => {
                       {formData.productos_incluidos.map((p, idx) => (
                         <div key={p.producto_id} className="flex items-center gap-2 text-xs bg-muted p-2 rounded">
                           <span className="flex-1 truncate">{p.nombre}</span>
-                          <Input
-                            type="number"
-                            min="1"
+                          <CurrencyInput
+                            currency={false}
+                            showCents={false}
+                            allowNegative={false}
                             value={p.cantidad}
-                            onChange={(e) => actualizarCantidad(p.producto_id, e.target.value)}
+                            onChange={(valor) => actualizarCantidad(p.producto_id, valor)}
                             className="w-16 h-6"
                           />
                           <span className="w-20 text-right">{formatCurrency(p.precio_unitario * p.cantidad, showCents)}</span>
@@ -1118,12 +1120,11 @@ const Productos = () => {
 
                 <div>
                   <Label className="text-xs">{formData.tipo === 'promo' ? 'Precio Promo' : 'Precio Unitario'}</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
+                  <CurrencyInput
+                    allowNegative={false}
                     value={formData.precio_unitario}
-                    onChange={(e) =>
-                      setFormData({ ...formData, precio_unitario: e.target.value })
+                    onChange={(valor) =>
+                      setFormData({ ...formData, precio_unitario: valor })
                     }
                     required
                     className="h-7"
@@ -1132,24 +1133,20 @@ const Productos = () => {
 
                 <div>
                   <Label className="text-xs">Precio de Costo</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
+                  <CurrencyInput
+                    allowNegative={false}
                     value={formData.tipo === 'promo' ? costoTotalProductos.toFixed(2) : formData.precio_costo}
-                    onChange={(e) =>
-                      setFormData({ ...formData, precio_costo: e.target.value })
+                    onChange={(valor) =>
+                      setFormData({ ...formData, precio_costo: valor })
                     }
                     disabled={formData.tipo === 'promo'}
                     className="h-7"
-                    placeholder={formData.tipo === 'promo' ? '' : '0.00'}
                   />
                 </div>
 
                 <div>
                   <Label className="text-xs">Neto Ganado</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
+                  <CurrencyInput
                     value={netoPromo.toFixed(2)}
                     disabled
                     className="h-7"
@@ -1159,11 +1156,13 @@ const Productos = () => {
               {formData.tipo === 'normal' && (
                 <div>
                   <Label className="text-xs">Stock (opcional)</Label>
-                  <Input
-                    type="number"
+                  <CurrencyInput
+                    currency={false}
+                    showCents={false}
+                    allowNegative={false}
                     value={formData.stock}
-                    onChange={(e) =>
-                      setFormData({ ...formData, stock: e.target.value })
+                    onChange={(valor) =>
+                      setFormData({ ...formData, stock: valor })
                     }
                     className="h-7"
                   />
@@ -1179,12 +1178,13 @@ const Productos = () => {
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <Label className="text-xs">Cantidad Mínima</Label>
-                    <Input
-                      type="number"
-                      min="2"
+                    <CurrencyInput
+                      currency={false}
+                      showCents={false}
+                      allowNegative={false}
                       value={formData.descuento_cantidad_minima}
-                      onChange={(e) =>
-                        setFormData({ ...formData, descuento_cantidad_minima: e.target.value })
+                      onChange={(valor) =>
+                        setFormData({ ...formData, descuento_cantidad_minima: valor })
                       }
                       placeholder="Ej: 6"
                       className="h-7 text-xs"
@@ -1192,15 +1192,13 @@ const Productos = () => {
                   </div>
                   <div>
                     <Label className="text-xs">Precio con Descuento</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
+                    <CurrencyInput
+                      allowNegative={false}
                       value={formData.descuento_precio_unitario}
-                      onChange={(e) =>
-                        setFormData({ ...formData, descuento_precio_unitario: e.target.value })
+                      onChange={(valor) =>
+                        setFormData({ ...formData, descuento_precio_unitario: valor })
                       }
-                      placeholder="Ej: 150"
+                      placeholder="$ 0,00"
                       className="h-7 text-xs"
                     />
                   </div>
