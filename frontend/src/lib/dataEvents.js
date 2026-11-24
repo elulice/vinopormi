@@ -16,6 +16,7 @@ const seenIds = new Set();
 let channel = null;
 let eventSource = null;
 let reconnectTimer = null;
+let yaConecto = false;
 
 function remember(id) {
   if (!id || seenIds.has(id)) return false;
@@ -47,6 +48,20 @@ export function subscribeData(domains, handler) {
   const entry = { domains: new Set(domains || []), handler };
   subscribers.add(entry);
   return () => subscribers.delete(entry);
+}
+
+/**
+ * Fuerza un refetch de los dominios suscriptos después de reconectar el SSE.
+ * EventSource se cierra cuando la pestaña pasa a segundo plano (típico en el
+ * celular): sin esto, los cambios ocurridos mientras estaba oculta no se ven
+ * hasta recargar. No se emite por BroadcastChannel ni por SSE: es solo local.
+ */
+export function resyncData() {
+  if (subscribers.size === 0) return;
+  const id = `resync-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  subscribers.forEach((entry) => {
+    entry.handler({ id, domains: [...entry.domains], stockPatch: {}, reason: 'resync' });
+  });
 }
 
 /**
@@ -138,6 +153,12 @@ export function connectDataEvents() {
     eventSource = new EventSource(
       `${API}/data-events?token=${encodeURIComponent(token)}`
     );
+    eventSource.onopen = () => {
+      // El primer onopen es el mount normal (esa carga ya trae los datos).
+      // Solo resincronizamos cuando venimos de una desconexion.
+      if (yaConecto) resyncData();
+      yaConecto = true;
+    };
     eventSource.onmessage = (message) => {
       try {
         emitDataChange(JSON.parse(message.data), { broadcast: false });
