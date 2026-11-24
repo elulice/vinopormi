@@ -646,6 +646,7 @@ const NuevaVenta = () => {
                           value={pagos[0].monto}
                           onChange={(valor) => actualizarPagoMonto(0, valor)}
                           readOnly={!multiplesPagos}
+                          spinner={false}
                           className={`h-8 pr-7 text-xs ${!multiplesPagos ? 'bg-muted/30' : 'bg-background border-input'}`}
                         />
                         {multiplesPagos && (pagos[0].monto || pagos[0].monto === 0) && pagos[0].monto !== '' && (
@@ -686,6 +687,7 @@ const NuevaVenta = () => {
                           placeholder="$ 0,00"
                           value={pagos[1].monto}
                           onChange={(valor) => actualizarPagoMonto(1, valor)}
+                          spinner={false}
                           className="h-8 pr-7 text-xs"
                         />
                         {(pagos[1].monto || pagos[1].monto === 0) && pagos[1].monto !== '' && (
@@ -867,6 +869,7 @@ const NuevaVenta = () => {
                       placeholder="$ 0,00"
                       value={ajusteMonto}
                       onChange={setAjusteMonto}
+                      spinner={false}
                       className={`h-7 pr-6 text-xs ${
                         ajusteMonto && parseFloat(ajusteMonto) < 0 ? 'border-green-500 text-green-600' : 
                         ajusteMonto && parseFloat(ajusteMonto) > 0 ? 'border-red-500 text-red-600' : ''
