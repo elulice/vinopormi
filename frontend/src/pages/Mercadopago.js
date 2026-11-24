@@ -20,11 +20,24 @@ import { useDataRefresh } from '@/lib/dataEvents';
 import { useConfig } from '@/context/ConfigContext';
 import { capitalizeWords } from '@/lib/utils';
 
+const MINUTOS_DEFAULT = 60;
+const MINUTOS_STORAGE_KEY = 'vinopormi_mp_minutos';
+const MINUTOS_VALIDOS = [30, 60, 120, 360, 1440, 10080, 43200];
+
+const leerMinutosGuardados = () => {
+  try {
+    const guardado = Number(sessionStorage.getItem(MINUTOS_STORAGE_KEY));
+    return MINUTOS_VALIDOS.includes(guardado) ? guardado : MINUTOS_DEFAULT;
+  } catch (_) {
+    return MINUTOS_DEFAULT;
+  }
+};
+
 const Mercadopago = () => {
   const { showCents } = useConfig();
   const [transferencias, setTransferencias] = useState([]);
   const [loadingTransferencias, setLoadingTransferencias] = useState(false);
-  const [minutosBusqueda, setMinutosBusqueda] = useState(60);
+  const [minutosBusqueda, setMinutosBusqueda] = useState(leerMinutosGuardados);
   
   const [selectedTransferencia, setSelectedTransferencia] = useState(null);
   const [ventasCoincidentes, setVentasCoincidentes] = useState([]);
@@ -55,11 +68,14 @@ const Mercadopago = () => {
   }, []);
 
   useEffect(() => {
-    fetchTransferencias(60);
-    fetchAsociaciones();
-  }, [fetchTransferencias, fetchAsociaciones]);
+    fetchTransferencias(minutosBusqueda);
+  }, [minutosBusqueda, fetchTransferencias]);
 
-  useDataRefresh(['mp', 'ventas', 'clientes'], () => {
+  useEffect(() => {
+    fetchAsociaciones();
+  }, [fetchAsociaciones]);
+
+  useDataRefresh(['mp', 'ventas'], () => {
     fetchTransferencias(minutosBusqueda);
     fetchAsociaciones();
   });
@@ -67,9 +83,10 @@ const Mercadopago = () => {
     const buscarCoincidencias = async (transferencia) => {
     setLoadingCoincidencias(true);
     try {
-      const fechaAprobacion = new Date(transferencia.fecha_aprobacion || transferencia.fecha_creacion);
-      const fechaInicio = new Date(fechaAprobacion.getTime() - 30 * 60 * 1000);
-      const fechaFin = new Date(fechaAprobacion.getTime() + 30 * 60 * 1000);
+      // El backend filtra por date_created, no por date_approved.
+      const fechaReferencia = new Date(transferencia.fecha_creacion || transferencia.fecha_aprobacion);
+      const fechaInicio = new Date(fechaReferencia.getTime() - 30 * 60 * 1000);
+      const fechaFin = new Date(fechaReferencia.getTime() + 30 * 60 * 1000);
       
       const response = await apiGet(
         `${API}/mercadopago/buscar-ventas-coincidentes?` +
@@ -145,9 +162,11 @@ const Mercadopago = () => {
           <Select 
             value={minutosBusqueda.toString()} 
             onValueChange={(val) => {
-              const nuevosMinutos = parseInt(val);
+              const nuevosMinutos = Number(val);
+              try {
+                sessionStorage.setItem(MINUTOS_STORAGE_KEY, String(nuevosMinutos));
+              } catch (_) { /* modo privado: solo se mantiene durante el render */ }
               setMinutosBusqueda(nuevosMinutos);
-              fetchTransferencias(nuevosMinutos);
             }}
             disabled={loadingTransferencias}
           >
