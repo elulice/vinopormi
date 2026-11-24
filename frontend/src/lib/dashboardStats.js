@@ -1,0 +1,58 @@
+import { API } from './config';
+import { apiGet } from './api';
+import { subscribeData } from './dataEvents';
+
+/**
+ * /dashboard/stats lo piden el Layout (badge de deuda) y la pantalla Dashboard
+ * al montar. Antes eran dos viajes de ~300 ms cada uno al abrir la app.
+ * Acá compartimos el resultado reciente y el request en vuelo: si dos
+ * componentes piden lo mismo al mismo tiempo, sale UNA sola llamada.
+ */
+const CACHE_TTL_MS = 30000;
+const cache = new Map();
+const inflight = new Map();
+
+const clave = (soloMisDatos) => (soloMisDatos ? 'propios' : 'todos');
+
+// Los eventos del bus (SSE, BroadcastChannel o header X-Data-*) siguen
+// refrescando la pantalla: invalidamos antes de que corran los handlers de
+// useDataRefresh porque este módulo se registra primero al importarse.
+subscribeData(
+  ['dashboard', 'ventas', 'clientes', 'movimientos', 'egresos'],
+  () => cache.clear()
+);
+
+export function invalidateDashboardStats() {
+  cache.clear();
+}
+
+/**
+ * Devuelve las stats del dashboard, reutilizando el cache y las peticiones
+ * en curso. Errores NO se cachean para que el proximo intento vuelva a pedir.
+ */
+export function fetchDashboardStats({ soloMisDatos = false, force = false } = {}) {
+  const key = clave(soloMisDatos);
+
+  if (!force) {
+    const entradas = cache.get(key);
+    if (entradas && entradas.expires > Date.now()) {
+      return Promise.resolve(entradas.data);
+    }
+  }
+
+  if (inflight.has(key)) return inflight.get(key);
+
+  const params = soloMisDatos ? '?soloMisDatos=true' : '';
+  const request = apiGet(`${API}/dashboard/stats${params}`)
+    .then((response) => {
+      const data = response.data;
+      cache.set(key, { data, expires: Date.now() + CACHE_TTL_MS });
+      return data;
+    })
+    .finally(() => {
+      inflight.delete(key);
+    });
+
+  inflight.set(key, request);
+  return request;
+}

@@ -10,8 +10,7 @@ import '@/components/Dashboard.css';
 import { formatCurrency, formatNumber } from '@/lib/currency';
 import StickyNotesContainer from '@/components/StickyNotesContainer';
 import Skeleton, { SkeletonLines } from '@/components/Skeleton';
-import { API } from '@/lib/config';
-import { apiGet } from '@/lib/api';
+import { fetchDashboardStats } from '@/lib/dashboardStats';
 import { useDataRefresh } from '@/lib/dataEvents';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -86,9 +85,7 @@ const Dashboard = () => {
 
   const fetchStats = useCallback(async () => {
     try {
-      const params = soloMisDatos ? '?soloMisDatos=true' : '';
-      const response = await apiGet(`${API}/dashboard/stats${params}`);
-      setStats(response.data);
+      setStats(await fetchDashboardStats({ soloMisDatos }));
     } catch (error) {
       toast.error('Error al cargar estadísticas');
     } finally {

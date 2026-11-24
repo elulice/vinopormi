@@ -1,0 +1,111 @@
+name: Restore drill MongoDB (mensual)
+
+# Prueba REAL del backup: baja el ultimo dump, lo restaura en una DB temporal
+# y verifica que las colecciones clave tengan documentos. Si falla, el backup
+# no sirve y queremos enterarnos antes de necesitarlo.
+on:
+  schedule:
+    - cron: '0 5 1 * *'   # dia 1 de cada mes, 05:00 UTC = 02:00 ART
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  MONGODB_TOOLS_VERSION: '100.9.4'
+
+jobs:
+  restore-drill:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    steps:
+      - name: Instalar MongoDB Database Tools y AWS CLI
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/mongodb-tools.tgz \
+            "https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2204-x86_64-${MONGODB_TOOLS_VERSION}.tgz"
+          tar -xzf /tmp/mongodb-tools.tgz -C /tmp
+          echo "/tmp/mongodb-database-tools-ubuntu2204-x86_64-${MONGODB_TOOLS_VERSION}/bin" >> "$GITHUB_PATH"
+          if ! aws --version >/dev/null 2>&1; then pip install --quiet awscli; fi
+          mongorestore --version
+
+      - name: Validar configuracion
+        env:
+          RESTORE_MONGO_URL: ${{ secrets.RESTORE_MONGO_URL }}
+          RESTORE_DB_BASE: ${{ secrets.RESTORE_DB_BASE }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_ACCESS_KEY }}
+          S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
+        run: |
+          for var in RESTORE_MONGO_URL RESTORE_DB_BASE BACKUP_PASSPHRASE AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY S3_BUCKET; do
+            if [ -z "${!var:-}" ]; then echo "Falta configurar el secret: $var"; exit 1; fi
+          done
+          echo "RESTORE_DB=${RESTORE_DB_BASE}_drill_$(date -u +%Y%m%d%H%M%S)" >> "$GITHUB_ENV"
+
+      - name: Descargar el ultimo backup y validar checksum
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.BACKUP_S3_REGION }}
+          S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
+          S3_ENDPOINT: ${{ secrets.BACKUP_S3_ENDPOINT }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+        run: |
+          set -euo pipefail
+          AWS_ARGS=()
+          if [ -n "${S3_ENDPOINT:-}" ]; then AWS_ARGS+=(--endpoint-url "$S3_ENDPOINT"); fi
+          PREFIX="vinopormi/${DB_NAME}"
+
+          ULTIMO=$(aws s3api list-objects-v2 \
+            --bucket "$S3_BUCKET" --prefix "${PREFIX}/" \
+            --query "reverse(sort_by(Contents[?ends_with(Key, '.enc')], &LastModified))[0].Key" \
+            --output text "${AWS_ARGS[@]}")
+          if [ -z "$ULTIMO" ] || [ "$ULTIMO" = "None" ]; then echo "No hay backups para restaurar"; exit 1; fi
+          echo "Restaurando: $ULTIMO"
+
+          aws s3 cp "s3://${S3_BUCKET}/${ULTIMO}" backup.enc "${AWS_ARGS[@]}"
+          aws s3 cp "s3://${S3_BUCKET}/${ULTIMO}.sha256" backup.enc.sha256 "${AWS_ARGS[@]}"
+          ESPERADO=$(cut -d' ' -f1 backup.enc.sha256)
+          ACTUAL=$(sha256sum backup.enc | cut -d' ' -f1)
+          if [ "$ESPERADO" != "$ACTUAL" ]; then echo "Checksum no coincide"; exit 1; fi
+
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 \
+            -in backup.enc -out backup.archive.gz -pass env:BACKUP_PASSPHRASE
+          test -s backup.archive.gz
+
+      - name: Restaurar en DB temporal y verificar documentos
+        env:
+          RESTORE_MONGO_URL: ${{ secrets.RESTORE_MONGO_URL }}
+        run: |
+          set -euo pipefail
+          mongorestore --uri "$RESTORE_MONGO_URL" --db "$RESTORE_DB" \
+            --gzip --archive=backup.archive.gz --drop
+          pip install --quiet pymongo
+          python - <<'PY'
+          import os
+          import sys
+          from pymongo import MongoClient
+
+          cliente = MongoClient(os.environ['RESTORE_MONGO_URL'], serverSelectionTimeoutMS=15000)
+          base = cliente[os.environ['RESTORE_DB']]
+          requeridas = ['usuarios', 'productos', 'clientes', 'ventas']
+          vacias = []
+          for nombre in requeridas:
+              total = base[nombre].count_documents({})
+              print(f'{nombre}: {total} documentos')
+              if total == 0:
+                  vacias.append(nombre)
+          if vacias:
+              print('Colecciones vacias en el restore:', ', '.join(vacias))
+              sys.exit(1)
+          print('RESTORE DRILL OK')
+          PY
+
+      - name: Borrar DB temporal
+        if: always()
+        env:
+          RESTORE_MONGO_URL: ${{ secrets.RESTORE_MONGO_URL }}
+        run: |
+          pip install --quiet pymongo
+          python -c "import os; from pymongo import MongoClient; MongoClient(os.environ['RESTORE_MONGO_URL']).drop_database(os.environ['RESTORE_DB']); print('DB temporal eliminada')"

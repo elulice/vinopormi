@@ -29,8 +29,8 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { API, FEATURES } from '@/lib/config';
-import { apiGet } from '@/lib/api';
+import { FEATURES } from '@/lib/config';
+import { fetchDashboardStats } from '@/lib/dashboardStats';
 import { connectDataEvents, useDataRefresh } from '@/lib/dataEvents';
 import { logoImage } from '@/assets/images';
 import MercadopagoIcon from '@/components/MercadopagoIcon';
@@ -40,7 +40,7 @@ import '@/components/DashboardV4.css';
 
 const Layout = () => {
   const { user, logout } = useAuth();
-  const { sidebarWidth, setSidebarWidth, floatingMenu, darkMode, setDarkMode, hiddenSidebarItems } = useConfig();
+  const { sidebarWidth, setSidebarWidth, floatingMenu, darkMode, setDarkMode, hiddenSidebarItems, soloMisDatos } = useConfig();
   // Sólo dos tamaños: compacto y grande. Cualquier valor viejo ("normal") se trata como grande.
   const isCompact = sidebarWidth === 'compact';
   const location = useLocation();
@@ -62,12 +62,12 @@ const Layout = () => {
   // Badge del sidebar: cantidad real de clientes en cuenta corriente.
   const fetchDebtCount = useCallback(async () => {
     try {
-      const res = await apiGet(`${API}/dashboard/stats`);
-      setDebtCount(res.data?.ultimos_clientes_cta_cte?.length || 0);
+      const stats = await fetchDashboardStats({ soloMisDatos });
+      setDebtCount(stats?.ultimos_clientes_cta_cte?.length || 0);
     } catch {
       setDebtCount(0);
     }
-  }, []);
+  }, [soloMisDatos]);
 
   useEffect(() => {
     fetchDebtCount();

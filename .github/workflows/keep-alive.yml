@@ -1,0 +1,24 @@
+name: Keep-alive Render
+
+# El plan Free de Render se duerme sin trafico. Un ping cada 9 minutos evita
+# el cold start del primer usuario del dia (el health no autentica ni escribe).
+on:
+  schedule:
+    - cron: '*/9 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping /api/health
+        env:
+          HEALTH_URL: ${{ vars.HEALTH_URL || 'https://vinopormi.onrender.com/api/health' }}
+        run: |
+          set -euo pipefail
+          codigo=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 25 "$HEALTH_URL")
+          echo "health: HTTP $codigo"
+          test "$codigo" = "200"
