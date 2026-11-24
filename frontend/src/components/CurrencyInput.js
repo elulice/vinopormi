@@ -109,7 +109,10 @@ const CurrencyInput = forwardRef(function CurrencyInput(
         value={display}
         onChange={handleChange}
         onFocus={(event) => {
-          setDraft(formatNumericInput(crudo, opciones));
+          // Al entrar a editar mostramos el formato de escritura (sin completar
+          // centavos), así se puede borrar o seguir tipiando sobre el número.
+          // El formato canónico con ",00" vuelve al perder el foco.
+          setDraft(groupNumericInput(crudo, opciones));
           onFocus?.(event);
         }}
         onBlur={(event) => {
