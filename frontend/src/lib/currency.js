@@ -68,7 +68,13 @@ const agruparMiles = (enteros) =>
  * con un decimal al seguir escribiendo: "2.000" + "0" => "20.000", no "2,0000".
  */
 const separarNumero = (texto, showCents) => {
-  const s = String(texto).replace(/[\s$]/g, '');
+  const original = String(texto);
+  // Si el texto ya tiene el prefijo del input, los puntos son de miles: el
+  // usuario está borrando sobre "$ 1.532.000" y "$ 1.532.00" debe ser 153200,
+  // no 1532.00. La excepción del punto decimal queda solo para texto crudo
+  // pegado desde una planilla ("1234.56").
+  const yaFormateado = original.includes('$');
+  const s = original.replace(/[\s$]/g, '');
   const negativo = /^-/.test(s);
   const limpio = s.replace(/[^\d.,]/g, '');
   const partes = limpio.split(',');
@@ -76,7 +82,7 @@ const separarNumero = (texto, showCents) => {
 
   let parteEntera = partes[0];
   let decimales = partes.slice(1).join('');
-  if (partes.length === 1) {
+  if (partes.length === 1 && showCents && !yaFormateado) {
     const puntoDecimal = parteEntera.match(/^(.*)\.(\d{1,2})$/);
     if (puntoDecimal) {
       parteEntera = puntoDecimal[1];
