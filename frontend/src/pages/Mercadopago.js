@@ -16,6 +16,7 @@ import Skeleton from '@/components/Skeleton';
 import { API } from '@/lib/config';
 import StatusBadge from '@/components/common/StatusBadge';
 import { apiGet, apiPost } from '@/lib/api';
+import { useDataRefresh } from '@/lib/dataEvents';
 import { useConfig } from '@/context/ConfigContext';
 import { capitalizeWords } from '@/lib/utils';
 
@@ -57,6 +58,11 @@ const Mercadopago = () => {
     fetchTransferencias(60);
     fetchAsociaciones();
   }, [fetchTransferencias, fetchAsociaciones]);
+
+  useDataRefresh(['mp', 'ventas', 'clientes'], () => {
+    fetchTransferencias(minutosBusqueda);
+    fetchAsociaciones();
+  });
 
     const buscarCoincidencias = async (transferencia) => {
     setLoadingCoincidencias(true);

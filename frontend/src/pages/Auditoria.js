@@ -31,6 +31,7 @@ import ResponsiveTable from '@/components/ResponsiveTable';
 import { API } from '@/lib/config';
 import StatusBadge from '@/components/common/StatusBadge';
 import { apiGet } from '@/lib/api';
+import { useDataRefresh } from '@/lib/dataEvents';
 import { formatCurrency } from '@/lib/currency';
 
 const ENTIDAD_LABELS = {
@@ -267,6 +268,8 @@ const Auditoria = () => {
     fetchRegistrosRef.current?.(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
+
+  useDataRefresh(['auditoria'], () => fetchRegistrosRef.current?.(1));
 
   const getEntidadIcon = (entidad) => {
     switch (entidad) {

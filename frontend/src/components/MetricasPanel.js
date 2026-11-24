@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Info, Loader2, RefreshCw, T
 import { useAuth } from '@/context/AuthContext';
 import { SkeletonTable } from '@/components/Skeleton';
 import { apiGet } from '@/lib/api';
+import { useDataRefresh } from '@/lib/dataEvents';
 import { API } from '@/lib/config';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -209,6 +210,8 @@ const MetricasPanel = () => {
   useEffect(() => {
     cargar();
   }, [cargar]);
+
+  useDataRefresh(['metricas'], cargar);
 
   const cambiarOrden = (clave) => {
     if (clave === ordenarPor) {

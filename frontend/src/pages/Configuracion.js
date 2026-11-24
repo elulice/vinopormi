@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/currency';
 import { API } from '@/lib/config';
 import { apiGet, apiPost } from '@/lib/api';
+import { useDataRefresh } from '@/lib/dataEvents';
 import Skeleton from '@/components/Skeleton';
 
 const Configuracion = () => {
@@ -43,23 +44,26 @@ const Configuracion = () => {
   }, [calcularVuelto]);
 
   // Fetch Mercadopago config
-  useEffect(() => {
-    const fetchMercadopagoConfig = async () => {
-      try {
-        const response = await apiGet(`${API}/mercadopago/configuracion`);
-        if (response.data.access_token) {
-          setMercadopagoConfig({
-            access_token: response.data.access_token
-          });
-        }
-      } catch (err) {
-        console.error('Error fetching Mercadopago config:', err);
-      } finally {
-        setLoadingMercadopago(false);
+  const fetchMercadopagoConfig = useCallback(async () => {
+    try {
+      const response = await apiGet(`${API}/mercadopago/configuracion`);
+      if (response.data.access_token) {
+        setMercadopagoConfig({
+          access_token: response.data.access_token
+        });
       }
-    };
-    fetchMercadopagoConfig();
+    } catch (err) {
+      console.error('Error fetching Mercadopago config:', err);
+    } finally {
+      setLoadingMercadopago(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchMercadopagoConfig();
+  }, [fetchMercadopagoConfig]);
+
+  useDataRefresh(['mp'], fetchMercadopagoConfig);
 
   const handleSaveMercadopago = async () => {
     setSavingMercadopago(true);

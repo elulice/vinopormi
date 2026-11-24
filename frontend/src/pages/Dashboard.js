@@ -12,6 +12,7 @@ import StickyNotesContainer from '@/components/StickyNotesContainer';
 import Skeleton, { SkeletonLines } from '@/components/Skeleton';
 import { API } from '@/lib/config';
 import { apiGet, apiPut } from '@/lib/api';
+import { useDataRefresh } from '@/lib/dataEvents';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -101,6 +102,11 @@ const Dashboard = () => {
   useEffect(() => {
     fetchStats();
   }, [fetchStats, soloMisDatos]);
+
+  useDataRefresh(
+    ['dashboard', 'ventas', 'clientes', 'movimientos', 'egresos'],
+    fetchStats
+  );
 
   useEffect(() => {
     const handleClickOutside = (event) => {

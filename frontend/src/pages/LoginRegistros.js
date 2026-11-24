@@ -8,6 +8,7 @@ import { es } from 'date-fns/locale';
 import ResponsiveTable from '@/components/ResponsiveTable';
 import { API } from '@/lib/config';
 import { apiGet } from '@/lib/api';
+import { useDataRefresh } from '@/lib/dataEvents';
 import { SkeletonTable } from '@/components/Skeleton';
 
 const LoginRegistros = () => {
@@ -55,6 +56,8 @@ const LoginRegistros = () => {
   useEffect(() => {
     fetchRegistrosRef.current?.(1);
   }, []);
+
+  useDataRefresh(['login_registros'], () => fetchRegistrosRef.current?.(1));
 
   const handlePageChange = (newPage) => {
     fetchRegistros(newPage);

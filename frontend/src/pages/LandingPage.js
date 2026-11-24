@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import NavbarPublico from "@/components/NavbarPublico";
 import { apiGetPublic } from "@/lib/api";
+import { useDataRefresh } from "@/lib/dataEvents";
 import { API } from "@/lib/config";
 import Skeleton from "@/components/Skeleton";
 
@@ -10,21 +11,23 @@ const LandingPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const fetchProductosPublicos = async () => {
-      try {
-        const response = await apiGetPublic(`${API}/public/destacados`);
-        setProductos(response.data);
-      } catch (err) {
-        console.error("Error fetching productos:", err);
-        setError("Error al cargar los productos");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProductosPublicos();
+  const fetchProductosPublicos = useCallback(async () => {
+    try {
+      const response = await apiGetPublic(`${API}/public/destacados`);
+      setProductos(response.data);
+    } catch (err) {
+      console.error("Error fetching productos:", err);
+      setError("Error al cargar los productos");
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchProductosPublicos();
+  }, [fetchProductosPublicos]);
+
+  useDataRefresh(["productos"], fetchProductosPublicos);
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat("es-AR", {

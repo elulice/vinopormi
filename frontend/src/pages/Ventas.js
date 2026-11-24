@@ -17,6 +17,7 @@ import MobileCard from '@/components/MobileCard';
 import { SkeletonTable } from '@/components/Skeleton';
 import { API } from '@/lib/config';
 import { apiGet } from '@/lib/api';
+import { useDataRefresh } from '@/lib/dataEvents';
 import { downloadVentaAsImage, downloadVentaAsPDF } from '@/lib/downloadUtils';
 import DetalleVentaContent from '@/components/DetalleVentaCard';
 
@@ -238,6 +239,11 @@ const Ventas = () => {
     fetchUsuarios();
      // eslint-disable-next-line
   }, []);
+
+  useDataRefresh(
+    ['ventas', 'dashboard', 'clientes'],
+    () => fetchVentasRef.current?.(1)
+  );
 
   // Función segura para parsear fechas
   const safeParseDate = useCallback((dateString) => {

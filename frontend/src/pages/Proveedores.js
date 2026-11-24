@@ -15,6 +15,7 @@ import { capitalizeWords } from '@/lib/utils';
 import ResponsiveTable from '@/components/ResponsiveTable';
 import { API } from '@/lib/config';
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
+import { useDataRefresh } from '@/lib/dataEvents';
 import SearchInput from '@/components/common/SearchInput';
 import DeleteConfirmDialog from '@/components/common/DeleteConfirmDialog';
 
@@ -58,6 +59,8 @@ const Proveedores = () => {
   useEffect(() => {
     fetchProveedores();
   }, [fetchProveedores]);
+
+  useDataRefresh(['proveedores', 'movimientos'], fetchProveedores);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

@@ -26,6 +26,7 @@ import { Loader2 } from 'lucide-react';
 import Skeleton, { SkeletonTable } from '@/components/Skeleton';
 import { API } from '@/lib/config';
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
+import { applyStockPatch, useDataRefresh } from '@/lib/dataEvents';
 import SearchInput from '@/components/common/SearchInput';
 import StatusBadge from '@/components/common/StatusBadge';
 import DeleteConfirmDialog from '@/components/common/DeleteConfirmDialog';
@@ -213,6 +214,23 @@ const Productos = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Una venta avisa `productos` con el stock nuevo de esos ids: se aplica el
+  // parche sobre lo ya cargado, sin volver a traer todo el catalogo.
+  useDataRefresh(
+    ['productos', 'categorias'],
+    () => {
+      fetchProductosRef.current?.(pagination.page, searchTerm, filters);
+      fetchCategorias();
+    },
+    {
+      onPatch: (stocks) => {
+        setProductos((prev) => applyStockPatch(prev, stocks));
+        setProductosNormales((prev) => applyStockPatch(prev, stocks));
+        setFilteredProductos((prev) => applyStockPatch(prev, stocks));
+      },
+    }
+  );
 
   // Recargar cuando cambian los filtros
   useEffect(() => {

@@ -30,6 +30,7 @@ import { API } from '@/lib/config';
 import StatusBadge from '@/components/common/StatusBadge';
 import DeleteConfirmDialog from '@/components/common/DeleteConfirmDialog';
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
+import { useDataRefresh } from '@/lib/dataEvents';
 
 const Usuarios = () => {
   const { user } = useAuth();
@@ -62,6 +63,8 @@ const Usuarios = () => {
     fetchUsuarios();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchUsuarios]);
+
+  useDataRefresh(['usuarios', 'auditoria'], fetchUsuarios);
 
   const resetForm = () => {
     setFormData({ username: '', nombre: '', password: '', rol: 'comun' });

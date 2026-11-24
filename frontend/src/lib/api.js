@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { toast } from 'sonner';
 import { API } from './config';
+import { emitDataChange } from './dataEvents';
 
 const getToken = () => localStorage.getItem('token');
 
@@ -41,7 +42,23 @@ const api = axios.create({
   baseURL: API,
 });
 
-api.interceptors.response.use((response) => response, handleUnauthorized);
+api.interceptors.response.use((response) => {
+  // El backend avisa qué dominios cambiaron en cada escritura exitosa.
+  const domains = response.headers['x-data-domains'];
+  if (domains) {
+    let stockPatch = {};
+    const rawPatch = response.headers['x-data-patch'];
+    if (rawPatch) {
+      try { stockPatch = JSON.parse(rawPatch); } catch (_) { /* ignore */ }
+    }
+    emitDataChange({
+      id: response.headers['x-data-event-id'],
+      domains: domains.split(','),
+      stockPatch,
+    });
+  }
+  return response;
+}, handleUnauthorized);
 
 export const apiGet = async (url, config = {}) => {
   return api.get(url, { ...config, headers: { ...getAuthHeader(), ...config.headers } });
