@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Save, Move, Bot, Sparkles, Mic, Tags, FileText } from 'lucide-react';
-import { apiGet } from '@/lib/api';
+import { apiGetPublic } from '@/lib/api';
 import { useDataRefresh } from '@/lib/dataEvents';
 import { API } from '@/lib/config';
 
@@ -20,7 +20,7 @@ const WelcomeModal = () => {
     if (fetchingFullRef.current) return false;
     fetchingFullRef.current = true;
     try {
-      const res = await apiGet(`${API}/novedades`);
+      const res = await apiGetPublic(`${API}/novedades`);
       const data = res?.data;
       const version = data?.version || versionHint;
       const features = Array.isArray(data?.features) && data.features.length ? data.features : [];

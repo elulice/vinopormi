@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
-import axios from 'axios';
 import { API } from '@/lib/config';
+import { apiGet, apiPut } from '@/lib/api';
 import { useDataRefresh } from '@/lib/dataEvents';
 
 const ConfigContext = createContext(undefined);
@@ -14,6 +14,10 @@ export const useConfig = () => {
   return context;
 };
 
+// Para componentes compartidos que también se usan en rutas públicas
+// (ej. /catalogo), donde no existe ConfigProvider.
+export const useConfigSafe = () => useContext(ConfigContext) ?? null;
+
 // Espejo en localStorage para todas las preferencias:
 // permite render inicial sin parpadeo y sirve de caché/offline.
 const MIRROR_KEYS = {
@@ -25,7 +29,8 @@ const MIRROR_KEYS = {
   darkMode: 'vinopormi_dark_mode',
   totalFlotante: 'vinopormi_total_flotante',
   hiddenSidebarItems: 'vinopormi_hidden_sidebar_items',
-  hiddenFloatingMenuActions: 'vinopormi_hidden_floating_menu_actions'
+  hiddenFloatingMenuActions: 'vinopormi_hidden_floating_menu_actions',
+  soloMisDatos: 'vinopormi_solo_mis_datos'
 };
 
 // Valores por defecto según la fuente: espejo local (primer render) y backend (usuario logueado)
@@ -38,7 +43,8 @@ const MIRROR_DEFAULTS = {
   darkMode: true,
   totalFlotante: false,
   hiddenSidebarItems: ['/recomendaciones'],
-  hiddenFloatingMenuActions: []
+  hiddenFloatingMenuActions: [],
+  soloMisDatos: false
 };
 
 const BACKEND_DEFAULTS = {
@@ -50,10 +56,11 @@ const BACKEND_DEFAULTS = {
   darkMode: true,
   totalFlotante: false,
   hiddenSidebarItems: ['/recomendaciones'],
-  hiddenFloatingMenuActions: []
+  hiddenFloatingMenuActions: [],
+  soloMisDatos: false
 };
 
-const PREF_KEYS = ['showCents', 'sidebarWidth', 'floatingMenu', 'autoLogout', 'calcularVuelto', 'darkMode', 'totalFlotante', 'hiddenSidebarItems', 'hiddenFloatingMenuActions'];
+const PREF_KEYS = ['showCents', 'sidebarWidth', 'floatingMenu', 'autoLogout', 'calcularVuelto', 'darkMode', 'totalFlotante', 'hiddenSidebarItems', 'hiddenFloatingMenuActions', 'soloMisDatos'];
 
 const readMirror = (key, fallback) => {
   try {
@@ -86,7 +93,7 @@ const writeMirror = (key, value) => {
 };
 
 export const ConfigProvider = ({ children, forceDark = false }) => {
-  const { user, getAuthHeader, updateAutoLogoutSetting } = useAuth();
+  const { user, updateAutoLogoutSetting } = useAuth();
 
   // /auth/me ya trae las preferencias del usuario. Usarlas como valor inicial
   // evita el flash de "default -> real" al montar (y un request extra).
@@ -113,6 +120,7 @@ export const ConfigProvider = ({ children, forceDark = false }) => {
     const valor = pref('hiddenFloatingMenuActions', readMirror(MIRROR_KEYS.hiddenFloatingMenuActions, MIRROR_DEFAULTS.hiddenFloatingMenuActions));
     return Array.isArray(valor) ? valor : MIRROR_DEFAULTS.hiddenFloatingMenuActions;
   });
+  const [soloMisDatos, setSoloMisDatosState] = useState(() => pref('soloMisDatos', readMirror(MIRROR_KEYS.soloMisDatos, MIRROR_DEFAULTS.soloMisDatos)));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -134,9 +142,7 @@ export const ConfigProvider = ({ children, forceDark = false }) => {
     }
 
     try {
-      const response = await axios.get(`${API}/auth/preferencias`, {
-        headers: getAuthHeader()
-      });
+      const response = await apiGet(`${API}/auth/preferencias`);
 
       const preferencias = response.data;
       const valores = {};
@@ -157,6 +163,7 @@ export const ConfigProvider = ({ children, forceDark = false }) => {
       setTotalFlotanteState(valores.totalFlotante);
       setHiddenSidebarItemsState(Array.isArray(valores.hiddenSidebarItems) ? valores.hiddenSidebarItems : BACKEND_DEFAULTS.hiddenSidebarItems);
       setHiddenFloatingMenuActionsState(Array.isArray(valores.hiddenFloatingMenuActions) ? valores.hiddenFloatingMenuActions : BACKEND_DEFAULTS.hiddenFloatingMenuActions);
+      setSoloMisDatosState(valores.soloMisDatos);
       setError(null);
     } catch (err) {
       console.error('Error cargando preferencias:', err);
@@ -165,13 +172,13 @@ export const ConfigProvider = ({ children, forceDark = false }) => {
     } finally {
       setLoading(false);
     }
-  }, [user, getAuthHeader, forceDark]);
+  }, [user, forceDark]);
 
   // Persistir una preferencia en el backend (best-effort)
   const savePref = async (payload) => {
     if (!user) return;
     try {
-      await axios.put(`${API}/auth/preferencias`, payload, { headers: getAuthHeader() });
+      await apiPut(`${API}/auth/preferencias`, payload);
       setError(null);
     } catch (err) {
       console.error('Error guardando preferencia:', err);
@@ -196,6 +203,7 @@ export const ConfigProvider = ({ children, forceDark = false }) => {
   const setTotalFlotante = makeSetter('totalFlotante', setTotalFlotanteState);
   const setHiddenSidebarItems = makeSetter('hiddenSidebarItems', setHiddenSidebarItemsState);
   const setHiddenFloatingMenuActions = makeSetter('hiddenFloatingMenuActions', setHiddenFloatingMenuActionsState);
+  const setSoloMisDatos = makeSetter('soloMisDatos', setSoloMisDatosState);
 
   const toggleShowCents = () => {
     setShowCents(!showCents);
@@ -208,7 +216,7 @@ export const ConfigProvider = ({ children, forceDark = false }) => {
     } else {
       // Resetear cuando no hay usuario (logout o sesión sin iniciar)
       setShowCentsState(true);
-      setSidebarWidthState('normal');
+      setSidebarWidthState('expanded');
       setFloatingMenuState(false);
       setAutoLogoutState(MIRROR_DEFAULTS.autoLogout);
       setCalcularVueltoState(true);
@@ -216,6 +224,7 @@ export const ConfigProvider = ({ children, forceDark = false }) => {
       setTotalFlotanteState(false);
       setHiddenSidebarItemsState(MIRROR_DEFAULTS.hiddenSidebarItems);
       setHiddenFloatingMenuActionsState(MIRROR_DEFAULTS.hiddenFloatingMenuActions);
+      setSoloMisDatosState(MIRROR_DEFAULTS.soloMisDatos);
 
       // Limpiar TODO el espejo local: las preferencias son del usuario,
       // incluido darkMode. Así un login posterior no hereda nada de la
@@ -231,7 +240,7 @@ export const ConfigProvider = ({ children, forceDark = false }) => {
     }
   }, [user, loadPreferences, forceDark]);
 
-  useDataRefresh(['preferencias'], () => {
+  useDataRefresh(['preferencias', 'ui', 'tema', 'auth'], () => {
     if (user) loadPreferences();
   });
 
@@ -256,6 +265,8 @@ export const ConfigProvider = ({ children, forceDark = false }) => {
       setHiddenSidebarItems,
       hiddenFloatingMenuActions,
       setHiddenFloatingMenuActions,
+      soloMisDatos,
+      setSoloMisDatos,
       loading,
       error
     }}>

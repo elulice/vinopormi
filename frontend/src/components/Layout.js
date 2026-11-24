@@ -29,7 +29,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { API } from '@/lib/config';
+import { API, FEATURES } from '@/lib/config';
 import { apiGet } from '@/lib/api';
 import { connectDataEvents, useDataRefresh } from '@/lib/dataEvents';
 import { logoImage } from '@/assets/images';
@@ -193,7 +193,9 @@ const Layout = () => {
   ];
 
   const getConfigMenuItems = () => {
-    const allItems = getAllConfigMenuItems();
+    const allItems = getAllConfigMenuItems().filter(
+      (item) => FEATURES.herramientas || item.path !== '/herramientas'
+    );
     if (user?.rol === 'admin') {
       return allItems;
     } else {
