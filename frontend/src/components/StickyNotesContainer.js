@@ -17,6 +17,7 @@ import {
 import { toast } from 'sonner';
 import axios from 'axios';
 import { API } from '@/lib/config';
+import { useDataRefresh } from '@/lib/dataEvents';
 import { noteColorClass, noteSwatchClass } from '@/lib/noteColors';
 
 const StickyNotesContainer = () => {
@@ -108,6 +109,8 @@ const StickyNotesContainer = () => {
   useEffect(() => {
     fetchStickyNotes();
   }, []);
+
+  useDataRefresh(['sticky_notes'], () => fetchStickyNotes());
 
   const handleCreateNote = async () => {
     if (!newNoteText.trim()) {

@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import { useAuth } from './AuthContext';
 import axios from 'axios';
 import { API } from '@/lib/config';
+import { useDataRefresh } from '@/lib/dataEvents';
 
 const ConfigContext = createContext(undefined);
 
@@ -229,6 +230,10 @@ export const ConfigProvider = ({ children, forceDark = false }) => {
       setLoading(false);
     }
   }, [user, loadPreferences, forceDark]);
+
+  useDataRefresh(['preferencias'], () => {
+    if (user) loadPreferences();
+  });
 
   return (
     <ConfigContext.Provider value={{

@@ -10,6 +10,7 @@ import ResponsiveTable from '@/components/ResponsiveTable';
 import { useConfig } from '@/context/ConfigContext';
 import { API } from '@/lib/config';
 import { apiDelete, apiGet, apiPost, apiPut } from '@/lib/api';
+import { useDataRefresh } from '@/lib/dataEvents';
 import { formatCurrency } from '@/lib/currency';
 import { downloadElementAsPDF } from '@/lib/downloadUtils';
 import ProductSearch from '@/components/ProductSearch';
@@ -106,6 +107,11 @@ const Presupuestos = () => {
     cargar();
     return () => { activo = false; };
   }, [cargarProductos, cargarPresupuestos]);
+
+  useDataRefresh(
+    ['presupuestos', 'productos'],
+    () => Promise.all([cargarProductos(), cargarPresupuestos()])
+  );
 
   const itemsNota = useMemo(() => items.map((item) => {
     const producto = productos.find((p) => p.id === item.producto_id);

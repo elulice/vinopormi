@@ -31,6 +31,7 @@ import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react
 import { createPortal } from 'react-dom';
 import { API } from '@/lib/config';
 import { apiGet } from '@/lib/api';
+import { connectDataEvents, useDataRefresh } from '@/lib/dataEvents';
 import { logoImage } from '@/assets/images';
 import MercadopagoIcon from '@/components/MercadopagoIcon';
 import BackgroundSync from '@/components/BackgroundSync';
@@ -59,15 +60,22 @@ const Layout = () => {
   }, []);
 
   // Badge del sidebar: cantidad real de clientes en cuenta corriente.
-  useEffect(() => {
-    let active = true;
-    apiGet(`${API}/dashboard/stats`)
-      .then((res) => {
-        if (active) setDebtCount(res.data?.ultimos_clientes_cta_cte?.length || 0);
-      })
-      .catch(() => { if (active) setDebtCount(0); });
-    return () => { active = false; };
+  const fetchDebtCount = useCallback(async () => {
+    try {
+      const res = await apiGet(`${API}/dashboard/stats`);
+      setDebtCount(res.data?.ultimos_clientes_cta_cte?.length || 0);
+    } catch {
+      setDebtCount(0);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchDebtCount();
+  }, [fetchDebtCount]);
+  useDataRefresh(['dashboard'], fetchDebtCount);
+
+  // Unico canal SSE para toda la app: el bus avisa a las pantallas suscriptas.
+  useEffect(() => connectDataEvents(), []);
 
   const handleLogout = () => {
     logout();

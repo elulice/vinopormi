@@ -33,6 +33,7 @@ import { API } from '@/lib/config';
 import SearchInput from '@/components/common/SearchInput';
 import DeleteConfirmDialog from '@/components/common/DeleteConfirmDialog';
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
+import { useDataRefresh } from '@/lib/dataEvents';
 
 
 
@@ -85,6 +86,8 @@ const Egresos = () => {
   useEffect(() => {
     fetchEgresos();
   }, [fetchEgresos]);
+
+  useDataRefresh(['egresos', 'dashboard'], fetchEgresos);
 
   const resetForm = () => {
     setFormData({ descripcion: '', monto: '' });

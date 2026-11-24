@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Save, Move, Bot, Sparkles, Mic, Tags, FileText } from 'lucide-react';
 import { apiGet } from '@/lib/api';
+import { useDataRefresh } from '@/lib/dataEvents';
 import { API } from '@/lib/config';
 
 const SEEN_PREFIX = 'vpm_news_seen_';
@@ -76,6 +77,8 @@ const WelcomeModal = () => {
       document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [checkVersion]);
+
+  useDataRefresh(['novedades'], checkVersion);
 
   const handleClose = () => {
     const version = news?.version;

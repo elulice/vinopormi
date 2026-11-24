@@ -1,4 +1,5 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, status, Query, UploadFile, File
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
@@ -10,6 +11,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import os
 import re
+import json
 import logging
 import asyncio
 from pathlib import Path
@@ -57,6 +59,19 @@ from functools import wraps
 _READ_CACHE = {}
 _READ_CACHE_TTL = 3600  # 1 hora; las escrituras invalidan mucho antes
 _DOMAIN_VERSION = defaultdict(int)
+
+# Suscriptores del bus de datos (SSE). Cada uno es una Queue con eventos
+# {id, domains, stockPatch}. Render Free corre una sola instancia: alcanza.
+_DATA_EVENT_SUBSCRIBERS = set()
+
+
+def publish_data_event(event):
+    """Publica un cambio de dominio a todos los clientes conectados por SSE."""
+    for queue in tuple(_DATA_EVENT_SUBSCRIBERS):
+        try:
+            queue.put_nowait(event)
+        except asyncio.QueueFull:
+            pass
 
 
 def cache_get(key, domains=()):
@@ -216,7 +231,7 @@ _WRITE_INVALIDATIONS = [
     ("PUT",    "/proveedores/*",                     ("proveedores", "auditoria")),
     ("DELETE", "/proveedores/*",                     ("proveedores", "auditoria")),
     ("POST",   "/clientes/*/movimientos",            ("movimientos", "clientes", "dashboard", "metricas")),
-    ("POST",   "/proveedores/*/movimientos",         ("movimientos", "proveedores", "metricas")),
+    ("POST",   "/proveedores/*/movimientos",         ("movimientos", "proveedores", "dashboard", "metricas")),
     ("POST",   "/egresos",                           ("egresos", "dashboard", "auditoria", "metricas")),
     ("PUT",    "/egresos/*",                         ("egresos", "dashboard", "auditoria", "metricas")),
     ("DELETE", "/egresos/*",                         ("egresos", "dashboard", "auditoria", "metricas")),
@@ -268,6 +283,28 @@ async def cache_invalidation_middleware(request: Request, call_next):
     response = await call_next(request)
     if dominios and response.status_code < 400:
         invalidate(*dominios)
+
+        # El mismo mapa alimenta el aviso al front. Los eventos viajan en la
+        # respuesta HTTP (esta pestaña) y por SSE (demás usuarios/pestañas).
+        event_domains = set(dominios)
+        stock_patch = getattr(request.state, 'stock_patch', None) or {}
+        if stock_patch:
+            # Avisamos a Productos, pero NO invalidamos su cache: el stock ya
+            # fue parcheado en servidor y el front aplica el mismo parche.
+            event_domains.add('productos')
+
+        event = {
+            'id': uuid.uuid4().hex,
+            'domains': sorted(event_domains),
+            'stockPatch': stock_patch,
+        }
+        response.headers['X-Data-Domains'] = ','.join(event['domains'])
+        response.headers['X-Data-Event-Id'] = event['id']
+        if stock_patch:
+            response.headers['X-Data-Patch'] = json.dumps(
+                stock_patch, separators=(',', ':')
+            )
+        publish_data_event(event)
     return response
 
 
@@ -276,6 +313,51 @@ security = HTTPBearer()
 
 JWT_SECRET = os.environ.get('JWT_SECRET', 'vinoteca-secret-key-2024')
 JWT_ALGORITHM = 'HS256'
+
+
+def _verify_event_token(token):
+    """EventSource no puede enviar headers: el token viaja por query string."""
+    if not token:
+        return False
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        return bool(payload.get('sub'))
+    except Exception:
+        return False
+
+
+@api_router.get("/data-events")
+async def data_events(request: Request, token: str = Query(default=None)):
+    """Canal SSE: avisa a los clientes qué dominios cambiaron."""
+    if not _verify_event_token(token):
+        raise HTTPException(status_code=401, detail="Token inválido")
+
+    queue = asyncio.Queue(maxsize=32)
+    _DATA_EVENT_SUBSCRIBERS.add(queue)
+
+    async def stream():
+        try:
+            yield ": conectado\n\n"
+            while not await request.is_disconnected():
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=20)
+                except asyncio.TimeoutError:
+                    yield ": ping\n\n"
+                    continue
+                yield "data: " + json.dumps(event, separators=(',', ':')) + "\n\n"
+        finally:
+            _DATA_EVENT_SUBSCRIBERS.discard(queue)
+
+    return StreamingResponse(
+        stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
 
 # ===== MODELS =====
 
@@ -2130,7 +2212,7 @@ async def delete_cliente(
 # ===== VENTAS ROUTES =====
 
 @api_router.post("/ventas", response_model=Venta)
-async def create_venta(input: VentaCreate, current_user: Usuario = Depends(get_current_user)):
+async def create_venta(request: Request, input: VentaCreate, current_user: Usuario = Depends(get_current_user)):
     # Unificar detalles por producto_id y buscar precio_costo
     detalles_unificados = {}
     for detalle in input.detalles:
@@ -2257,6 +2339,9 @@ async def create_venta(input: VentaCreate, current_user: Usuario = Depends(get_c
 
     if stocks_actualizados:
         patch_cached_product_stock(stocks_actualizados)
+        # El middleware arma el evento con este payload para que Productos
+        # parchee solo estos ids, sin recargar toda la seccion.
+        request.state.stock_patch = stocks_actualizados
     
     # Procesar pagos a cuenta corriente
     if input.pagos:
@@ -4448,6 +4533,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Data-Domains", "X-Data-Event-Id", "X-Data-Patch"],
 )
 
 # Middleware simple para bloquear bots sospechosos

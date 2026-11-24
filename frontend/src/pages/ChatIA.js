@@ -3,6 +3,7 @@ import { Bot, Loader2, Mic, MicOff, Send, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
 import { apiDelete, apiGet, apiPost } from '@/lib/api';
+import { useDataRefresh } from '@/lib/dataEvents';
 import { API } from '@/lib/config';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -199,6 +200,7 @@ const ChatIA = () => {
   const streamRef = useRef(null);
   const cooldownTimerRef = useRef(null);
   const loadingRef = useRef(false);
+  const reloadChatRef = useRef(null);
   const userInitial = (user?.nombre || user?.username || 'U').trim().charAt(0).toUpperCase() || 'U';
   const esAdmin = user?.rol === 'admin';
   const sugerencias = useMemo(
@@ -256,6 +258,10 @@ const ChatIA = () => {
       }
     };
 
+    reloadChatRef.current = () => {
+      if (!loadingRef.current) loadHistory();
+    };
+
     loadHistory({ initial: true });
 
     const onFocus = () => {
@@ -273,6 +279,8 @@ const ChatIA = () => {
       document.removeEventListener('visibilitychange', onVisibility);
     };
   }, []);
+
+  useDataRefresh(['chat'], () => reloadChatRef.current?.());
 
   useEffect(() => {
     if (loadingHistory) return;

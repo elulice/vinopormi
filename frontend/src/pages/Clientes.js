@@ -18,6 +18,7 @@ import { capitalizeWords } from '@/lib/utils';
 import ResponsiveTable from '@/components/ResponsiveTable';
 import { API } from '@/lib/config';
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
+import { useDataRefresh } from '@/lib/dataEvents';
 import SearchInput from '@/components/common/SearchInput';
 import DeleteConfirmDialog from '@/components/common/DeleteConfirmDialog';
 import DetalleVentaContent from '@/components/DetalleVentaCard';
@@ -90,6 +91,11 @@ const Clientes = () => {
       fetchMovimientosTodos();
     }
   }, [activeTab, fetchMovimientosTodos, movimientosTodos.length]);
+
+  useDataRefresh(['clientes', 'movimientos'], () => {
+    fetchClientes();
+    fetchMovimientosTodos();
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();

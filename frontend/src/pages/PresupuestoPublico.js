@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { Download, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { apiGetPublic } from '@/lib/api';
+import { useDataRefresh } from '@/lib/dataEvents';
 import { API } from '@/lib/config';
 import { downloadElementAsPDF } from '@/lib/downloadUtils';
 import PresupuestoNota from '@/components/PresupuestoNota';
@@ -12,6 +13,7 @@ import './Presupuestos.css';
 const PresupuestoPublico = () => {
   const { token } = useParams();
   const notaRef = useRef(null);
+  const recargarRef = useRef(null);
   const [presupuesto, setPresupuesto] = useState(null);
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(true);
@@ -36,9 +38,15 @@ const PresupuestoPublico = () => {
         if (activo) setCargando(false);
       }
     };
+    recargarRef.current = () => cargar();
     cargar();
     return () => { activo = false; };
   }, [token]);
+
+  useDataRefresh(
+    ['presupuestos', 'productos'],
+    () => recargarRef.current?.()
+  );
 
   if (cargando) {
     return (

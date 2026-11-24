@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import NavbarPublico from "@/components/NavbarPublico";
 import { apiGetPublic } from "@/lib/api";
+import { useDataRefresh } from "@/lib/dataEvents";
 import { API } from "@/lib/config";
 import Skeleton from "@/components/Skeleton";
 
@@ -43,6 +44,8 @@ const PaginaCatalogo = () => {
     }, 300);
     return () => clearTimeout(timeoutId);
   }, [fetchProductos]);
+
+  useDataRefresh(["productos"], fetchProductos);
 
   useEffect(() => {
     setDisplayedProductos(allProductos.slice(0, ITEMS_PER_PAGE));

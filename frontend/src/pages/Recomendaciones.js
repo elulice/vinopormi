@@ -15,6 +15,7 @@ import {
 import { formatCurrency } from '@/lib/currency';
 import { API } from '@/lib/config';
 import { apiGet } from '@/lib/api';
+import { useDataRefresh } from '@/lib/dataEvents';
 
 const Recomendaciones = () => {
   const { showCents } = useConfig();
@@ -46,6 +47,11 @@ const Recomendaciones = () => {
       fetchRecomendaciones(true);
     }
   }, [fetchRecomendaciones]);
+
+  useDataRefresh(
+    ['recomendaciones', 'productos', 'ventas'],
+    () => fetchRecomendaciones(false)
+  );
 
   const hasData = data && (
     (Array.isArray(data.top_productos) && data.top_productos.length > 0) ||
