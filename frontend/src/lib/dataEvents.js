@@ -69,11 +69,13 @@ export function resyncData() {
  * Si el evento trae stockPatch y se paso `onPatch`, aplica SOLO ese parche y
  * no dispara el refetch completo (caso Productos tras una venta).
  */
-export function useDataRefresh(domains, refresh, { onPatch = null } = {}) {
+export function useDataRefresh(domains, refresh, { onPatch = null, withEvent = false } = {}) {
   const refreshRef = useRef(refresh);
   const patchRef = useRef(onPatch);
   refreshRef.current = refresh;
   patchRef.current = onPatch;
+  const withEventRef = useRef(withEvent);
+  withEventRef.current = withEvent;
 
   const key = (domains || []).join('|');
 
@@ -84,7 +86,10 @@ export function useDataRefresh(domains, refresh, { onPatch = null } = {}) {
         patchRef.current(patch);
         return;
       }
-      if (refreshRef.current) refreshRef.current();
+      if (!refreshRef.current) return;
+      // `withEvent` es opt-in: la mayoria de los handlers no espera argumentos.
+      if (withEventRef.current) refreshRef.current(event);
+      else refreshRef.current();
     });
   }, [key]);
 }
