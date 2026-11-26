@@ -24,9 +24,12 @@ jobs:
           curl -fsSL -o /tmp/mongodb-tools.tgz \
             "https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2204-x86_64-${MONGODB_TOOLS_VERSION}.tgz"
           tar -xzf /tmp/mongodb-tools.tgz -C /tmp
-          echo "/tmp/mongodb-database-tools-ubuntu2204-x86_64-${MONGODB_TOOLS_VERSION}/bin" >> "$GITHUB_PATH"
+          TOOLS_BIN="/tmp/mongodb-database-tools-ubuntu2204-x86_64-${MONGODB_TOOLS_VERSION}/bin"
+          # GITHUB_PATH recien se aplica en los pasos siguientes: en este paso
+          # hay que llamar al binario por ruta completa.
+          echo "$TOOLS_BIN" >> "$GITHUB_PATH"
           if ! aws --version >/dev/null 2>&1; then pip install --quiet awscli; fi
-          mongodump --version
+          "$TOOLS_BIN/mongodump" --version
 
       - name: Validar configuracion
         env:
