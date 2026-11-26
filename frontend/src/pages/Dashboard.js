@@ -82,10 +82,11 @@ const Dashboard = () => {
     ultimas_ventas: []
   });
   const [loading, setLoading] = useState(true);
+  const toggleEnCursoRef = useRef(false);
 
-  const fetchStats = useCallback(async () => {
+  const fetchStats = useCallback(async (valor = soloMisDatos, force = false) => {
     try {
-      setStats(await fetchDashboardStats({ soloMisDatos }));
+      setStats(await fetchDashboardStats({ soloMisDatos: valor, force }));
     } catch (error) {
       toast.error('Error al cargar estadísticas');
     } finally {
@@ -94,6 +95,9 @@ const Dashboard = () => {
   }, [soloMisDatos]);
 
   useEffect(() => {
+    // El toggle guarda la preferencia antes de pedir: evitamos un request con
+    // el estado nuevo mientras el backend todavia tiene el viejo.
+    if (toggleEnCursoRef.current) return;
     fetchStats();
   }, [fetchStats, soloMisDatos]);
 
@@ -113,11 +117,15 @@ const Dashboard = () => {
   }, []);
 
   const handleSoloMisDatosChange = async (checked) => {
+    toggleEnCursoRef.current = true;
+    setLoading(true);
     try {
       await guardarSoloMisDatos(checked);
-      fetchStats();
+      await fetchStats(checked, true);
     } catch (error) {
       toast.error('Error al guardar preferencia');
+    } finally {
+      toggleEnCursoRef.current = false;
     }
   };
 
