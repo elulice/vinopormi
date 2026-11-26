@@ -73,8 +73,8 @@ const StickyNotesContainer = () => {
     { nombre: 'verde', value: 'green' }
   ];
 
-  const fetchStickyNotes = async () => {
-    setLoading(true);
+  const fetchStickyNotes = async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true);
     try {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -102,7 +102,7 @@ const StickyNotesContainer = () => {
         toast.error('Error al cargar las notas: ' + (error.response?.data?.detail || error.message));
       }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -110,7 +110,12 @@ const StickyNotesContainer = () => {
     fetchStickyNotes();
   }, []);
 
-  useDataRefresh(['sticky_notes'], () => fetchStickyNotes());
+  // El resync al volver al foco actualiza las notas sin mostrar skeletons.
+  useDataRefresh(
+    ['sticky_notes'],
+    (event) => fetchStickyNotes({ silent: event?.reason === 'resync' }),
+    { withEvent: true }
+  );
 
   const handleCreateNote = async () => {
     if (!newNoteText.trim()) {
