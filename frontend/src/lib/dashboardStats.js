@@ -51,7 +51,9 @@ export function fetchDashboardStats({ soloMisDatos = false, force = false } = {}
 
   if (inflight.has(key)) return inflight.get(key);
 
-  const params = soloMisDatos ? '?soloMisDatos=true' : '';
+  // Siempre enviamos el parametro: el backend lo usa por encima de la
+  // preferencia guardada para que el toggle no espere al PUT.
+  const params = `?soloMisDatos=${soloMisDatos ? 'true' : 'false'}`;
   const request = apiGet(`${API}/dashboard/stats${params}`)
     .then((response) => {
       const data = response.data;

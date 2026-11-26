@@ -2774,9 +2774,17 @@ async def get_venta(venta_id: str, current_user: Usuario = Depends(get_current_u
 
 @api_router.get("/dashboard/stats", response_model=DashboardStats)
 @cached(domains=("dashboard",), prefix="dashboard-stats")
-async def get_dashboard_stats(current_user: Usuario = Depends(get_current_user)):
-    # Verificar si el usuario quiere solo sus datos
-    solo_mis_datos = current_user.preferencias.get('soloMisDatos', False) if current_user.preferencias else False
+async def get_dashboard_stats(
+    soloMisDatos: Optional[bool] = None,
+    current_user: Usuario = Depends(get_current_user),
+):
+    # El front envia siempre el parametro con el estado del toggle, asi el
+    # resultado no depende de que ya se haya guardado la preferencia en DB.
+    # Si no viene (clientes viejos), se mantiene el comportamiento anterior.
+    if soloMisDatos is None:
+        solo_mis_datos = bool((current_user.preferencias or {}).get('soloMisDatos', False))
+    else:
+        solo_mis_datos = soloMisDatos
 
     # Obtener fecha actual en UTC para coincidir con cómo se guardan los datos
     ahora_utc = datetime.now(timezone.utc)
@@ -2793,24 +2801,27 @@ async def get_dashboard_stats(current_user: Usuario = Depends(get_current_user))
     # Rango local de ayer, en UTC para comparar con la base de datos.
     ayer_local = ahora_local - timedelta(days=1)
     ayer_inicio_utc = ayer_local.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
-    ayer_fin_utc = ayer_local.replace(hour=23, minute=59, second=59, microsecond=999999).astimezone(timezone.utc)
     ayer_inicio_str = ayer_inicio_utc.isoformat()
-    ayer_fin_str = ayer_fin_utc.isoformat()
     
     # Filtro base para ventas y egresos
     filtro_fecha = {'fecha': {'$gte': hoy_inicio_str, '$lte': hoy_fin_str}}
-    filtro_fecha_ayer = {'fecha': {'$gte': ayer_inicio_str, '$lte': ayer_fin_str}}
-    
-    # Filtrar ventas del día actual (00:00:00 - 23:59:59)
-    if solo_mis_datos:
-        filtro_ventas = {**filtro_fecha, 'usuario_id': current_user.id}
-        filtro_ventas_ayer = {**filtro_fecha_ayer, 'usuario_id': current_user.id}
-    else:
-        filtro_ventas = filtro_fecha
-        filtro_ventas_ayer = filtro_fecha_ayer
-    
-    ventas_hoy = await db.ventas.find(filtro_ventas, {'_id': 0}).to_list(1000)
-    ventas_ayer = await db.ventas.find(filtro_ventas_ayer, {'_id': 0}).to_list(1000)
+    filtro_usuario = {'usuario_id': current_user.id} if solo_mis_datos else {}
+
+    # Un solo viaje para hoy y ayer (antes eran dos consultas separadas).
+    ventas_rango = await db.ventas.find(
+        {'fecha': {'$gte': ayer_inicio_str, '$lte': hoy_fin_str}, **filtro_usuario},
+        {'_id': 0},
+    ).to_list(2000)
+    ventas_hoy = []
+    ventas_ayer = []
+    for venta in ventas_rango:
+        fecha = venta.get('fecha')
+        if isinstance(fecha, datetime):
+            fecha = fecha.isoformat()
+        if isinstance(fecha, str) and fecha >= hoy_inicio_str:
+            ventas_hoy.append(venta)
+        else:
+            ventas_ayer.append(venta)
     
     total_vendido = sum(v['total'] for v in ventas_hoy)
     total_vendido_ayer = sum(v['total'] for v in ventas_ayer)
@@ -2851,19 +2862,30 @@ async def get_dashboard_stats(current_user: Usuario = Depends(get_current_user))
             medio = venta['medio_pago']
             ventas_por_medio[medio] = ventas_por_medio.get(medio, 0) + venta['total']
     
-    # Saldo de cuenta corriente y ultimo movimiento por cliente en UNA sola
-    # agregacion. Antes se hacia una query por cliente (y otra para su ultimo
-    # movimiento): ~57 viajes secuenciales a Atlas = ~12s de espera.
+    # Saldos por cliente e ingresos de hoy en UNA sola agregacion con $facet.
+    # Antes habia una query para saldos y otra para los ingresos del dia.
     clientes = await db.clientes.find({}, {'_id': 0, 'id': 1, 'nombre': 1}).to_list(1000)
     ids_clientes = [c['id'] for c in clientes if c.get('id')]
-    movimientos_agg = await db.movimientos.aggregate([
-        {'$match': {'cliente_id': {'$in': ids_clientes}}},
-        {'$group': {
-            '_id': '$cliente_id',
-            'saldo': {'$sum': '$monto'},
-            'ultima_fecha': {'$max': '$fecha'},
+    movimientos_facet = await db.movimientos.aggregate([
+        {'$facet': {
+            'por_cliente': [
+                {'$match': {'cliente_id': {'$in': ids_clientes}}},
+                {'$group': {
+                    '_id': '$cliente_id',
+                    'saldo': {'$sum': '$monto'},
+                    'ultima_fecha': {'$max': '$fecha'},
+                }},
+            ],
+            'ingresos_hoy': [
+                {'$match': {
+                    'fecha': {'$gte': hoy_inicio_str, '$lte': hoy_fin_str},
+                    'monto': {'$gt': 0},
+                }},
+                {'$group': {'_id': None, 'total': {'$sum': '$monto'}}},
+            ],
         }},
-    ]).to_list(1000)
+    ]).to_list(1)
+    movimientos_agg = movimientos_facet[0]['por_cliente'] if movimientos_facet else []
     resumen_clientes = {m['_id']: m for m in movimientos_agg}
     total_saldo_cuenta_corriente = sum(m['saldo'] for m in movimientos_agg)
     
@@ -2876,12 +2898,9 @@ async def get_dashboard_stats(current_user: Usuario = Depends(get_current_user))
     egresos_hoy = await db.egresos.find(filtro_egresos, {'_id': 0}).to_list(1000)
     total_egresos_hoy = sum(e['monto'] for e in egresos_hoy)
     
-    # Obtener ingresos de cuenta corriente del día (movimientos positivos)
-    movimientos_cta_cte_hoy = await db.movimientos.find({
-        'fecha': {'$gte': hoy_inicio_str, '$lte': hoy_fin_str},
-        'monto': {'$gt': 0}
-    }, {'_id': 0}).to_list(1000)
-    ingresos_cta_cte_hoy = sum(m['monto'] for m in movimientos_cta_cte_hoy)
+    # Ingresos de cuenta corriente del dia: ya vinieron en el $facet anterior.
+    ingresos_hoy = movimientos_facet[0]['ingresos_hoy'] if movimientos_facet else []
+    ingresos_cta_cte_hoy = ingresos_hoy[0]['total'] if ingresos_hoy else 0
     
     # Clientes con movimientos, reutilizando la agregacion de arriba.
     ultimos_clientes = []
@@ -2906,24 +2925,6 @@ async def get_dashboard_stats(current_user: Usuario = Depends(get_current_user))
     for c in ultimos_clientes:
         if isinstance(c.get('ultima_fecha'), datetime):
             c['ultima_fecha'] = c['ultima_fecha'].isoformat()
-    
-    # Verificar productos con bajo stock para notificaciones
-    productos = await db.productos.find(
-        {}, {'_id': 0, 'id': 1, 'nombre': 1, 'stock': 1}
-    ).to_list(1000)
-    productos_bajo_stock = [p for p in productos if p.get('stock', 0) < 10]
-    
-    # Crear notificaciones si hay productos con bajo stock y no existen notificaciones no leídas
-    if productos_bajo_stock and await db.notificaciones.count_documents({'leida': False}) == 0:
-        for producto in productos_bajo_stock[:5]:  # Limitar a 5 para no sobrecargar
-            await db.notificaciones.insert_one({
-                'id': str(uuid.uuid4()),
-                'tipo': 'bajo_stock',
-                'mensaje': f'Bajo stock: {producto["nombre"]} - Solo quedan {producto["stock"]} unidades',
-                'productos': [{'id': producto["id"], 'nombre': producto["nombre"], 'stock': producto["stock"]}],
-                'fecha': datetime.now(timezone.utc),
-                'leida': False
-            })
     
     # Calcular caja_real: efectivo + transferencia + posnet + ingresos_cta_cte_hoy
     caja_real = (
