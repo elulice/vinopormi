@@ -50,7 +50,14 @@ const Login = () => {
       toast.success('Inicio de sesión exitoso');
       navigate('/dashboard');
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Error en la autenticación');
+      const detalle = error.response?.data?.detail;
+      if (detalle) {
+        toast.error(detalle);
+      } else if (!error.response) {
+        toast.error('No pudimos conectar con el servidor. Revisá tu conexión e intentá de nuevo.');
+      } else {
+        toast.error('Error en la autenticación');
+      }
     } finally {
       setLoading(false);
     }
