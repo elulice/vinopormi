@@ -19,6 +19,8 @@ import {
   Menu,
   X,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
   LogOut,
   Moon,
   Bot,
@@ -53,11 +55,34 @@ const Layout = () => {
   const configTriggerRef = useRef(null);
   const configPopRef = useRef(null);
   const [sidebarVisible, setSidebarVisible] = useState(false);
+  const sidebarNavRef = useRef(null);
+  const [sidebarFades, setSidebarFades] = useState({ top: false, bottom: false });
 
   useEffect(() => {
     const timer = setTimeout(() => setSidebarVisible(true), 200);
     return () => clearTimeout(timer);
   }, []);
+
+  // Desvanecer los bordes del sidebar cuando queda contenido oculto arriba/abajo.
+  useEffect(() => {
+    const sidebar = sidebarNavRef.current;
+    if (!sidebar) return;
+    const actualizar = () => {
+      const maximo = sidebar.scrollHeight - sidebar.clientHeight;
+      const top = sidebar.scrollTop > 4;
+      const bottom = maximo > 4 && sidebar.scrollTop < maximo - 4;
+      setSidebarFades((prev) =>
+        prev.top === top && prev.bottom === bottom ? prev : { top, bottom }
+      );
+    };
+    actualizar();
+    sidebar.addEventListener('scroll', actualizar, { passive: true });
+    window.addEventListener('resize', actualizar);
+    return () => {
+      sidebar.removeEventListener('scroll', actualizar);
+      window.removeEventListener('resize', actualizar);
+    };
+  }, [sidebarVisible, isCompact, debtCount, hiddenSidebarItems, location.pathname]);
 
   // Badge del sidebar: cantidad real de clientes en cuenta corriente.
   const fetchDebtCount = useCallback(async () => {
@@ -84,6 +109,10 @@ const Layout = () => {
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
+  };
+
+  const desplazarSidebar = (delta) => {
+    sidebarNavRef.current?.scrollBy({ top: delta, behavior: 'smooth' });
   };
 
   const closeConfigMenu = useCallback(() => {
@@ -209,11 +238,7 @@ const Layout = () => {
   return (
     <div className="min-h-screen bg-background vpm-app">
       {/* MOBILE HEADER - Solo visible en móviles */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 py-3 vpm-mobile-bar">
-        <div className="vpm-brand">
-          <img src={logoImage} alt="Vino por Mí" />
-          <span className="vpm-brand-title">Vino <em>Por Mí</em></span>
-        </div>
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-start gap-3 px-4 py-3 vpm-mobile-bar">
         <Button
           variant="ghost"
           size="sm"
@@ -223,12 +248,16 @@ const Layout = () => {
         >
           <Menu className="w-5 h-5" />
         </Button>
+        <div className="vpm-brand">
+          <img src={logoImage} alt="Vino por Mí" />
+          <span className="vpm-brand-title">Vino <em>Por Mí</em></span>
+        </div>
       </div>
 
       {/* SIDEBAR - Responsive */}
       <aside aria-label="Navegación principal" className={`${!sidebarVisible ? 'hidden' : ''} ${getSidebarClasses()}`}>
         {/* Close button for mobile */}
-        <div className="lg:hidden p-4 border-b border-border flex justify-end">
+        <div className="lg:hidden px-1 py-0 border-b border-border flex justify-end">
           <Button
             variant="ghost"
             size="sm"
@@ -275,7 +304,22 @@ const Layout = () => {
           </Link>
         )}
 
-        <nav className="flex-1 vpm-nav">
+        <div className="vpm-nav-wrap">
+          {sidebarFades.top && (
+            <button
+              type="button"
+              className="vpm-nav-scroll-hint vpm-nav-scroll-hint--top"
+              onClick={() => desplazarSidebar(-160)}
+              aria-label="Desplazar el menú hacia arriba"
+              title="Hay más opciones arriba"
+            >
+              <ChevronUp className="w-4 h-4" />
+            </button>
+          )}
+          <nav
+            ref={sidebarNavRef}
+            className={`vpm-nav ${sidebarFades.top ? 'vpm-nav--fade-top' : ''} ${sidebarFades.bottom ? 'vpm-nav--fade-bottom' : ''}`}
+          >
           {navGroups.map((group) => {
             const items = navItems.filter((item) => group.paths.includes(item.path));
             if (!items.length) return null;
@@ -314,9 +358,21 @@ const Layout = () => {
               </div>
             );
           })}
-        </nav>
+          </nav>
+          {sidebarFades.bottom && (
+            <button
+              type="button"
+              className="vpm-nav-scroll-hint vpm-nav-scroll-hint--bottom"
+              onClick={() => desplazarSidebar(160)}
+              aria-label="Desplazar el menú hacia abajo"
+              title="Hay más opciones abajo"
+            >
+              <ChevronDown className="w-4 h-4" />
+            </button>
+          )}
+        </div>
 
-<div className="p-2 border-t border-border">
+        <div className="p-2 border-t border-border">
           <div className="vpm-user-card" title={`${user?.nombre} (@${user?.username})`}>
             <div className="vpm-avatar" aria-hidden="true">
               {user?.nombre?.charAt(0)?.toUpperCase()}

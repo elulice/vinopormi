@@ -28,6 +28,77 @@
   overflow-y: auto;
 }
 
+@media (max-width: 1023px) {
+  .vpm-app .vpm-sidebar {
+    padding-top: 4px;
+  }
+}
+
+/* Difuminar el borde que tiene más contenido oculto al scrollear el menú. */
+.vpm-app .vpm-nav--fade-top,
+.vpm-app .vpm-nav--fade-bottom {
+  --vpm-sidebar-fade-top: 0px;
+  --vpm-sidebar-fade-bottom: 0px;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--vpm-sidebar-fade-top),
+    #000 calc(100% - var(--vpm-sidebar-fade-bottom)),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--vpm-sidebar-fade-top),
+    #000 calc(100% - var(--vpm-sidebar-fade-bottom)),
+    transparent 100%
+  );
+}
+
+.vpm-app .vpm-nav--fade-top {
+  --vpm-sidebar-fade-top: 22px;
+}
+
+.vpm-app .vpm-nav--fade-bottom {
+  --vpm-sidebar-fade-bottom: 22px;
+}
+
+.vpm-app .vpm-nav-wrap {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.vpm-app .vpm-nav-scroll-hint {
+  position: absolute;
+  left: 50%;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 20px;
+  padding: 0;
+  transform: translateX(-50%);
+  border: 1px solid var(--vpm-border);
+  border-radius: 999px;
+  background: var(--vpm-panel);
+  color: var(--vpm-accent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.vpm-app .vpm-nav-scroll-hint--top {
+  top: 2px;
+}
+
+.vpm-app .vpm-nav-scroll-hint--bottom {
+  bottom: 2px;
+}
+
+.vpm-app .vpm-nav-scroll-hint:hover {
+  background: var(--vpm-accent-soft);
+}
+
 .vpm-app .vpm-nav-badge {
   display: grid;
   place-items: center;

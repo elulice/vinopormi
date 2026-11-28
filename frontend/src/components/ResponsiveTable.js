@@ -17,7 +17,7 @@ const ResponsiveTable = ({
               {headers.map((header, index) => (
                 <th 
                   key={index} 
-                  className={`${header.align === 'right' ? 'text-right' : 'text-left'} p-2 text-xs`}
+                  className={`${header.align === 'center' ? 'text-center' : header.align === 'right' ? 'text-right' : 'text-left'} p-2 text-xs`}
                   style={{ width: header.width }}
                 >
                   {header.title}
