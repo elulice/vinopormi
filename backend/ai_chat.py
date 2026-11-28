@@ -326,6 +326,80 @@ async def tool_cuenta_corriente(
     return {"error": "tipo debe ser 'cliente' o 'proveedor'."}
 
 
+def _dia_arg_expr():
+    """Día calendario en Argentina, igual al que usa el listado de Ventas."""
+    return {
+        "$let": {
+            "vars": {
+                "fecha_date": {
+                    "$cond": [
+                        {"$eq": [{"$type": "$fecha"}, "string"]},
+                        {
+                            "$dateFromString": {
+                                "dateString": "$fecha",
+                                "onError": None,
+                                "onNull": None,
+                            }
+                        },
+                        "$fecha",
+                    ]
+                }
+            },
+            "in": {
+                "$cond": [
+                    {"$eq": [{"$type": "$$fecha_date"}, "null"]},
+                    {"$substrBytes": [{"$ifNull": ["$fecha", ""]}, 0, 10]},
+                    {
+                        "$dateToString": {
+                            "date": "$$fecha_date",
+                            "format": "%Y-%m-%d",
+                            "timezone": "America/Argentina/Buenos_Aires",
+                        }
+                    },
+                ]
+            },
+        }
+    }
+
+
+async def _top_dias_por_importe(db, match):
+    """Calcula el día con mayor bruto y el de mayor neto sobre TODAS las coincidencias."""
+    group_stage = {
+        "$group": {
+            "_id": _dia_arg_expr(),
+            "cantidad_ventas": {"$sum": 1},
+            "suma_total": {"$sum": {"$ifNull": ["$total", 0]}},
+            "suma_ganancia_neta": {"$sum": {"$ifNull": ["$ganancia_neta", 0]}},
+        }
+    }
+    base = [{"$match": match}, group_stage]
+
+    def fmt(doc):
+        if not doc:
+            return None
+        return {
+            "fecha": _fmt_date_ar(str(doc.get("_id") or "")),
+            "cantidad_ventas": int(doc.get("cantidad_ventas", 0) or 0),
+            "suma_total": _fmt_money_ar(doc.get("suma_total", 0)),
+            "suma_ganancia_neta": _fmt_money_ar(doc.get("suma_ganancia_neta", 0)),
+        }
+
+    top_bruto = await db.ventas.aggregate([
+        *base,
+        {"$sort": {"suma_total": -1, "_id": 1}},
+        {"$limit": 1},
+    ]).to_list(1)
+    top_neto = await db.ventas.aggregate([
+        *base,
+        {"$sort": {"suma_ganancia_neta": -1, "_id": 1}},
+        {"$limit": 1},
+    ]).to_list(1)
+    return {
+        "dia_con_mayor_bruto": fmt(top_bruto[0] if top_bruto else None),
+        "dia_con_mayor_neto": fmt(top_neto[0] if top_neto else None),
+    }
+
+
 async def tool_listar_ventas(
     db,
     current_user,
@@ -387,12 +461,14 @@ async def tool_listar_ventas(
     ]
     totals_agg = await db.ventas.aggregate(totals_pipeline).to_list(1)
     totals = totals_agg[0] if totals_agg else {"count": 0, "total": 0, "ganancia": 0}
+    top_dias = await _top_dias_por_importe(db, match)
 
     agrupar_por = (agrupar_por or "ninguno").lower().strip()
+    dia_key = _dia_arg_expr()
     group_key_map = {
-        "dia": {"$substrBytes": [{"$ifNull": ["$fecha", ""]}, 0, 10]},
-        "día": {"$substrBytes": [{"$ifNull": ["$fecha", ""]}, 0, 10]},
-        "fecha": {"$substrBytes": [{"$ifNull": ["$fecha", ""]}, 0, 10]},
+        "dia": dia_key,
+        "día": dia_key,
+        "fecha": dia_key,
         "mes": {"$substrBytes": [{"$ifNull": ["$fecha", ""]}, 0, 7]},
         "medio_pago": {"$ifNull": ["$medio_pago", "Sin medio de pago"]},
         "cliente": {"$ifNull": ["$cliente_nombre", "Sin cliente"]},
@@ -426,6 +502,7 @@ async def tool_listar_ventas(
                 "suma_ganancia_neta": _fmt_money_ar(g.get("suma_ganancia_neta", 0)),
             })
         return {
+            **top_dias,
             "agrupado_por": "dia" if agrupar_por in ("dia", "día", "fecha") else agrupar_por,
             "cantidad_grupos_mostrados": len(out_groups),
             "cantidad_total_ventas": int(totals.get("count", 0) or 0),
@@ -468,6 +545,7 @@ async def tool_listar_ventas(
             }
         )
     return {
+        **top_dias,
         "cantidad_mostrada": len(out),
         "cantidad_total_coincidencias": int(totals.get("count", 0) or 0),
         "suma_total_general": _fmt_money_ar(totals.get("total", 0)),
@@ -890,7 +968,7 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "listar_ventas",
-            "description": "Consulta ventas: filtra (fechas YYYY-MM-DD, cliente, medio de pago), ordena y/o agrupa. Devuelve totales generales (todas las coincidencias). Usar agrupar_por para resúmenes (por día/mes/medio_pago/cliente).",
+            "description": "Consulta ventas: filtra (fechas YYYY-MM-DD, cliente, medio de pago), ordena y/o agrupa. Devuelve totales generales (todas las coincidencias) y el día con mayor importe bruto y el de mayor importe neto. Usar agrupar_por para resúmenes (por día/mes/medio_pago/cliente).",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -1440,6 +1518,7 @@ SYSTEM_PROMPT = (
     "Mantené el contexto del historial de la conversación para entender referencias y preguntas de seguimiento (por ejemplo pronombres como 'él/ella/eso' o '¿de qué color?') usando lo que el usuario o vos dijeron antes en el chat. "
     "Cuando la pregunta requiera datos del sistema (ventas, productos, categorías, presupuestos, cuentas corrientes de clientes/proveedores, egresos, MercadoPago, auditoría, horas trabajadas o ranking de empleados), usá las herramientas disponibles y basá esos datos únicamente en sus resultados. No inventes precios, stock, saldos, montos, fechas ni registros. "
     "Aprovechá los parámetros de las herramientas cuando ayude: filtros (fechas, cliente, medio de pago, categoría, búsqueda, rangos, stock, descuento, estado del presupuesto), orden (asc/desc por precio, fecha, monto, etc.) y agrupaciones/resúmenes (por día, mes, medio de pago, cliente, categoría) para responder totales y comparaciones de forma precisa. "
+    "Cuando te pidan el día en que más se vendió, usá los campos dia_con_mayor_bruto y dia_con_mayor_neto de listar_ventas (calculados sobre todas las coincidencias, no sobre la lista limitada de grupos): si hablan de 'bruto', 'ingresos', 'monto' o 'más vendido', usá el bruto; si hablan de 'neto', 'ganancia' o 'utilidad', usá el neto; si no lo especifican, respondé con el bruto y aclaralo. "
     "Para categorías usá listar_categorias; para los productos de una categoría, buscar_productos. "
     "Para presupuestos usá consultar_presupuestos (acceso compartido; filtros por estado/fecha/usuario/vinoteca); nunca expongas tokens ni links públicos. "
     "Sobre los descuentos: un producto puede tener 'descuento por cantidad', que significa que si se compra una cantidad MAYOR O IGUAL a la cantidad mínima, el precio por unidad pasa a ser el precio con descuento (no es un porcentaje). En los resultados de buscar_productos, el campo 'descuento' indica 'Desde X unidades: $Y por unidad' cuando existe y es null cuando el producto no tiene descuento. Cuando te pregunten por descuentos, usá el filtro solo_con_descuento y explicá siempre la condición (desde cuántas unidades) y el precio unitario resultante, sin confundirlo con el precio de venta normal. "

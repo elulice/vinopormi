@@ -79,8 +79,8 @@
   line-height: 1.4;
 }
 
-/* Mobile first: nombre en su propia línea y los importes en una columna
-   derecha compartida, para que precio y subtotal nunca queden escalonados. */
+/* Mobile first: nombre, Cant. y Precio en la primera línea; Subtotal en la
+   segunda, alineado con el bloque de números. */
 .presupuesto-nota__columnas {
   display: none;
   padding: 0 0 8px;
@@ -93,8 +93,8 @@
 
 .presupuesto-nota__fila {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(104px, auto);
-  gap: 3px 10px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 3px 8px;
   align-items: center;
   padding: 8px 0;
   border-bottom: 1px dashed var(--vpm-border);
@@ -102,24 +102,25 @@
 }
 
 .presupuesto-nota__nombre {
-  grid-column: 1 / -1;
+  grid-column: 1;
+  grid-row: 1;
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
 .presupuesto-nota__fila > .presupuesto-nota__num:not(.presupuesto-nota__precio) {
-  grid-column: 1;
-  grid-row: 2;
+  grid-column: 2;
+  grid-row: 1;
 }
 
 .presupuesto-nota__precio {
-  grid-column: 2;
-  grid-row: 2;
+  grid-column: 3;
+  grid-row: 1;
 }
 
 .presupuesto-nota__importe {
-  grid-column: 2;
-  grid-row: 3;
+  grid-column: 2 / -1;
+  grid-row: 2;
 }
 
 /* Etiquetas compactas solo en móvil: sin ellas, dos importes a la derecha
@@ -143,11 +144,6 @@
   content: 'Subtotal ';
 }
 
-/* El precio tachado va debajo del unitario, sin correrlo del centro de la fila. */
-.presupuesto-nota__fila--descuento {
-  padding-bottom: 8px;
-}
-
 .presupuesto-nota__num,
 .presupuesto-nota__importe {
   font-variant-numeric: tabular-nums;
@@ -161,15 +157,20 @@
 .presupuesto-nota__precio {
   position: static;
   display: inline-block;
+  white-space: nowrap;
 }
 
-.presupuesto-nota__precio-base {
-  margin-left: 4px;
+.presupuesto-nota__precio-anterior {
+  margin-right: 5px;
   font-size: 11px;
-  line-height: 1.1;
-  color: var(--vpm-faint);
+  line-height: 1;
+  color: var(--vpm-accent);
   text-decoration: line-through;
-  white-space: normal;
+  white-space: nowrap;
+}
+
+.presupuesto-nota__precio-final {
+  white-space: nowrap;
 }
 
 .presupuesto-nota__sin-stock {
@@ -219,6 +220,11 @@
   font-weight: 700;
   color: var(--vpm-text);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.presupuesto-nota__total-valor .presupuesto-nota__precio-anterior {
+  font-weight: 400;
 }
 
 .presupuesto-nota__observaciones {
@@ -260,7 +266,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 16px;
   max-width: 760px;
   margin: 0 auto 24px;
@@ -293,14 +299,15 @@
 
   .presupuesto-nota__columnas,
   .presupuesto-nota__fila {
-    grid-template-columns: minmax(0, 1fr) 64px 108px 116px;
-    gap: 10px;
+    grid-template-columns: minmax(0, 1fr) 40px 120px 140px;
+    gap: 4px;
   }
 
   .presupuesto-nota__columnas {
     display: grid;
   }
 
+  .presupuesto-nota__nombre,
   .presupuesto-nota__fila > .presupuesto-nota__num:not(.presupuesto-nota__precio),
   .presupuesto-nota__precio,
   .presupuesto-nota__importe {
@@ -312,23 +319,6 @@
   .presupuesto-nota__precio::before,
   .presupuesto-nota__importe::before {
     content: none;
-  }
-
-  .presupuesto-nota__fila--descuento {
-    padding-bottom: 20px;
-  }
-
-  .presupuesto-nota__precio {
-    position: relative;
-  }
-
-  .presupuesto-nota__precio-base {
-    position: absolute;
-    top: 100%;
-    right: 0;
-    margin-top: 1px;
-    margin-left: 0;
-    white-space: nowrap;
   }
 
   .presupuesto-nota__descuento,
@@ -348,18 +338,30 @@
   align-items: start;
 }
 
+.presupuestos-columnas {
+  display: none;
+  padding: 0 10px 6px;
+  color: var(--vpm-faint);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
 .presupuestos-item {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 68px 32px;
+  grid-template-areas:
+    'nombre cantidad quitar'
+    'monto monto quitar';
   align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
+  gap: 5px 8px;
+  padding: 8px 10px;
   background: var(--vpm-field);
   border-radius: 10px;
 }
 
 .presupuestos-item__nombre {
-  flex: 1 1 100%;
+  grid-area: nombre;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -367,24 +369,70 @@
   font-size: 13px;
 }
 
-.presupuestos-item__monto {
+.presupuestos-item__cantidad {
+  grid-area: cantidad;
   min-width: 0;
-  margin-left: auto;
-  text-align: right;
-  font-size: 13px;
 }
 
-@media (min-width: 640px) {
+.presupuestos-item__monto {
+  grid-area: monto;
+  min-width: 0;
+  text-align: right;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.presupuestos-item__quitar {
+  grid-area: quitar;
+}
+
+.presupuestos-item__anterior {
+  margin-right: 5px;
+  font-size: 11px;
+  color: var(--vpm-accent);
+  text-decoration: line-through;
+  white-space: nowrap;
+}
+
+.presupuestos-item--pendiente {
+  background: var(--vpm-accent-soft);
+  outline: 1px solid var(--vpm-accent-border);
+}
+
+.presupuestos-item__descartar {
+  margin-left: 6px;
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  color: var(--vpm-faint);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+@media (min-width: 641px) {
   .presupuestos-layout {
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   }
 
-  .presupuestos-item__nombre {
-    flex: 1 1 auto;
+  .presupuestos-columnas,
+  .presupuestos-item {
+    grid-template-columns: minmax(0, 1fr) 68px 156px 32px;
+    gap: 10px;
   }
 
-  .presupuestos-item__monto {
-    min-width: 92px;
+  .presupuestos-columnas {
+    display: grid;
+    align-items: center;
+  }
+
+  .presupuestos-columnas > :nth-child(2),
+  .presupuestos-columnas > :nth-child(3) {
+    text-align: right;
+  }
+
+  .presupuestos-item {
+    grid-template-areas: 'nombre cantidad monto quitar';
   }
 }
 

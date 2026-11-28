@@ -24,6 +24,8 @@ const PresupuestoNota = forwardRef(({
   observaciones = '',
   descuentoMonto = 0,
   total = 0,
+  totalOriginal = 0,
+  mostrarComparativa = false,
   hayCambios = false,
   showCents = true,
 }, ref) => (
@@ -54,12 +56,7 @@ const PresupuestoNota = forwardRef(({
       <span className="presupuesto-nota__importe">Subtotal</span>
     </div>
 
-    {items.length === 0 ? (
-      <div className="presupuesto-nota__fila">
-        <span className="presupuesto-nota__nombre">Sin productos</span>
-      </div>
-    ) : (
-      items.map((item, index) => (
+    {items.length > 0 && items.map((item, index) => (
         <div
           className={`presupuesto-nota__fila${item.precio_original != null && item.precio_original !== item.precio_unitario ? ' presupuesto-nota__fila--descuento' : ''}`}
           key={`${item.producto_id || 'item'}-${index}`}
@@ -72,19 +69,28 @@ const PresupuestoNota = forwardRef(({
           </span>
           <span className="presupuesto-nota__num">{item.cantidad}</span>
           <span className="presupuesto-nota__num presupuesto-nota__precio">
-            {item.disponible === false ? '—' : formatCurrency(item.precio_unitario, showCents)}
             {item.precio_original != null && item.precio_original !== item.precio_unitario && (
-              <span className="presupuesto-nota__precio-base">
+              <span className="presupuesto-nota__precio-anterior">
                 {formatCurrency(item.precio_original, showCents)}
               </span>
             )}
+            <span className="presupuesto-nota__precio-final">
+              {item.disponible === false ? '—' : formatCurrency(item.precio_unitario, showCents)}
+            </span>
           </span>
           <span className="presupuesto-nota__importe">
-            {item.disponible === false ? '—' : formatCurrency(item.subtotal, showCents)}
+            {mostrarComparativa && item.precio_original != null
+              && item.precio_original !== item.precio_unitario && (
+              <span className="presupuesto-nota__precio-anterior">
+                {formatCurrency((item.precio_original || 0) * (item.cantidad || 0), showCents)}
+              </span>
+            )}
+            <span className="presupuesto-nota__precio-final">
+              {item.disponible === false ? '—' : formatCurrency(item.subtotal, showCents)}
+            </span>
           </span>
         </div>
-      ))
-    )}
+    ))}
 
     {descuentoMonto > 0 && (
       <div className="presupuesto-nota__descuento">
@@ -98,7 +104,14 @@ const PresupuestoNota = forwardRef(({
     <div className="presupuesto-nota__total">
       <span className="presupuesto-nota__total-label">Total</span>
       <span className="presupuesto-nota__total-valor">
-        {formatCurrency(total, showCents)}
+        {mostrarComparativa && totalOriginal > total && (
+          <span className="presupuesto-nota__precio-anterior">
+            {formatCurrency(totalOriginal, showCents)}
+          </span>
+        )}
+        <span className="presupuesto-nota__precio-final">
+          {formatCurrency(total, showCents)}
+        </span>
       </span>
     </div>
 
