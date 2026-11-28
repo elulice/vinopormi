@@ -61,7 +61,9 @@ const Mercadopago = () => {
   const fetchAsociaciones = useCallback(async () => {
     try {
       const response = await apiGet(`${API}/mercadopago/obtener-asociaciones`);
-      setAsociaciones(response.data.asociaciones || {});
+      // Merge en vez de reemplazar: una respuesta vieja no debe borrar el
+      // check optimista que acabamos de pintar al asociar.
+      setAsociaciones(prev => ({ ...(prev || {}), ...(response.data.asociaciones || {}) }));
     } catch (error) {
       console.error('Error fetching asociaciones:', error);
     }
@@ -76,7 +78,9 @@ const Mercadopago = () => {
   }, [fetchAsociaciones]);
 
   useDataRefresh(['mp', 'ventas'], () => {
-    fetchTransferencias(minutosBusqueda);
+    // La lista de transferencias viene de la API externa de MercadoPago: una
+    // escritura local no la cambia y volver a pedirla metia la fila en un
+    // skeleton de hasta 20 s justo cuando teniamos que mostrar el check.
     fetchAsociaciones();
   });
 
@@ -113,14 +117,27 @@ const Mercadopago = () => {
 
   const asociarVenta = async (ventaId) => {
     if (!selectedTransferencia) return;
+    const transferenciaId = selectedTransferencia.id;
     try {
       await apiPost(`${API}/mercadopago/asociar-transferencia`, {
-        transferencia_id: selectedTransferencia.id,
+        transferencia_id: transferenciaId,
         venta_id: ventaId
       });
+      // Check optimista: pintamos la asociacion apenas responde el POST, sin
+      // esperar otro GET ni el refetch que dispara el bus de datos.
+      setAsociaciones(prev => ({
+        ...(prev || {}),
+        [transferenciaId]: {
+          venta_id: ventaId,
+          venta: prev?.[transferenciaId]?.venta ?? null
+        }
+      }));
+      // Tambien marcamos la venta en la lista abierta: si volviamos a pedir
+      // las coincidencias, el skeleton volvia a tapar el check recien pintado.
+      setVentasCoincidentes(prev => (prev || []).map(v =>
+        v.id === ventaId ? { ...v, ya_asociada: true } : v
+      ));
       toast.success('Transferencia asociada correctamente');
-      await fetchAsociaciones();
-      await buscarCoincidencias(selectedTransferencia);
     } catch (error) {
       console.error('Error asociando transferencia:', error);
       toast.error('Error al asociar transferencia');
@@ -147,6 +164,15 @@ const Mercadopago = () => {
     if (!dateStr) return new Date();
     const parsed = new Date(dateStr);
     return isNaN(parsed.getTime()) ? new Date() : parsed;
+  };
+
+  // El backend ya devuelve `ya_asociada` en cada venta coincidente. Lo usamos
+  // como puente mientras llega el mapa de asociaciones para no mostrar el
+  // boton "Asociar" de una venta que ya esta vinculada.
+  const esVentaAsociada = (venta) => {
+    if (!selectedTransferencia) return false;
+    return asociaciones[selectedTransferencia.id]?.venta_id === venta.id
+      || Boolean(venta.ya_asociada);
   };
 
   return (
@@ -327,7 +353,7 @@ const Mercadopago = () => {
                       <div 
                         key={venta.id}
                         className={`p-2 rounded-md text-xs cursor-pointer hover:opacity-80 ${
-                          asociaciones[selectedTransferencia.id]?.venta_id === venta.id 
+                          esVentaAsociada(venta)
                             ? 'bg-green-50 border border-green-200 dark:bg-green-500/15 dark:border-green-400/40' 
                             : 'bg-muted'
                         }`}
@@ -349,7 +375,7 @@ const Mercadopago = () => {
                                 venta.pagos.map(p => p.medio_pago).join(', ') || 'No especificado'}
                             </p>
                           </div>
-                          {asociaciones[selectedTransferencia.id]?.venta_id === venta.id ? (
+                          {esVentaAsociada(venta) ? (
                             <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
                               <CheckCircle className="w-4 h-4" />
                               <span className="text-xs font-medium">Asociada</span>

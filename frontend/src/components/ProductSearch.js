@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -33,8 +33,11 @@ const ProductSearch = forwardRef(function ProductSearch(
   const inputRef = useRef(null);
   const resultRefs = useRef([]);
   const containerRef = useRef(null);
+  const dropdownRef = useRef(null);
+  const [abrirArriba, setAbrirArriba] = useState(false);
   const terminoDebounced = useDebounce(termino, 300);
   const excludeKey = (excludeIds || []).join(',');
+  const mostrarDropdown = activo && Boolean(termino);
 
   const resultados = useMemo(() => {
     const excluidos = new Set(excludeKey ? excludeKey.split(',') : []);
@@ -57,6 +60,24 @@ const ProductSearch = forwardRef(function ProductSearch(
     resultRefs.current = [];
   }, [terminoDebounced]);
 
+  // Abrir hacia arriba o abajo segun el espacio real del viewport. En Nueva
+  // Venta se hace scroll automatico al agregar filas y hay una barra fija
+  // abajo, asi que el dropdown de 160 px se salia de pantalla al abrir siempre
+  // hacia abajo.
+  const recalcularPosicion = useCallback(() => {
+    const input = inputRef.current;
+    if (!input) return;
+    const rect = input.getBoundingClientRect();
+    const alto = Math.min(dropdownRef.current?.scrollHeight || 0, 160) || 160;
+    const espacioAbajo = window.innerHeight - rect.bottom;
+    const espacioArriba = rect.top;
+    setAbrirArriba(espacioAbajo < alto + 12 && espacioArriba > espacioAbajo);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (mostrarDropdown) recalcularPosicion();
+  }, [mostrarDropdown, resultados.length, recalcularPosicion]);
+
   // Cerrar el dropdown al hacer clic fuera, sin borrar lo escrito para que se
   // pueda retomar la búsqueda (mismo comportamiento que Nueva Venta).
   useEffect(() => {
@@ -67,8 +88,15 @@ const ProductSearch = forwardRef(function ProductSearch(
       setIndiceSeleccionado(0);
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [activo]);
+    // capture=true detecta tambien scrolls de contenedores internos.
+    window.addEventListener('resize', recalcularPosicion);
+    window.addEventListener('scroll', recalcularPosicion, true);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('resize', recalcularPosicion);
+      window.removeEventListener('scroll', recalcularPosicion, true);
+    };
+  }, [activo, recalcularPosicion]);
 
   useEffect(() => {
     if (autoFocus) inputRef.current?.focus();
@@ -127,8 +155,6 @@ const ProductSearch = forwardRef(function ProductSearch(
     }
   };
 
-  const mostrarDropdown = activo && Boolean(termino);
-
   return (
     <div className="relative" ref={containerRef}>
       <Input
@@ -149,7 +175,12 @@ const ProductSearch = forwardRef(function ProductSearch(
         <Search className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground w-3 h-3 pointer-events-none" />
       )}
       {mostrarDropdown && (
-        <div className="search-dropdown absolute z-10 left-0 right-0 mt-1 bg-background border border-border rounded-md shadow-lg max-h-40 overflow-auto">
+        <div
+          ref={dropdownRef}
+          className={`search-dropdown absolute z-[60] left-0 right-0 bg-background border border-border rounded-md shadow-lg max-h-40 overflow-auto ${
+            abrirArriba ? 'bottom-full mb-1' : 'top-full mt-1'
+          }`}
+        >
           {resultados.length > 0 ? (
             resultados.map((producto, indice) => (
               <div

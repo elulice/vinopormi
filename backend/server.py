@@ -38,6 +38,8 @@ from ia_metricas import ranking as calcular_ranking, tiempo_trabajado as calcula
 # Zona horaria fija de la app. No usar la TZ del servidor: Render corre en UTC
 # y eso desplazaba los rangos de "hoy"/"ayer" 3 horas respecto de Argentina.
 TZ_ARGENTINA = ZoneInfo("America/Argentina/Buenos_Aires")
+# Mongo necesita el nombre de la zona (no el objeto ZoneInfo) en $dateToString.
+TZ_ARGENTINA_NOMBRE = "America/Argentina/Buenos_Aires"
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -2469,6 +2471,8 @@ async def get_ventas(
     cliente_id: str = Query(None),
     agrupar_por_dia: bool = Query(False),
     fecha_grupo: str = Query(None, description="Día YYYY-MM-DD del que se quieren las ventas al expandir un grupo"),
+    sort_by: str = Query("fecha", description="Columna por la que ordenar"),
+    sort_dir: str = Query("desc", description="asc o desc"),
     current_user: Usuario = Depends(get_current_user)
 ):
     solo_mis_datos = False
@@ -2511,16 +2515,70 @@ async def get_ventas(
     # Monto a sumar en las estadísticas: si hay filtro de medio, solo la porción de ese medio
     monto_expr = _monto_medio_expr(metodo_pago)
 
+    # Ordenamiento aplicado en Mongo ANTES de paginar: asc/desc debe afectar a
+    # todas las ventas, no solo a la página que ya tiene el front.
+    CAMPOS_ORDEN = {
+        'fecha': 'fecha',
+        'total': 'total',
+        'ganancia': 'ganancia_neta',
+        'usuario': 'usuario_nombre',
+        'medio_pago': 'pagos.medio_pago',
+    }
+    CAMPOS_ORDEN_GRUPO = {
+        'fecha': '_id',
+        'total': 'total_bruto',
+        'ganancia': 'total_neto',
+        'count': 'cantidad_ventas',
+        'promedio': 'promedio',
+    }
+    clave_orden = sort_by if sort_by in CAMPOS_ORDEN else 'fecha'
+    if agrupar_por_dia and sort_by in CAMPOS_ORDEN_GRUPO:
+        clave_orden = sort_by
+    direccion_orden = 1 if sort_dir == 'asc' else -1
+    # Con filtro de medio, el importe mostrado es la porción de ese medio.
+    orden_total_expr = monto_expr if (clave_orden == 'total' and metodo_pago) else None
+
     # Un único día para agrupar, contar y expandir: el front pide `fecha_grupo`
     # con la misma fecha que muestra la fila, así el detalle coincide con el
     # total del grupo aunque la hora sea distinta según la zona horaria.
+    # El dia debe ser el de Argentina, no el UTC: las ventas de las primeras
+    # horas del dia se guardan con fecha UTC del dia anterior y antes se
+    # agrupaban mal. $dateToString con timezone hace el corrimiento en Mongo,
+    # igual que lo hace el front al mostrar la fecha.
     fecha_str_stage = {
         "$addFields": {
             "fecha_str": {
-                "$cond": {
-                    "if": {"$eq": [{"$type": "$fecha"}, "string"]},
-                    "then": "$fecha",
-                    "else": {"$dateToString": {"format": "%Y-%m-%dT%H:%M:%S", "date": "$fecha"}}
+                "$let": {
+                    "vars": {
+                        "fecha_date": {
+                            "$cond": {
+                                "if": {"$eq": [{"$type": "$fecha"}, "string"]},
+                                "then": {
+                                    "$dateFromString": {
+                                        "dateString": "$fecha",
+                                        "onError": None,
+                                        "onNull": None,
+                                    }
+                                },
+                                "else": "$fecha",
+                            }
+                        }
+                    },
+                    "in": {
+                        "$cond": {
+                            "if": {"$eq": [{"$type": "$$fecha_date"}, "null"]},
+                            # Fechas viejas que no se puedan convertir: al menos
+                            # conservamos el dia que ya tenian como texto.
+                            "then": {"$substr": ["$fecha", 0, 10]},
+                            "else": {
+                                "$dateToString": {
+                                    "date": "$$fecha_date",
+                                    "format": "%Y-%m-%d",
+                                    "timezone": TZ_ARGENTINA_NOMBRE,
+                                }
+                            },
+                        }
+                    },
                 }
             }
         }
@@ -2531,7 +2589,7 @@ async def get_ventas(
             raise HTTPException(status_code=400, detail="fecha_grupo debe tener formato YYYY-MM-DD")
         grupo_stages.append({
             "$match": {
-                "$expr": {"$eq": [{"$substr": ["$fecha_str", 0, 10]}, fecha_grupo]}
+                "$expr": {"$eq": ["$fecha_str", fecha_grupo]}
             }
         })
 
@@ -2545,13 +2603,23 @@ async def get_ventas(
             *grupo_stages,
             {
                 "$group": {
-                    "_id": {"$substr": ["$fecha_str", 0, 10]},
+                    "_id": "$fecha_str",
                     "total_bruto": {"$sum": monto_expr},
                     "total_neto": {"$sum": {"$ifNull": ["$ganancia_neta", 0]}},
                     "cantidad_ventas": {"$sum": 1}
                 }
             },
-            {"$sort": {"_id": -1}},
+            # Necesario para ordenar por promedio; el front lo recalcula igual.
+            {"$addFields": {
+                "promedio": {
+                    "$cond": [
+                        {"$gt": ["$cantidad_ventas", 0]},
+                        {"$divide": ["$total_bruto", "$cantidad_ventas"]},
+                        0
+                    ]
+                }
+            }},
+            {"$sort": {CAMPOS_ORDEN_GRUPO.get(clave_orden, '_id'): direccion_orden, "_id": -1}},
             {"$skip": (page - 1) * limit},
             {"$limit": limit}
         ]
@@ -2563,7 +2631,7 @@ async def get_ventas(
             {"$match": match_stage},
             fecha_str_stage,
             *grupo_stages,
-            {"$group": {"_id": {"$substr": ["$fecha_str", 0, 10]}}},
+            {"$group": {"_id": "$fecha_str"}},
             {"$count": "total_dias"}
         ]
         count_cursor = db.ventas.aggregate(count_pipeline)
@@ -2580,7 +2648,7 @@ async def get_ventas(
                     "total_bruto": {"$sum": monto_expr},
                     "total_neto": {"$sum": {"$ifNull": ["$ganancia_neta", 0]}},
                     "cantidad_ventas": {"$sum": 1},
-                    "dias_unicos": {"$addToSet": {"$substr": ["$fecha_str", 0, 10]}}
+                    "dias_unicos": {"$addToSet": "$fecha_str"}
                 }
             }
         ]
@@ -2634,11 +2702,21 @@ async def get_ventas(
         # En el listado normal no hace falta calcular fecha_str; solo se
         # agrega (y se quita del resultado) cuando pedimos un día concreto.
         proyecto_ventas = {"_id": 0, "fecha_str": 0} if fecha_grupo else {"_id": 0}
+        orden_stages = []
+        campo_orden = CAMPOS_ORDEN.get(clave_orden, 'fecha')
+        if orden_total_expr is not None:
+            # El importe con filtro de medio se calcula en Python para la
+            # respuesta; acá hace falta como campo para poder ordenar por él.
+            orden_stages.append({"$addFields": {"_orden_total": orden_total_expr}})
+            proyecto_ventas = {**proyecto_ventas, "_orden_total": 0}
+            campo_orden = "_orden_total"
         pipeline = [
             {"$match": match_stage},
             *([fecha_str_stage, *grupo_stages] if fecha_grupo else []),
+            *orden_stages,
+            # El campo auxiliar de orden se proyecta recién después de ordenar.
+            {"$sort": {campo_orden: direccion_orden, "fecha": -1}},
             {"$project": proyecto_ventas},
-            {"$sort": {"fecha": -1}},
             {"$skip": (page - 1) * limit},
             {"$limit": limit}
         ]
@@ -2667,7 +2745,7 @@ async def get_ventas(
                     "_id": None,
                     "total_bruto": {"$sum": monto_expr},
                     "total_neto": {"$sum": {"$ifNull": ["$ganancia_neta", 0]}},
-                    "dias_unicos": {"$addToSet": {"$substr": ["$fecha_str", 0, 10]}}
+                    "dias_unicos": {"$addToSet": "$fecha_str"}
                 }
             }
         ]
