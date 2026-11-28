@@ -301,6 +301,11 @@ const Presupuestos = () => {
   };
 
   const editarPresupuesto = (presupuesto) => {
+    const hayBorradorSinGuardar = Boolean(productoPendiente) || (hayCarga && !sinCambios);
+    if (hayBorradorSinGuardar && !window.confirm(
+      'Tenés un presupuesto sin guardar. Al editar otro se van a descartar los cambios actuales. ¿Continuar?'
+    )) return;
+
     const itemsCargados = (presupuesto.items || []).map((item) => ({
       producto_id: item.producto_id,
       nombre: item.nombre || item.producto_id,
@@ -388,9 +393,56 @@ const Presupuestos = () => {
     }
   };
 
+  const recargarDatos = () => {
+    cargarProductos();
+    cargarPresupuestos();
+  };
+
   const descargarPDF = () => {
     downloadElementAsPDF(notaRef.current, 'presupuesto-vino-por-mi');
   };
+
+  const acciones = (
+    <div className="presupuestos-acciones">
+      <Button variant="ghost" size="sm" onClick={recargarDatos} disabled={cargando} title="Actualizar">
+        <RefreshCw className="w-4 h-4" />
+      </Button>
+      <Button variant="ghost" size="sm" onClick={nuevoPresupuesto} disabled={!hayCarga} title="Limpiar y empezar un presupuesto nuevo">
+        <FilePlus2 className="w-4 h-4" />
+        Nuevo
+      </Button>
+      <Button variant="outline" size="sm" onClick={descargarPDF} disabled={items.length === 0} title="Descargar PDF">
+        <Download className="w-4 h-4" />
+        PDF
+      </Button>
+      <Button variant="outline" size="sm" onClick={() => window.print()} disabled={items.length === 0} title="Imprimir">
+        <Printer className="w-4 h-4" />
+        Imprimir
+      </Button>
+      <Button
+        size="sm"
+        onClick={guardar}
+        disabled={guardando || items.length === 0 || sinCambios}
+        title={sinCambios ? 'El presupuesto no cambió desde el último guardado' : undefined}
+      >
+        {sinCambios && !confirmandoGuardar ? <Check className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
+        {guardando
+          ? 'Guardando...'
+          : confirmandoGuardar
+            ? 'Confirmar'
+            : sinCambios
+              ? 'Guardado'
+              : editando
+                ? 'Guardar cambios'
+                : 'Generar presupuesto'}
+      </Button>
+      {confirmandoGuardar && (
+        <Button variant="ghost" size="sm" onClick={() => setConfirmandoGuardar(false)}>
+          Cancelar
+        </Button>
+      )}
+    </div>
+  );
 
   return (
     <div className="vpm-section vpm-app" style={{ paddingBottom: 24 }}>
@@ -404,48 +456,7 @@ const Presupuestos = () => {
               : 'Generá un enlace público con los precios actualizados.'}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-          <Button variant="ghost" size="sm" onClick={() => {
-            cargarProductos();
-            cargarPresupuestos();
-          }} disabled={cargando} title="Actualizar">
-            <RefreshCw className="w-4 h-4" />
-          </Button>
-          <Button variant="ghost" size="sm" onClick={nuevoPresupuesto} disabled={!hayCarga} title="Limpiar y empezar un presupuesto nuevo">
-            <FilePlus2 className="w-4 h-4" />
-            Nuevo
-          </Button>
-          <Button variant="outline" size="sm" onClick={descargarPDF} disabled={items.length === 0} title="Descargar PDF">
-            <Download className="w-4 h-4" />
-            PDF
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => window.print()} disabled={items.length === 0} title="Imprimir">
-            <Printer className="w-4 h-4" />
-            Imprimir
-          </Button>
-          <Button
-            size="sm"
-            onClick={guardar}
-            disabled={guardando || items.length === 0 || sinCambios}
-            title={sinCambios ? 'El presupuesto no cambió desde el último guardado' : undefined}
-          >
-            {sinCambios && !confirmandoGuardar ? <Check className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
-            {guardando
-              ? 'Guardando...'
-              : confirmandoGuardar
-                ? 'Confirmar'
-                : sinCambios
-                  ? 'Guardado'
-                  : editando
-                    ? 'Guardar cambios'
-                    : 'Guardar y generar link'}
-          </Button>
-          {confirmandoGuardar && (
-            <Button variant="ghost" size="sm" onClick={() => setConfirmandoGuardar(false)}>
-              Cancelar
-            </Button>
-          )}
-        </div>
+        {acciones}
       </div>
 
       <div className="presupuestos-layout">
@@ -662,7 +673,11 @@ const Presupuestos = () => {
         </section>
       </div>
 
-      <section className="vpm-card no-print" style={{ padding: 14, marginTop: 16 }}>
+      <div className="presupuestos-acciones-wrap no-print">
+        {acciones}
+      </div>
+
+      <section className="vpm-card no-print" style={{ padding: 14 }}>
         <h2 className="vpm-card-title" style={{ marginBottom: 8, fontSize: 15 }}>
           Presupuestos guardados
           {presupuestos.length > 0 && (
