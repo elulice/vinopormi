@@ -329,6 +329,30 @@
   }
 }
 
+.presupuestos-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.presupuestos-acciones-wrap {
+  margin: 16px 0 12px;
+}
+
+@media (min-width: 641px) {
+  .presupuestos-acciones {
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 640px) {
+  .presupuestos-acciones-wrap .presupuestos-acciones > button {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+}
+
 /* Armado de presupuestos: en celular el nombre ocupa toda la línea y el
    importe queda solo a la derecha, sin comprimirse contra los botones. */
 .presupuestos-layout {
