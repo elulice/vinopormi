@@ -49,6 +49,7 @@ const FloatingMenu = () => {
   const [pos, setPos] = useState(null); // {left, top} or null for default
   const [menuOpen, setMenuOpen] = useState(false);
   const closeTimerRef = useRef(null);
+  const modalWasOpenRef = useRef(false);
   const posRef = useRef(pos);
   const dragRef = useRef({ active: false, moved: false, startX: 0, startY: 0, offsetX: 0, offsetY: 0, pointerId: null });
   const containerRef = useRef(null);
@@ -82,11 +83,35 @@ const FloatingMenu = () => {
     mercadopagoModalOpen ||
     chatIAModalOpen;
 
-  // Si se abre cualquiera de los modales, el panel de acciones debe desaparecer
-  // para no quedar superpuesto / "buggeado" detrás del dialog.
+  // El panel no debe quedar superpuesto a un dialog ni reaparecer cuando el
+  // foco vuelve al botón al cerrarlo.
   useEffect(() => {
-    if (anyModalOpen) closeMenuNow();
+    if (anyModalOpen) {
+      modalWasOpenRef.current = true;
+      closeMenuNow();
+    } else if (modalWasOpenRef.current) {
+      modalWasOpenRef.current = false;
+      closeMenuNow();
+    }
   }, [anyModalOpen]);
+
+  // Cierre explícito para los casos en que no llega un mouseleave: pantallas
+  // táctiles, un drag corto que termina sobre el propio botón o Escape.
+  useEffect(() => {
+    const handleOutsidePointerDown = (event) => {
+      if (containerRef.current?.contains(event.target)) return;
+      closeMenuNow();
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') closeMenuNow();
+    };
+    document.addEventListener('pointerdown', handleOutsidePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handleOutsidePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   useEffect(() => () => {
     if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
@@ -188,8 +213,9 @@ const FloatingMenu = () => {
     const handleUp = (e) => {
       const d = dragRef.current;
       if (!d.active) return;
-      if (d.moved && posRef.current) {
-        savePos(posRef.current);
+      if (d.moved) {
+        if (posRef.current) savePos(posRef.current);
+        closeMenuNow();
       }
       dragRef.current = { active: false, moved: false, startX: 0, startY: 0, offsetX: 0, offsetY: 0, pointerId: null };
       try {
@@ -271,6 +297,9 @@ const FloatingMenu = () => {
         className="fixed z-50"
         style={containerStyle}
         onMouseLeave={scheduleClose}
+        onBlur={(event) => {
+          if (!containerRef.current?.contains(event.relatedTarget)) scheduleClose();
+        }}
       >
         {/* Panel en posición absoluta: cuando está cerrado no ocupa espacio ni
             intercepta el mouse (el contenedor mide sólo el botón). */}
