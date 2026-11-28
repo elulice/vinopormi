@@ -396,7 +396,7 @@ const Presupuestos = () => {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', alignItems: 'start' }}>
+      <div className="presupuestos-layout">
         <section className="vpm-card" style={{ padding: 16 }}>
           <h2 className="vpm-card-title" style={{ margin: 0, marginBottom: 10 }}>Productos</h2>
 
@@ -420,11 +420,8 @@ const Presupuestos = () => {
                   item.cantidad
                 );
                 return (
-                  <div
-                    key={`${item.producto_id}-${index}`}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: 'var(--vpm-field)', borderRadius: 10 }}
-                  >
-                    <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13 }}>
+                  <div key={`${item.producto_id}-${index}`} className="presupuestos-item">
+                    <span className="presupuestos-item__nombre">
                       {item.nombre}
                     </span>
                     <CurrencyInput
@@ -436,7 +433,7 @@ const Presupuestos = () => {
                       onChange={(valor) => cambiarCantidad(index, valor)}
                       style={{ width: 60, height: 32, padding: '4px 6px' }}
                     />
-                    <span className="vpm-num" style={{ minWidth: 92, textAlign: 'right', fontSize: 13 }}>
+                    <span className="vpm-num presupuestos-item__monto">
                       {precioOriginal != null && (
                         <span style={{ textDecoration: 'line-through', color: 'var(--vpm-faint)', marginRight: 5, fontSize: 11 }}>
                           {formatCurrency(precioOriginal, showCents)}
@@ -498,7 +495,7 @@ const Presupuestos = () => {
           {linkGenerado && (
             <div className="vpm-card no-print" style={{ padding: 10, background: 'var(--vpm-field)' }}>
               <p className="vpm-hint" style={{ marginTop: 0, marginLeft: 2, marginBottom: 6 }}>Link público para compartir</p>
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
                 <Input readOnly value={linkGenerado} onFocus={(e) => e.target.select()} />
                 <Button variant="outline" size="sm" onClick={() => copiarLink(linkGenerado)} title="Copiar link">
                   <Copy className="w-4 h-4" />
@@ -530,7 +527,7 @@ const Presupuestos = () => {
                 { title: 'Fecha', width: '17%' },
                 { title: 'Usuario', width: '18%' },
                 { title: 'Productos', width: '12%' },
-                { title: 'Total', width: '15%' },
+                { title: 'Total', width: '15%', align: 'right' },
                 { title: 'Estado', width: '12%' },
                 { title: 'Acciones', width: '26%' },
               ]}
@@ -567,10 +564,10 @@ const Presupuestos = () => {
                       {estadoPresupuesto(presupuesto)}
                     </div>
                     <div className="flex items-center justify-between gap-2 mt-1">
-                      <span className="text-xs font-medium">
+                      <span className="text-xs font-medium min-w-0 truncate">
                         {presupuesto.usuario_nombre || presupuesto.usuario_id || '—'}
                       </span>
-                      <span className="vpm-num text-xs font-semibold">
+                      <span className="vpm-num text-xs font-semibold text-right whitespace-nowrap">
                         {formatCurrency(presupuesto.total, showCents)}
                       </span>
                     </div>

@@ -108,6 +108,7 @@ const Login = () => {
                     id="username"
                     name="username"
                     type="text"
+                    autoFocus
                     autoComplete="username"
                     placeholder="Tu nombre de usuario"
                     value={username}

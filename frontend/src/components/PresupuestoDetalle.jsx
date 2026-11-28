@@ -15,7 +15,7 @@ const PresupuestoDetalle = ({ presupuesto, fechaTexto, showCents, onClose }) => 
   return (
     <Dialog open={Boolean(presupuesto)} onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent
-        className="max-w-lg bg-background border-border"
+        className="max-w-lg bg-background border-border p-4 sm:p-6"
         style={{ maxHeight: 'calc(100vh - 2rem)', overflowY: 'auto' }}
       >
         <DialogHeader>

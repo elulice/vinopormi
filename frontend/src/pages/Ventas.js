@@ -26,13 +26,17 @@ const LIMIT_POR_MODO = { individual: 100, grouped: 20 };
 const GROUP_DETAIL_LIMIT = 50;
 const getModeLimit = (modo) => LIMIT_POR_MODO[modo] ?? LIMIT_POR_MODO.individual;
 
-const buildVentasParams = ({ page, limit, modo, filtros, fechaGrupo = null }) => {
+const buildVentasParams = ({ page, limit, modo, filtros, fechaGrupo = null, sortConfig = null }) => {
   const params = new URLSearchParams({
     page: String(page),
     limit: String(limit),
     // Con fecha_grupo pedimos las ventas del día, no los grupos.
     agrupar_por_dia: fechaGrupo ? 'false' : (modo === 'grouped' ? 'true' : 'false')
   });
+  if (sortConfig?.key) {
+    params.append('sort_by', sortConfig.key);
+    params.append('sort_dir', sortConfig.direction === 'asc' ? 'asc' : 'desc');
+  }
   if (fechaGrupo) params.append('fecha_grupo', fechaGrupo);
 
   if (filtros.dateType === 'specific' && filtros.specificDate) {
@@ -264,7 +268,11 @@ const Ventas = () => {
   const [viewMode, setViewMode] = useState('individual'); // 'individual' or 'grouped'
   const viewModeRef = useRef(viewMode);
   viewModeRef.current = viewMode;
-  // Resetear página cuando cambian los filtros o el modo de vista
+  const [sortConfig, setSortConfig] = useState({
+    key: 'fecha',
+    direction: 'desc' // 'asc' or 'desc'
+  });
+  // Resetear página cuando cambian los filtros, el modo de vista o el orden
   useEffect(() => {
     const limite = getModeLimit(viewMode);
     setPagination(prev => ({ ...prev, page: 1, limit: limite }));
@@ -278,12 +286,7 @@ const Ventas = () => {
     }, 50);
     
     return () => clearTimeout(timer);
-  }, [filters, viewMode]);
-  
-  const [sortConfig, setSortConfig] = useState({
-    key: 'fecha',
-    direction: 'desc' // 'asc' or 'desc'
-  });
+  }, [filters, viewMode, sortConfig]);
 
   const [expandedGroups, setExpandedGroups] = useState(new Set());
   const expandedGroupsRef = useRef(expandedGroups);
@@ -317,7 +320,7 @@ const Ventas = () => {
 
       const filtros = currentFilters || filters;
       const currentLimit = filtros.limit || limitRef.current || getModeLimit(modo);
-      const params = buildVentasParams({ page, limit: currentLimit, modo, filtros });
+      const params = buildVentasParams({ page, limit: currentLimit, modo, filtros, sortConfig });
 
       const res = await apiGet(`${API}/ventas?${params}`);
 
@@ -343,7 +346,7 @@ const Ventas = () => {
       setLoadingPage(false);
     }
      // eslint-disable-next-line
-  }, [filters]);
+  }, [filters, sortConfig]);
 
   fetchVentasRef.current = fetchVentas;
 
@@ -448,31 +451,11 @@ const Ventas = () => {
     return ventas;
   }, [ventas]);
 
-  // Aplicar ordenamiento solo en la vista individual
+  // El orden ya viene del backend (antes de paginar): solo filtramos por modo.
   const sortedVentas = useMemo(() => {
     if (viewMode !== 'individual' || datosModoRef.current !== 'individual') return [];
-    const sorted = [...filteredVentas];
-    
-    sorted.sort((a, b) => {
-      let aVal, bVal;
-      
-      if (sortConfig.key === 'fecha') {
-        aVal = a.fecha || '';
-        bVal = b.fecha || '';
-      } else if (sortConfig.key === 'total') {
-        aVal = a.total;
-        bVal = b.total;
-      } else {
-        return 0;
-      }
-      
-      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
-      return 0;
-    });
-    
-    return sorted;
-  }, [filteredVentas, sortConfig, viewMode]);
+    return filteredVentas;
+  }, [filteredVentas, viewMode]);
 
   // Monto a mostrar/sumar: si hay filtro de medio activo, el backend manda
   // `monto_filtrado` (solo la porción cobrada con ese medio en ventas combinadas).
@@ -524,7 +507,12 @@ const Ventas = () => {
     }
 
     return grupos.map((grupo) => {
-      const fullDate = safeParseDate(grupo.date);
+      // `grupo.date` es solo YYYY-MM-DD. `new Date('2026-11-27')` lo parsea
+      // como UTC medianoche y en Argentina muestra el dia anterior.
+      // parseISO lo interpreta en hora local, igual que el backend agrupa.
+      const fullDate = /^\d{4}-\d{2}-\d{2}$/.test(grupo.date)
+        ? parseISO(grupo.date)
+        : safeParseDate(grupo.date);
       return {
         ...grupo,
         fullDate,
@@ -603,35 +591,26 @@ const clearFilters = () => {
     }));
   };
 
-  // Configuración de headers con ordenamiento
+  // Todos los headers son botones de ordenamiento (asc -> desc -> asc).
+  const headerBoton = (titulo, key) => (
+    <button
+      type="button"
+      onClick={() => handleSort(key)}
+      className="flex items-center gap-2 hover:text-primary transition-colors"
+      aria-label={`Ordenar por ${titulo}`}
+      title={`Ordenar por ${titulo}`}
+    >
+      {titulo}
+      {getSortIcon(key)}
+    </button>
+  );
+
   const headers = [
-    { 
-      title: (
-        <button 
-          onClick={() => handleSort('fecha')}
-          className="flex items-center gap-2 hover:text-primary transition-colors"
-        >
-          Venta
-          {getSortIcon('fecha')}
-        </button>
-      ), 
-      width: 'col-span-2' 
-    },
-    { 
-      title: (
-        <button 
-          onClick={() => handleSort('total')}
-          className="flex items-center gap-2 hover:text-primary transition-colors"
-        >
-          Total
-          {getSortIcon('total')}
-        </button>
-      ), 
-      width: 'col-span-1' 
-    },
-    { title: 'Ganancia', width: 'col-span-1' },
-    { title: 'Usuario', width: 'col-span-1' },
-    { title: 'Medio Pago', width: 'col-span-1' }
+    { title: headerBoton('Venta', 'fecha'), width: 'col-span-2' },
+    { title: headerBoton('Total', 'total'), width: 'col-span-1' },
+    { title: headerBoton('Ganancia', 'ganancia'), width: 'col-span-1' },
+    { title: headerBoton('Usuario', 'usuario'), width: 'col-span-1' },
+    { title: headerBoton('Medio Pago', 'medio_pago'), width: 'col-span-1' }
   ];
 
   // Renderizado de filas individuales
@@ -1217,11 +1196,11 @@ const clearFilters = () => {
                 {/* Header fijo para vista agrupada */}
                 <div className="bg-muted sticky top-0 z-10">
                   <div className="grid grid-cols-6 gap-2 p-2 text-xs font-semibold">
-                    <div className="col-span-2">Fecha</div>
-                    <div className="col-span-1">Total Bruto</div>
-                    <div className="col-span-1">Ganancia</div>
-                    <div className="col-span-1">Cant.</div>
-                    <div className="col-span-1">Promedio</div>
+                    <div className="col-span-2">{headerBoton('Fecha', 'fecha')}</div>
+                    <div className="col-span-1">{headerBoton('Total Bruto', 'total')}</div>
+                    <div className="col-span-1">{headerBoton('Ganancia', 'ganancia')}</div>
+                    <div className="col-span-1">{headerBoton('Cant.', 'count')}</div>
+                    <div className="col-span-1">{headerBoton('Promedio', 'promedio')}</div>
                   </div>
                 </div>
                 

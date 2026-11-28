@@ -4,7 +4,7 @@
   width: 100%;
   max-width: 620px;
   margin: 0 auto;
-  padding: 20px 24px;
+  padding: 22px 18px;
   color: var(--vpm-text);
   background: linear-gradient(180deg, var(--vpm-panel) 0%, var(--vpm-panel-2) 100%);
   border: 1px solid var(--vpm-border-strong);
@@ -14,9 +14,9 @@
 
 .presupuesto-nota__header {
   display: flex;
+  flex-direction: column;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 14px;
+  gap: 10px;
   padding-bottom: 12px;
   margin-bottom: 12px;
   border-bottom: 1px dashed var(--vpm-border-strong);
@@ -62,9 +62,9 @@
 }
 
 .presupuesto-nota__fecha {
-  margin-top: 5px;
+  margin-top: 0;
   font-size: 12px;
-  text-align: right;
+  text-align: left;
   color: var(--vpm-muted);
 }
 
@@ -79,15 +79,10 @@
   line-height: 1.4;
 }
 
-.presupuesto-nota__columnas,
-.presupuesto-nota__fila {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 64px 108px 116px;
-  gap: 10px;
-  align-items: center;
-}
-
+/* Mobile first: nombre en su propia línea y los importes en una columna
+   derecha compartida, para que precio y subtotal nunca queden escalonados. */
 .presupuesto-nota__columnas {
+  display: none;
   padding: 0 0 8px;
   color: var(--vpm-faint);
   font-size: 10px;
@@ -97,19 +92,60 @@
 }
 
 .presupuesto-nota__fila {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(104px, auto);
+  gap: 3px 10px;
+  align-items: center;
   padding: 8px 0;
   border-bottom: 1px dashed var(--vpm-border);
   font-size: 14px;
 }
 
-/* El precio tachado va debajo del unitario, sin correrlo del centro de la fila. */
-.presupuesto-nota__fila--descuento {
-  padding-bottom: 20px;
-}
-
 .presupuesto-nota__nombre {
+  grid-column: 1 / -1;
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.presupuesto-nota__fila > .presupuesto-nota__num:not(.presupuesto-nota__precio) {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.presupuesto-nota__precio {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.presupuesto-nota__importe {
+  grid-column: 2;
+  grid-row: 3;
+}
+
+/* Etiquetas compactas solo en móvil: sin ellas, dos importes a la derecha
+   son imposibles de distinguir. Se ocultan en desktop y en el PDF. */
+.presupuesto-nota__fila > span::before {
+  color: var(--vpm-faint);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+}
+
+.presupuesto-nota__fila > .presupuesto-nota__num:not(.presupuesto-nota__precio)::before {
+  content: 'Cant. ';
+}
+
+.presupuesto-nota__precio::before {
+  content: 'Precio ';
+}
+
+.presupuesto-nota__importe::before {
+  content: 'Subtotal ';
+}
+
+/* El precio tachado va debajo del unitario, sin correrlo del centro de la fila. */
+.presupuesto-nota__fila--descuento {
+  padding-bottom: 8px;
 }
 
 .presupuesto-nota__num,
@@ -123,20 +159,17 @@
 }
 
 .presupuesto-nota__precio {
-  position: relative;
+  position: static;
   display: inline-block;
 }
 
 .presupuesto-nota__precio-base {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  margin-top: 1px;
+  margin-left: 4px;
   font-size: 11px;
   line-height: 1.1;
   color: var(--vpm-faint);
   text-decoration: line-through;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .presupuesto-nota__sin-stock {
@@ -145,10 +178,10 @@
 }
 
 .presupuesto-nota__descuento {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
   align-items: baseline;
-  justify-content: flex-end;
-  gap: 16px;
   margin-top: 10px;
 }
 
@@ -161,10 +194,10 @@
 }
 
 .presupuesto-nota__total {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
   align-items: baseline;
-  justify-content: flex-end;
-  gap: 16px;
   padding-top: 14px;
 }
 
@@ -225,6 +258,7 @@
 
 .presupuesto-publico__topbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
@@ -239,46 +273,118 @@
   justify-content: flex-end;
 }
 
-@media (max-width: 640px) {
+/* Desktop: se restaura exactamente el layout de 4 columnas de siempre. */
+@media (min-width: 641px) {
   .presupuesto-nota {
-    padding: 22px 18px;
+    padding: 20px 24px;
   }
 
   .presupuesto-nota__header {
-    flex-direction: column;
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
   }
 
   .presupuesto-nota__fecha {
-    text-align: left;
-    margin-top: 0;
+    margin-top: 5px;
+    text-align: right;
+  }
+
+  .presupuesto-nota__columnas,
+  .presupuesto-nota__fila {
+    grid-template-columns: minmax(0, 1fr) 64px 108px 116px;
+    gap: 10px;
   }
 
   .presupuesto-nota__columnas {
-    display: none;
+    display: grid;
   }
 
-  .presupuesto-nota__fila {
-    grid-template-columns: minmax(0, 1fr) auto;
-    row-gap: 3px;
+  .presupuesto-nota__fila > .presupuesto-nota__num:not(.presupuesto-nota__precio),
+  .presupuesto-nota__precio,
+  .presupuesto-nota__importe {
+    grid-column: auto;
+    grid-row: auto;
   }
 
-  .presupuesto-nota__nombre {
-    grid-column: 1 / -1;
-  }
-
-  .presupuesto-nota__precio {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-  }
-
-  .presupuesto-nota__precio-base {
-    position: static;
-    margin-top: 1px;
+  .presupuesto-nota__fila > .presupuesto-nota__num:not(.presupuesto-nota__precio)::before,
+  .presupuesto-nota__precio::before,
+  .presupuesto-nota__importe::before {
+    content: none;
   }
 
   .presupuesto-nota__fila--descuento {
-    padding-bottom: 8px;
+    padding-bottom: 20px;
+  }
+
+  .presupuesto-nota__precio {
+    position: relative;
+  }
+
+  .presupuesto-nota__precio-base {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 1px;
+    margin-left: 0;
+    white-space: nowrap;
+  }
+
+  .presupuesto-nota__descuento,
+  .presupuesto-nota__total {
+    display: flex;
+    justify-content: flex-end;
+    gap: 16px;
+  }
+}
+
+/* Armado de presupuestos: en celular el nombre ocupa toda la línea y el
+   importe queda solo a la derecha, sin comprimirse contra los botones. */
+.presupuestos-layout {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
+
+.presupuestos-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: var(--vpm-field);
+  border-radius: 10px;
+}
+
+.presupuestos-item__nombre {
+  flex: 1 1 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.presupuestos-item__monto {
+  min-width: 0;
+  margin-left: auto;
+  text-align: right;
+  font-size: 13px;
+}
+
+@media (min-width: 640px) {
+  .presupuestos-layout {
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  }
+
+  .presupuestos-item__nombre {
+    flex: 1 1 auto;
+  }
+
+  .presupuestos-item__monto {
+    min-width: 92px;
   }
 }
 
@@ -309,6 +415,10 @@
   .no-print,
   .no-print * {
     display: none !important;
+  }
+
+  .presupuesto-nota__fila > span::before {
+    content: none !important;
   }
 
   @page {
