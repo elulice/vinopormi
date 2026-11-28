@@ -3,14 +3,24 @@ import { Button } from '@/components/ui/button';
 import PresupuestoNota from '@/components/PresupuestoNota';
 
 const PresupuestoDetalle = ({ presupuesto, fechaTexto, showCents, onClose }) => {
-  const items = (presupuesto?.items || []).map((item) => ({
-    producto_id: item.producto_id,
-    nombre: item.nombre || item.producto_id,
-    cantidad: Number(item.cantidad) || 0,
-    precio_unitario: Number(item.precio_unitario) || 0,
-    subtotal: Number(((Number(item.precio_unitario) || 0) * (Number(item.cantidad) || 0)).toFixed(2)),
-    disponible: true,
-  }));
+  const items = (presupuesto?.items || []).map((item) => {
+    const cantidad = Number(item.cantidad) || 0;
+    const precioUnitario = Number(item.precio_unitario) || 0;
+    const precioOriginal = item.precio_original != null ? Number(item.precio_original) : null;
+    return {
+      producto_id: item.producto_id,
+      nombre: item.nombre || item.producto_id,
+      cantidad,
+      precio_unitario: precioUnitario,
+      precio_original: precioOriginal != null && Number.isFinite(precioOriginal) ? precioOriginal : null,
+      subtotal: Number((precioUnitario * cantidad).toFixed(2)),
+      disponible: true,
+    };
+  });
+  const totalOriginal = Number(items.reduce(
+    (sum, item) => sum + (item.precio_original != null ? item.precio_original : item.precio_unitario) * item.cantidad,
+    0
+  ).toFixed(2));
 
   return (
     <Dialog open={Boolean(presupuesto)} onOpenChange={(open) => { if (!open) onClose(); }}>
@@ -39,6 +49,8 @@ const PresupuestoDetalle = ({ presupuesto, fechaTexto, showCents, onClose }) => 
           observaciones={presupuesto?.observaciones || ''}
           descuentoMonto={Number(presupuesto?.descuento_monto) || 0}
           total={Number(presupuesto?.total) || 0}
+          totalOriginal={totalOriginal}
+          mostrarComparativa={presupuesto?.mostrar_comparativa === true}
           showCents={showCents}
         />
 

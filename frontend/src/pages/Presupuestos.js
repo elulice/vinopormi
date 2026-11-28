@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Ban, Check, Copy, Download, ExternalLink, Eye, FilePlus2, FileText, Pencil, Printer, RefreshCw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import CurrencyInput from '@/components/CurrencyInput';
 import { Label } from '@/components/ui/label';
@@ -56,20 +57,26 @@ const calcularDescuento = (texto, subtotal) => {
   return Number(Math.min(monto, subtotal).toFixed(2));
 };
 
-const firmaDe = (lista, observaciones, descuento) => JSON.stringify({
+const firmaDe = (lista, observaciones, descuento, mostrarComparativa) => JSON.stringify({
   items: (lista || []).map(({ producto_id, cantidad }) => [producto_id, cantidad]),
   observaciones: (observaciones || '').trim(),
   descuento: (descuento || '').trim(),
+  mostrarComparativa,
 });
 
 const Presupuestos = () => {
   const { showCents } = useConfig();
   const notaRef = useRef(null);
+  const searchRef = useRef(null);
+  const cantidadPendienteRef = useRef(null);
 
   const [productos, setProductos] = useState([]);
   const [items, setItems] = useState([]);
   const [observaciones, setObservaciones] = useState('');
   const [descuento, setDescuento] = useState('');
+  const [productoPendiente, setProductoPendiente] = useState(null);
+  const [cantidadPendiente, setCantidadPendiente] = useState(1);
+  const [mostrarComparativa, setMostrarComparativa] = useState(false);
   const [presupuestos, setPresupuestos] = useState([]);
   const [paginaPresupuestos, setPaginaPresupuestos] = useState(1);
   const [linkGenerado, setLinkGenerado] = useState('');
@@ -140,10 +147,17 @@ const Presupuestos = () => {
     [descuento, subtotal]
   );
   const total = Number((subtotal - descuentoMonto).toFixed(2));
+  const totalOriginal = useMemo(
+    () => Number(itemsNota.reduce(
+      (sum, item) => sum + (item.precio_original != null ? item.precio_original : item.precio_unitario) * item.cantidad,
+      0
+    ).toFixed(2)),
+    [itemsNota]
+  );
 
   const firmaActual = useMemo(
-    () => firmaDe(items, observaciones, descuento),
-    [items, observaciones, descuento]
+    () => firmaDe(items, observaciones, descuento, mostrarComparativa),
+    [items, observaciones, descuento, mostrarComparativa]
   );
   const sinCambios = firmaGuardada !== '' && firmaGuardada === firmaActual;
   const hayCarga = items.length > 0 || Boolean(observaciones.trim()) || Boolean(descuento.trim());
@@ -207,16 +221,42 @@ const Presupuestos = () => {
     );
   };
 
-  const agregarProducto = (producto) => {
+  const agregarProducto = (producto, cantidad = 1) => {
     setItems((prev) => [
-      ...prev,
       {
         producto_id: producto.id,
         nombre: producto.nombre,
-        cantidad: 1,
+        cantidad,
         precio_unitario: Number(producto.precio_unitario) || 0,
       },
+      ...prev,
     ]);
+  };
+
+  // Igual que Nueva Venta: elegir en el dropdown no agrega todavía, lleva el
+  // foco a la cantidad y recién Enter confirma y devuelve el foco al buscador.
+  const seleccionarProducto = (producto) => {
+    setProductoPendiente(producto);
+    setCantidadPendiente(1);
+    setTimeout(() => {
+      cantidadPendienteRef.current?.focus();
+      cantidadPendienteRef.current?.select();
+    }, 50);
+  };
+
+  const confirmarProducto = () => {
+    if (!productoPendiente) return;
+    agregarProducto(productoPendiente, Math.max(1, parseInt(cantidadPendiente, 10) || 1));
+    setProductoPendiente(null);
+    setCantidadPendiente(1);
+    searchRef.current?.clear();
+    setTimeout(() => searchRef.current?.focus(), 50);
+  };
+
+  const descartarProducto = () => {
+    setProductoPendiente(null);
+    setCantidadPendiente(1);
+    setTimeout(() => searchRef.current?.focus(), 50);
   };
 
   const cambiarCantidad = (index, valor) => {
@@ -251,6 +291,9 @@ const Presupuestos = () => {
     setItems([]);
     setObservaciones('');
     setDescuento('');
+    setProductoPendiente(null);
+    setCantidadPendiente(1);
+    setMostrarComparativa(false);
     setLinkGenerado('');
     setFirmaGuardada('');
     setEditando(null);
@@ -267,8 +310,16 @@ const Presupuestos = () => {
     setItems(itemsCargados);
     setObservaciones(presupuesto.observaciones || '');
     setDescuento(presupuesto.descuento || '');
+    setProductoPendiente(null);
+    setCantidadPendiente(1);
+    setMostrarComparativa(presupuesto.mostrar_comparativa === true);
     setLinkGenerado(`${window.location.origin}/presupuesto/${presupuesto.token}`);
-    setFirmaGuardada(firmaDe(itemsCargados, presupuesto.observaciones, presupuesto.descuento));
+    setFirmaGuardada(firmaDe(
+      itemsCargados,
+      presupuesto.observaciones,
+      presupuesto.descuento,
+      presupuesto.mostrar_comparativa === true
+    ));
     setEditando({
       id: presupuesto.id,
       token: presupuesto.token,
@@ -294,6 +345,7 @@ const Presupuestos = () => {
         items: items.map(({ producto_id, cantidad }) => ({ producto_id, cantidad })),
         observaciones: observaciones.trim(),
         descuento: descuento.trim(),
+        mostrar_comparativa: mostrarComparativa,
         vinoteca_nombre: VINOTECA_DEFAULT,
       };
       const res = editando
@@ -402,18 +454,90 @@ const Presupuestos = () => {
 
           <div style={{ marginBottom: 12 }}>
             <ProductSearch
+              ref={searchRef}
+              autoFocus
               productos={productos}
-              excludeIds={items.map((item) => item.producto_id)}
-              onSelect={agregarProducto}
+              excludeIds={[...items.map((item) => item.producto_id), productoPendiente?.producto_id].filter(Boolean)}
+              onSelect={seleccionarProducto}
               placeholder="Buscar producto..."
               formatPrecio={(producto) => formatCurrency(producto?.precio_unitario, showCents)}
             />
           </div>
 
-          {items.length === 0 ? (
+          {items.length === 0 && !productoPendiente ? (
             <p className="vpm-hint">Sin productos agregados.</p>
           ) : (
             <div style={{ display: 'grid', gap: 6 }}>
+              <div className="presupuestos-columnas">
+                <span>Producto</span>
+                <span className="vpm-num">Cant.</span>
+                <span className="vpm-num">Importe</span>
+                <span />
+              </div>
+              {productoPendiente && (
+                <div className="presupuestos-item presupuestos-item--pendiente">
+                  <span className="presupuestos-item__nombre" title={productoPendiente.nombre}>
+                    {productoPendiente.nombre}
+                    <button
+                      type="button"
+                      className="presupuestos-item__descartar"
+                      onClick={descartarProducto}
+                      title="Descartar producto"
+                      aria-label="Descartar producto"
+                    >
+                      ×
+                    </button>
+                  </span>
+                  <div className="presupuestos-item__cantidad">
+                    <CurrencyInput
+                      ref={cantidadPendienteRef}
+                      aria-label="Cantidad"
+                      currency={false}
+                      showCents={false}
+                      allowNegative={false}
+                      value={cantidadPendiente}
+                      onChange={(valor) => setCantidadPendiente(Math.max(1, parseInt(valor, 10) || 1))}
+                      onKeyDown={(evento) => {
+                        if (evento.key === 'Enter') {
+                          evento.preventDefault();
+                          confirmarProducto();
+                        } else if (evento.key === 'Escape') {
+                          evento.preventDefault();
+                          descartarProducto();
+                        }
+                      }}
+                      style={{ width: '100%', height: 32, padding: '4px 6px' }}
+                    />
+                  </div>
+                  <span className="vpm-num presupuestos-item__monto">
+                    {(() => {
+                      const cantidad = Number(cantidadPendiente) || 1;
+                      const { precio, precioOriginal } = precioConDescuento(productoPendiente, cantidad);
+                      return (
+                        <>
+                          {precioOriginal != null && (
+                            <span className="presupuestos-item__anterior">
+                              {formatCurrency(precioOriginal * cantidad, showCents)}
+                            </span>
+                          )}
+                          {formatCurrency(precio * cantidad, showCents)}
+                        </>
+                      );
+                    })()}
+                  </span>
+                  <Button
+                    className="presupuestos-item__quitar"
+                    variant="ghost"
+                    size="sm"
+                    style={{ padding: 4 }}
+                    onClick={confirmarProducto}
+                    title="Agregar producto (Enter)"
+                    aria-label="Agregar producto"
+                  >
+                    <Check className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
               {items.map((item, index) => {
                 const { precio, precioOriginal } = precioConDescuento(
                   productos.find((p) => p.id === item.producto_id) || item,
@@ -421,27 +545,36 @@ const Presupuestos = () => {
                 );
                 return (
                   <div key={`${item.producto_id}-${index}`} className="presupuestos-item">
-                    <span className="presupuestos-item__nombre">
+                    <span className="presupuestos-item__nombre" title={item.nombre}>
                       {item.nombre}
                     </span>
-                    <CurrencyInput
-                      aria-label="Cantidad"
-                      currency={false}
-                      showCents={false}
-                      allowNegative={false}
-                      value={item.cantidad}
-                      onChange={(valor) => cambiarCantidad(index, valor)}
-                      style={{ width: 60, height: 32, padding: '4px 6px' }}
-                    />
+                    <div className="presupuestos-item__cantidad">
+                      <CurrencyInput
+                        aria-label="Cantidad"
+                        currency={false}
+                        showCents={false}
+                        allowNegative={false}
+                        value={item.cantidad}
+                        onChange={(valor) => cambiarCantidad(index, valor)}
+                        style={{ width: '100%', height: 32, padding: '4px 6px' }}
+                      />
+                    </div>
                     <span className="vpm-num presupuestos-item__monto">
                       {precioOriginal != null && (
-                        <span style={{ textDecoration: 'line-through', color: 'var(--vpm-faint)', marginRight: 5, fontSize: 11 }}>
+                        <span className="presupuestos-item__anterior">
                           {formatCurrency(precioOriginal, showCents)}
                         </span>
                       )}
                       {formatCurrency(precio * item.cantidad, showCents)}
                     </span>
-                    <Button variant="ghost" size="sm" style={{ padding: 4 }} onClick={() => quitarProducto(index)} title="Quitar producto">
+                    <Button
+                      className="presupuestos-item__quitar"
+                      variant="ghost"
+                      size="sm"
+                      style={{ padding: 4 }}
+                      onClick={() => quitarProducto(index)}
+                      title="Quitar producto"
+                    >
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
@@ -467,6 +600,24 @@ const Presupuestos = () => {
             </p>
           </div>
 
+          <label
+            htmlFor="pp-comparativa"
+            style={{ marginTop: 14, display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}
+          >
+            <Checkbox
+              id="pp-comparativa"
+              checked={mostrarComparativa}
+              onCheckedChange={(valor) => setMostrarComparativa(valor === true)}
+              style={{ marginTop: 2 }}
+            />
+            <span style={{ minWidth: 0 }}>
+              <span style={{ display: 'block', fontSize: 14, fontWeight: 500 }}>Mostrar importes anteriores</span>
+              <span className="vpm-hint" style={{ display: 'block', marginTop: 2 }}>
+                Muestra tachados el subtotal y el total antes de los descuentos. Los descuentos por cantidad siempre se ven.
+              </span>
+            </span>
+          </label>
+
           <div style={{ marginTop: 12 }}>
             <Label htmlFor="pp-obs">Observaciones</Label>
             <Textarea
@@ -489,6 +640,8 @@ const Presupuestos = () => {
             observaciones={observaciones}
             descuentoMonto={descuentoMonto}
             total={total}
+            totalOriginal={totalOriginal}
+            mostrarComparativa={mostrarComparativa}
             showCents={showCents}
           />
 

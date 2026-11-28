@@ -73,15 +73,20 @@ const PresupuestoPublico = () => {
   return (
     <div className="presupuesto-publico">
       <div className="presupuesto-publico__topbar no-print">
-        <div className="vpm-eyebrow">Vino por Mí</div>
         <div className="presupuesto-publico__acciones">
           <Button variant="outline" size="sm" onClick={() => window.print()}>
             <Printer className="w-4 h-4 mr-2" />
             Imprimir
           </Button>
-          <Button variant="outline" size="sm" onClick={() => downloadElementAsPDF(notaRef.current, 'presupuesto')}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => downloadElementAsPDF(notaRef.current, 'presupuesto')}
+            title="Descargar PDF"
+            aria-label="Descargar PDF"
+          >
             <Download className="w-4 h-4 mr-2" />
-            Descargar PDF
+            PDF
           </Button>
         </div>
       </div>
@@ -94,6 +99,8 @@ const PresupuestoPublico = () => {
         observaciones={presupuesto.observaciones}
         descuentoMonto={presupuesto.descuento_monto}
         total={presupuesto.total}
+        totalOriginal={Number(presupuesto.total_original) || 0}
+        mostrarComparativa={presupuesto.mostrar_comparativa === true}
         hayCambios={presupuesto.hay_cambios}
         showCents={false}
       />

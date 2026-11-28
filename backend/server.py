@@ -717,6 +717,7 @@ class PresupuestoCreate(BaseModel):
     observaciones: str = ""
     vinoteca_nombre: str = VINOTECA_NOMBRE_DEFAULT
     descuento: Optional[Union[str, float]] = None
+    mostrar_comparativa: bool = False
 
 class PresupuestoUpdate(BaseModel):
     items: Optional[List[PresupuestoItemIn]] = None
@@ -724,6 +725,7 @@ class PresupuestoUpdate(BaseModel):
     vinoteca_nombre: Optional[str] = None
     descuento: Optional[Union[str, float]] = None
     activo: Optional[bool] = None
+    mostrar_comparativa: Optional[bool] = None
 
 class PresupuestoItemGuardado(BaseModel):
     producto_id: str
@@ -731,6 +733,7 @@ class PresupuestoItemGuardado(BaseModel):
     cantidad: int
     # Precio al momento de crear el presupuesto (para detectar cambios)
     precio_unitario: float
+    precio_original: Optional[float] = None
     descuento_cantidad_minima: Optional[int] = None
     descuento_precio_unitario: Optional[float] = None
 
@@ -747,6 +750,7 @@ class Presupuesto(BaseModel):
     descuento: str = ""
     descuento_monto: float = 0.0
     total: float = 0.0
+    mostrar_comparativa: bool = False
 
 class PresupuestoItemPublico(BaseModel):
     producto_id: str
@@ -765,6 +769,8 @@ class PresupuestoPublico(BaseModel):
     items: List[PresupuestoItemPublico]
     descuento_monto: float = 0.0
     total: float
+    total_original: float = 0.0
+    mostrar_comparativa: bool = False
     hay_cambios: bool = False
 
 def precio_unitario_presupuesto(producto: dict, cantidad: int):
@@ -831,6 +837,7 @@ def _doc_a_presupuesto(doc: dict) -> Presupuesto:
         descuento=descuento,
         descuento_monto=descuento_monto,
         total=total,
+        mostrar_comparativa=doc.get('mostrar_comparativa') is True,
     )
 
 public_router = APIRouter()
@@ -970,6 +977,10 @@ async def get_presupuesto_publico(token: str):
         ))
 
     subtotal = round(sum(item.subtotal for item in items), 2)
+    total_original = round(sum(
+        float(item.precio_original if item.precio_original is not None else item.precio_unitario)
+        * int(item.cantidad) for item in items
+    ), 2)
     descuento_monto = monto_descuento_presupuesto(doc.get('descuento'), subtotal)
     return PresupuestoPublico(
         vinoteca_nombre=doc.get('vinoteca_nombre') or VINOTECA_NOMBRE_DEFAULT,
@@ -978,6 +989,8 @@ async def get_presupuesto_publico(token: str):
         items=items,
         descuento_monto=descuento_monto,
         total=round(subtotal - descuento_monto, 2),
+        total_original=total_original,
+        mostrar_comparativa=doc.get('mostrar_comparativa') is True,
         hay_cambios=hay_cambios,
     )
 
@@ -1832,12 +1845,13 @@ async def _build_items_presupuesto(items: List[PresupuestoItemIn]) -> List[dict]
     guardados = []
     for item in items:
         producto = por_id[item.producto_id]
-        precio, _ = precio_unitario_presupuesto(producto, item.cantidad)
+        precio, precio_lista = precio_unitario_presupuesto(producto, item.cantidad)
         guardados.append({
             'producto_id': item.producto_id,
             'nombre': producto.get('nombre') or item.producto_id,
             'cantidad': item.cantidad,
             'precio_unitario': precio,
+            'precio_original': precio_lista,
             'descuento_cantidad_minima': producto.get('descuento_cantidad_minima'),
             'descuento_precio_unitario': producto.get('descuento_precio_unitario'),
         })
@@ -1860,6 +1874,7 @@ async def create_presupuesto(
         'observaciones': (input.observaciones or '').strip(),
         'descuento': str(input.descuento or '').strip(),
         'items': items,
+        'mostrar_comparativa': input.mostrar_comparativa is True,
         'timestamp': datetime.now(timezone.utc).isoformat(),
     }
     await db.presupuestos.insert_one(doc)
@@ -1927,7 +1942,7 @@ async def update_presupuesto(
     if not doc:
         raise HTTPException(status_code=404, detail="Presupuesto no encontrado")
 
-    campos_auditados = ('activo', 'vinoteca_nombre', 'observaciones', 'descuento', 'items')
+    campos_auditados = ('activo', 'vinoteca_nombre', 'observaciones', 'descuento', 'items', 'mostrar_comparativa')
     valores_anteriores = {campo: doc.get(campo) for campo in campos_auditados}
     estado_anterior = doc.get('activo')
 
@@ -1940,6 +1955,8 @@ async def update_presupuesto(
         cambios['vinoteca_nombre'] = input.vinoteca_nombre.strip() or VINOTECA_NOMBRE_DEFAULT
     if input.descuento is not None:
         cambios['descuento'] = str(input.descuento).strip()
+    if input.mostrar_comparativa is not None:
+        cambios['mostrar_comparativa'] = input.mostrar_comparativa is True
     if input.activo is not None:
         cambios['activo'] = input.activo
     if 'items' in cambios:
@@ -2459,6 +2476,46 @@ def _monto_medio_doc(venta, metodo_pago):
         return sum(p.get('monto', 0) for p in pagos if p.get('medio_pago') == metodo_pago)
     return venta.get('total', 0) if venta.get('medio_pago') == metodo_pago else 0
 
+
+def _medio_pago_orden_expr():
+    """Clave estable para ordenar ventas por medio de pago.
+
+    Con pagos combinados se toma el medio alfabeticamente primero y se
+    normaliza (minúsculas, guiones bajos -> espacio). Así todas las ventas
+    que comparten medio quedan juntas y el orden no depende del orden en que
+    vinieran los pagos en el array.
+    """
+    medios = {
+        "$map": {
+            "input": {
+                "$cond": [
+                    {"$gt": [{"$size": {"$ifNull": ["$pagos", []]}}, 0]},
+                    "$pagos",
+                    [{"medio_pago": "$medio_pago"}],
+                ]
+            },
+            "as": "p",
+            "in": {
+                "$replaceAll": {
+                    "input": {"$toLower": {"$ifNull": ["$$p.medio_pago", ""]}},
+                    "find": "_",
+                    "replacement": " ",
+                }
+            },
+        }
+    }
+    return {
+        "$let": {
+            "vars": {"medios": medios},
+            "in": {
+                "$arrayElemAt": [
+                    {"$sortArray": {"input": "$$medios", "sortBy": 1}},
+                    0
+                ]
+            },
+        }
+    }
+
 @api_router.get("/ventas")
 @cached(domains=("ventas",), prefix="ventas")
 async def get_ventas(
@@ -2522,7 +2579,7 @@ async def get_ventas(
         'total': 'total',
         'ganancia': 'ganancia_neta',
         'usuario': 'usuario_nombre',
-        'medio_pago': 'pagos.medio_pago',
+        'medio_pago': '_orden_medio_pago',
     }
     CAMPOS_ORDEN_GRUPO = {
         'fecha': '_id',
@@ -2704,6 +2761,12 @@ async def get_ventas(
         proyecto_ventas = {"_id": 0, "fecha_str": 0} if fecha_grupo else {"_id": 0}
         orden_stages = []
         campo_orden = CAMPOS_ORDEN.get(clave_orden, 'fecha')
+        if campo_orden == '_orden_medio_pago':
+            # El medio se ordena como texto normalizado (agrupando las ventas
+            # que comparten medio, incluso si tienen pagos combinados).
+            # El campo auxiliar se calcula antes de paginar y se quita después.
+            orden_stages.append({"$addFields": {"_orden_medio_pago": _medio_pago_orden_expr()}})
+            proyecto_ventas = {**proyecto_ventas, "_orden_medio_pago": 0}
         if orden_total_expr is not None:
             # El importe con filtro de medio se calcula en Python para la
             # respuesta; acá hace falta como campo para poder ordenar por él.
