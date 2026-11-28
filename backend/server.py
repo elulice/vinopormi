@@ -747,6 +747,8 @@ class Presupuesto(BaseModel):
     fecha_emision: datetime
     usuario_id: Optional[str] = None
     usuario_nombre: Optional[str] = None
+    ultimo_editor_id: Optional[str] = None
+    ultimo_editor_nombre: Optional[str] = None
     descuento: str = ""
     descuento_monto: float = 0.0
     total: float = 0.0
@@ -834,6 +836,8 @@ def _doc_a_presupuesto(doc: dict) -> Presupuesto:
         fecha_emision=_fecha_presupuesto(doc),
         usuario_id=doc.get('usuario_id'),
         usuario_nombre=doc.get('usuario_nombre'),
+        ultimo_editor_id=doc.get('ultimo_editor_id'),
+        ultimo_editor_nombre=doc.get('ultimo_editor_nombre'),
         descuento=descuento,
         descuento_monto=descuento_monto,
         total=total,
@@ -1903,10 +1907,41 @@ async def list_presupuestos(current_user: Usuario = Depends(get_current_user)):
     # Presupuestos es una sección compartida: cualquier usuario ve todos los guardados.
     docs = await db.presupuestos.find({}, {'_id': 0}).sort('timestamp', -1).to_list(200)
 
-    # Los presupuestos viejos no guardaban el nombre del creador.
+    # Los presupuestos viejos no guardaban quién hizo la última modificación:
+    # se reconstruye desde la auditoría (sin migrar la base).
+    ids_sin_editor = list({
+        doc.get('id') for doc in docs
+        if doc.get('id') and not doc.get('ultimo_editor_nombre')
+    })
+    if ids_sin_editor:
+        registros = await db.auditoria.find(
+            {
+                'entidad': 'presupuesto',
+                'entidad_id': {'$in': ids_sin_editor},
+                'accion': {'$in': ['modificado', 'actualizar', 'revocado']},
+            },
+            {'_id': 0, 'entidad_id': 1, 'usuario_id': 1, 'usuario_nombre': 1},
+        ).sort('fecha', -1).to_list(5000)
+        editores = {}
+        for registro in registros:
+            entidad_id = registro.get('entidad_id')
+            if entidad_id and entidad_id not in editores:
+                editores[entidad_id] = (
+                    registro.get('usuario_id'),
+                    registro.get('usuario_nombre'),
+                )
+        for doc in docs:
+            if not doc.get('ultimo_editor_nombre') and doc.get('id') in editores:
+                doc['ultimo_editor_id'], doc['ultimo_editor_nombre'] = editores[doc['id']]
+
+    # Los presupuestos viejos tampoco guardaban siempre el nombre del usuario.
     ids_faltantes = list({
-        doc.get('usuario_id') for doc in docs
-        if doc.get('usuario_id') and not doc.get('usuario_nombre')
+        uid for doc in docs
+        for uid, campo in (
+            (doc.get('usuario_id'), 'usuario_nombre'),
+            (doc.get('ultimo_editor_id'), 'ultimo_editor_nombre'),
+        )
+        if uid and not doc.get(campo)
     })
     nombres = {}
     if ids_faltantes:
@@ -1915,8 +1950,10 @@ async def list_presupuestos(current_user: Usuario = Depends(get_current_user)):
         ).to_list(1000)
         nombres = {u.get('id'): u.get('nombre') for u in usuarios}
         for doc in docs:
-            if not doc.get('usuario_nombre'):
+            if doc.get('usuario_id') and not doc.get('usuario_nombre'):
                 doc['usuario_nombre'] = nombres.get(doc.get('usuario_id'))
+            if doc.get('ultimo_editor_id') and not doc.get('ultimo_editor_nombre'):
+                doc['ultimo_editor_nombre'] = nombres.get(doc.get('ultimo_editor_id'))
 
     return [_doc_a_presupuesto(doc) for doc in docs]
 
@@ -1963,6 +2000,8 @@ async def update_presupuesto(
         cambios['timestamp'] = datetime.now(timezone.utc).isoformat()
 
     if cambios:
+        cambios['ultimo_editor_id'] = current_user.id
+        cambios['ultimo_editor_nombre'] = current_user.nombre
         await db.presupuestos.update_one({'id': presupuesto_id}, {'$set': cambios})
         doc.update(cambios)
 

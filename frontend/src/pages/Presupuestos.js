@@ -692,12 +692,13 @@ const Presupuestos = () => {
           <>
             <ResponsiveTable
               headers={[
-                { title: 'Fecha', width: '17%' },
-                { title: 'Usuario', width: '18%' },
-                { title: 'Productos', width: '12%' },
-                { title: 'Total', width: '15%', align: 'right' },
-                { title: 'Estado', width: '12%' },
-                { title: 'Acciones', width: '26%' },
+                { title: 'Fecha', width: '14%' },
+                { title: 'Creado por', width: '13%' },
+                { title: 'Editado por', width: '13%' },
+                { title: 'Productos', width: '10%' },
+                { title: 'Total', width: '13%', align: 'right' },
+                { title: 'Estado', width: '10%' },
+                { title: 'Acciones', width: '27%', align: 'center' },
               ]}
               rows={presupuestosVisibles}
               renderDesktopRow={(presupuesto) => {
@@ -708,7 +709,17 @@ const Presupuestos = () => {
                       {formatearFecha(presupuesto.fecha_emision)}
                     </td>
                     <td className="p-2 text-xs font-medium">
-                      {presupuesto.usuario_nombre || presupuesto.usuario_id || '—'}
+                      <span title={presupuesto.usuario_nombre || presupuesto.usuario_id || 'Sin creador'}>
+                        {presupuesto.usuario_nombre || presupuesto.usuario_id || '—'}
+                      </span>
+                    </td>
+                    <td className="p-2 text-xs">
+                      <span
+                        className="block truncate"
+                        title={presupuesto.ultimo_editor_nombre || presupuesto.ultimo_editor_id || 'Sin modificaciones'}
+                      >
+                        {presupuesto.ultimo_editor_nombre || presupuesto.ultimo_editor_id || '—'}
+                      </span>
                     </td>
                     <td className="p-2 text-xs whitespace-nowrap">
                       {cantidad} {cantidad === 1 ? 'producto' : 'productos'}
@@ -732,12 +743,21 @@ const Presupuestos = () => {
                       {estadoPresupuesto(presupuesto)}
                     </div>
                     <div className="flex items-center justify-between gap-2 mt-1">
-                      <span className="text-xs font-medium min-w-0 truncate">
-                        {presupuesto.usuario_nombre || presupuesto.usuario_id || '—'}
+                      <span
+                        className="text-xs font-medium min-w-0 truncate"
+                        title={presupuesto.usuario_nombre || presupuesto.usuario_id || 'Sin creador'}
+                      >
+                        Creado por: {presupuesto.usuario_nombre || presupuesto.usuario_id || '—'}
                       </span>
                       <span className="vpm-num text-xs font-semibold text-right whitespace-nowrap">
                         {formatCurrency(presupuesto.total, showCents)}
                       </span>
+                    </div>
+                    <div
+                      className="text-xs text-muted-foreground mt-1 truncate"
+                      title={presupuesto.ultimo_editor_nombre || presupuesto.ultimo_editor_id || 'Sin modificaciones'}
+                    >
+                      Editado por: {presupuesto.ultimo_editor_nombre || presupuesto.ultimo_editor_id || '—'}
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">
                       {cantidad} {cantidad === 1 ? 'producto' : 'productos'}
