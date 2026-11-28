@@ -90,7 +90,7 @@ la raíz ya lo invoca.
 
    ```powershell
    cd D:\AppServ\www\vinopormi
-   $env:MONGO_URI_ORIGEN = 'mongodb+srv://USUARIO:CLAVE@vinopormi-cloud.xxxxx.mongodb.net/'
+   $env:MONGO_URI_ORIGEN = 'URI_DE_ATLAS_CON_CREDENCIALES'
    $env:MONGO_URI_DESTINO = 'mongodb://localhost:27017'
    python sync_db.py --prod NOMBRE_DB_PROD --dev test_database_dev --dry-run
    ```
