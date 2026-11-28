@@ -3,8 +3,8 @@
 No modifica la base de origen. Sobrescribe las colecciones del destino.
 
 Ejemplo:
-  python migrate_to_atlas.py --target-uri "mongodb+srv://user:pass@cluster.mongodb.net/" --dry-run
-  python migrate_to_atlas.py --target-uri "mongodb+srv://user:pass@cluster.mongodb.net/" -y
+  python migrate_to_atlas.py --target-uri "URI_DE_ATLAS_CON_CREDENCIALES" --dry-run
+  python migrate_to_atlas.py --target-uri "URI_DE_ATLAS_CON_CREDENCIALES" -y
 """
 import argparse
 import os
